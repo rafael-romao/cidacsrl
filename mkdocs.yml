@@ -1,0 +1,29 @@
+site_name: CIDACSRL Record Linkage Platform
+site_description: CIDACSRL-RLP Documentation
+site_author: "Rafael Romão"
+repo_url: https://github.com/rafael-romao/cidacsrl-rlp
+repo_name: rafael-romao/cidacsrl-rlp
+edit_uri: tree/main/docs/
+theme: 
+  name: material
+  language: pt-BR
+
+plugins:
+  - mkdocstrings:
+      handlers: 
+          python:
+              paths: [cidacsrl_rlp.src]
+
+nav:
+  - 'Início': 'index.md'
+  - 'Guias de Uso':
+    - 'Limpeza de Dados': 'user-guide/cleaning.md'
+    - 'Indexação no Elasticsearch': 'user-guide/elasticsearch_indexing.md'
+    - 'Linkage de Dados': 'user-guide/linkage.md'
+  - 'Referência Técnica': 
+    - 'Workflows de Limpeza': 'reference/cleaning_workflow.md'
+    - 'Limpador de Colunas': 'reference/column_cleaner.md'
+    - 'Workflow de Indexação': 'reference/elasticsearch_indexing_workflow.md'
+    - 'Operações de Indexação': 'reference/indexing_operations.md'
+    - 'Carregador de Configuração': 'reference/loader.md'
+    - 'Workflow de Linkage': 'reference/sequential_linkage_workflow.md'
