@@ -5,12 +5,12 @@ from pathlib import Path
 from cidacsrl_rlp.src.cleaning.column_cleaner import ColumnConfig, ConcatenateColumnConfig
 
 
-from geo_cidacsrl.src.linkage.models import (
+from cidacsrl_rlp.src.linkage.models import (
     SequentialBlockingWorkflow,
     load_workflow_from_dict
 )
 
-from geo_cidacsrl.src.es.mapping_models import (
+from cidacsrl_rlp.src.es.mapping_models import (
     ESIndexDefinition,
     ESIndexSettings,
     ESColumnDefinition

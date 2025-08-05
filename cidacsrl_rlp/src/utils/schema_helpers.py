@@ -13,7 +13,7 @@ from pyspark.sql.types import (
 from pyspark.sql import DataFrame
 
 # Import necessary models for type hinting and access to configuration
-from geo_cidacsrl.src.linkage.models import (
+from cidacsrl_rlp.src.linkage.models import (
     SequentialBlockingWorkflow,
     BlockingPhase
     # ComparisonRule is not directly type-hinted here, accessed via phase_config.rules

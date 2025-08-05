@@ -17,7 +17,7 @@ except ImportError as e:
     raise e # Re-raise to stop execution if GraphFrames is essential
 
 # Use the project's standard logging setup
-from geo_cidacsrl.src.utils.logging_config import setup_logging
+from cidacsrl_rlp.src.utils.logging_config import setup_logging
 
 logger = logging.getLogger(__name__)
 

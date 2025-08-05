@@ -3,7 +3,7 @@
 import logging
 from typing import Dict, Any, List, Callable
 
-from geo_cidacsrl.src.linkage.similarity_functions import (
+from cidacsrl_rlp.src.linkage.similarity_functions import (
     jaro_winkler_score_func,
     hamming_score_func,
     exact_score_func

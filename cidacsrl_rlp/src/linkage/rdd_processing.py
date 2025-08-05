@@ -8,12 +8,12 @@ from pyspark.sql.types import StructType  # For typing the broadcasted schema
 from pyspark.broadcast import Broadcast  # For typing broadcast variables
 
 # --- Project Module Imports ---
-from geo_cidacsrl.src.es.client import get_es_client
-from geo_cidacsrl.src.es.query_builder import create_es_query_for_phase
-from geo_cidacsrl.src.es.response_parser import extract_hits_from_es_response
-from geo_cidacsrl.src.linkage.scoring_engine import calculate_pair_scores_and_similarities
+from cidacsrl_rlp.src.es.client import get_es_client
+from cidacsrl_rlp.src.es.query_builder import create_es_query_for_phase
+from cidacsrl_rlp.src.es.response_parser import extract_hits_from_es_response
+from cidacsrl_rlp.src.linkage.scoring_engine import calculate_pair_scores_and_similarities
 # Constants for field names, imported from schema_helpers
-from geo_cidacsrl.src.utils.schema_helpers import CANDIDATE_ES_DOC_ID_FIELD, ES_HIT_SCORE_FIELD, LINKAGE_PHASE_NAME_FIELD
+from cidacsrl_rlp.src.utils.schema_helpers import CANDIDATE_ES_DOC_ID_FIELD, ES_HIT_SCORE_FIELD, LINKAGE_PHASE_NAME_FIELD
 
 logger = logging.getLogger(__name__)
 

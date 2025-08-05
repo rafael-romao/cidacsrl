@@ -8,7 +8,7 @@ from typing import Optional, Dict, Any
 from pyspark.sql import SparkSession, DataFrame
 
 # Project-specific imports
-from src.linkage.models import (
+from cidacsrl_rlp.src.linkage.models import (
     SequentialBlockingWorkflow,
     BlockingPhase
 )
