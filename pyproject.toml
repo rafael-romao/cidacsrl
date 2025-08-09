@@ -17,6 +17,8 @@ packages = [{include = "cidacsrl_rlp", from = "src"}]
 [tool.poetry.group.dev.dependencies]
 pytest = "^8.4.1"
 pytest-cov = "^6.2.1"
+elasticsearch = "^9.1.0"
+pyspark = "^4.0.0"
 
 
 [tool.poetry.group.doc.dependencies]
