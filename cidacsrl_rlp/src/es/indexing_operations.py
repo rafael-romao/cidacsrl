@@ -2,7 +2,7 @@ import logging
 import time
 from typing import Dict, Any
 
-from elasticsearch import Elasticsearch, ConnectionError as ESConnectionError, TimeoutError as ESTimeoutError
+from elasticsearch import Elasticsearch, ConnectionError as ESConnectionError, ConnectionTimeout as ESTimeoutError
 from pyspark.sql import DataFrame
 
 
