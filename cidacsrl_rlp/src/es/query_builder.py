@@ -8,7 +8,6 @@ def create_es_query_for_phase(
     rules_dicts: List[Dict[str, Any]],
     target_es_fields_to_fetch: List[str],
     candidate_limit: int,
-    global_filter_clauses: Optional[List[Dict[str, Any]]] = None
 ) -> Optional[Dict[str, Any]]:
     """
     Cria o corpo da consulta Elasticsearch para um único registro da fonte,
@@ -20,8 +19,6 @@ def create_es_query_for_phase(
         rules_dicts (List[Dict[str, Any]]): Lista de dicionários de regras de comparação para a fase.
         target_es_fields_to_fetch (List[str]): Lista de campos do índice alvo no Elasticsearch a serem retornados.
         candidate_limit (int): Número máximo de candidatos a serem retornados pela consulta.
-        global_filter_clauses (Optional[List[Dict[str, Any]]]): Lista opcional de cláusulas de filtro globais
-                                                                a serem aplicadas à query Elasticsearch.
 
     Returns:
         Optional[Dict[str, Any]]: Um dicionário representando o corpo da consulta Elasticsearch,
@@ -29,8 +26,7 @@ def create_es_query_for_phase(
     """
     must_clauses: List[Dict[str, Any]] = []
     should_clauses: List[Dict[str, Any]] = []
-    # Initialize with global filters if provided
-    filter_clauses: List[Dict[str, Any]] = list(global_filter_clauses or [])
+    filter_clauses: List[Dict[str, Any]] = []
     must_not_clauses: List[Dict[str, Any]] = []
 
     if not rules_dicts:
@@ -39,7 +35,7 @@ def create_es_query_for_phase(
 
     for rule_dict in rules_dicts:
         source_column_name = rule_dict.get('source_column')
-        target_es_field_name = rule_dict.get('target_column') # Target field in Elasticsearch
+        target_es_field_name = rule_dict.get('target_column')
 
         if not source_column_name or not target_es_field_name:
             logger.warning(f"Incomplete comparison rule dictionary: {rule_dict}. Skipping this rule.")
@@ -91,14 +87,6 @@ def create_es_query_for_phase(
                 specific_query_details["boost"] = boost
             query_clause_content = {"prefix": {target_es_field_name: specific_query_details}}
 
-        # Add other query types (e.g., "fuzzy", "wildcard", "range") here as needed
-        # Example for an explicit "fuzzy" query type (distinct from "match" with "is_fuzzy: true")
-        # elif query_type == "fuzzy":
-        #     specific_query_details = {"value": str(source_value), "fuzziness": "AUTO"}
-        #     if clause_type in ["should", "must"] and boost != 1.0:
-        #         specific_query_details["boost"] = boost
-        #     query_clause_content = {"fuzzy": {target_es_field_name: specific_query_details}}
-
         else:
             logger.warning(f"Unsupported query type: '{query_type}' for target field '{target_es_field_name}'. Skipping this rule.")
             continue
@@ -131,12 +119,8 @@ def create_es_query_for_phase(
         # If 'must' clauses exist, 'minimum_should_match' is not strictly necessary for results,
         # but can be used to refine the logic of 'should' clauses.
         # A common default is 1 if only 'should' clauses are present.
-        if not must_clauses and "minimum_should_match" not in bool_query_conditions: # check if not already set by global config perhaps
+        if not must_clauses and "minimum_should_match" not in bool_query_conditions:
              bool_query_conditions["minimum_should_match"] = 1
-        # Consider allowing 'minimum_should_match' to be configured via phase_config, e.g.:
-        # min_should_match = phase_config.get('es_query_min_should_match', 1 if not must_clauses and should_clauses else 0)
-        # if min_should_match > 0:
-        #    bool_query_conditions["minimum_should_match"] = min_should_match
 
     if filter_clauses:
         bool_query_conditions["filter"] = filter_clauses
@@ -144,12 +128,7 @@ def create_es_query_for_phase(
         bool_query_conditions["must_not"] = must_not_clauses
 
     if not bool_query_conditions:
-        # Attempt to get a source ID for logging in a generic way
-        # This helps in identifying which source record did not yield a query.
         source_id_for_log = source_row_dict.get(next(iter(source_row_dict)), 'N/A_SOURCE_ID') if source_row_dict else 'N/A_SOURCE_ID'
-        # If a specific ID field name is known (e.g., from workflow_config.id_source_table, if passed here):
-        # id_field = workflow_config.id_source_table # Assuming workflow_config was available
-        # source_id_for_log = source_row_dict.get(id_field, 'UNKNOWN_SOURCE_ID')
 
         logger.debug(
             f"No effective query clauses (must, should, filter, must_not) were generated for the source record "
@@ -163,17 +142,15 @@ def create_es_query_for_phase(
 
     if candidate_limit > 0:
         search_body["size"] = candidate_limit
-    else:
-        # A candidate_limit of 0 or less is usually not intended for fetching candidates.
+    else:        
         logger.warning(f"Candidate limit is {candidate_limit} for the phase. No ES search will be performed or no results will be fetched.")
-        return None # Return None if candidate_limit is invalid for fetching
+        return None
 
     if target_es_fields_to_fetch:
         search_body["_source"] = target_es_fields_to_fetch
     else:
         # If no specific fields are requested, ES returns all. To avoid this if not intended:
         search_body["_source"] = False # Set to False to not return _source field at all
-        # Alternatively, use [] to return _source as an empty object, or specific minimal fields.
         logger.debug("No target_es_fields_to_fetch specified; ES query will set _source to False.")
 
     logger.debug(f"Generated ES query body for the phase: {search_body}")

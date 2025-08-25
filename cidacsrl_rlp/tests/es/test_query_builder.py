@@ -87,23 +87,6 @@ def test_only_should_clauses_adds_minimum_should_match():
     assert len(bool_query["should"]) == 2
     assert bool_query["minimum_should_match"] == 1
 
-def test_global_filters_are_added(sample_source_row):
-    """Testa se os filtros globais são corretamente adicionados à consulta."""
-    rules = [{"source_column": "nome", "target_column": "nome_completo", "es_clause_type": "must", "query_type": "match"}]
-    global_filters = [{"term": {"status": "ativo"}}]
-
-    query = create_es_query_for_phase(
-        source_row_dict=sample_source_row,
-        rules_dicts=rules,
-        target_es_fields_to_fetch=[],
-        candidate_limit=10,
-        global_filter_clauses=global_filters
-    )
-
-    bool_query = query["query"]["bool"]
-    assert len(bool_query["filter"]) == 1
-    assert bool_query["filter"][0] == {"term": {"status": "ativo"}}
-
 def test_invalid_candidate_limit_returns_none(sample_source_row, sample_rules):
     """Testa se um limite de candidatos inválido (<=0) retorna None."""
     query_zero = create_es_query_for_phase(sample_source_row, sample_rules, [], 0)
