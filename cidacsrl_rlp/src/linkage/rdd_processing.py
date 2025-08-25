@@ -256,12 +256,9 @@ def process_partition_for_phase(
 
 
     # --- Determine Elasticsearch partition filter for this phase ---
-    # This logic allows a phase to override the global runtime partition or disable partitioning.
     effective_es_partition_value_for_query: Optional[str] = None
     apply_es_partition_filter_for_this_phase: bool = True # Default to applying a partition filter if possible
 
-    # 'es_target_partition_value_override' can be set in phase_cfg (e.g., from YAML).
-    # It's not part of the BlockingPhase dataclass but can be an extra dict key.
     phase_partition_override = phase_cfg.get('es_target_partition_value_override')
 
     if phase_partition_override is not None:
