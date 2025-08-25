@@ -99,23 +99,3 @@ def hamming_score_func(s1: str, s2: str) -> float:
     except Exception as e:
         logger.error(f"Error calculating Hamming similarity for '{s1_str}' vs '{s2_str}': {e}", exc_info=True)
         return 0.0
-
-# --- Add other similarity functions as needed ---
-# Example: Normalized Levenshtein similarity
-# def levenshtein_normalized_similarity(s1: str, s2: str) -> float:
-#     s1_str = str(s1) if s1 is not None else ""
-#     s2_str = str(s2) if s2 is not None else ""
-#
-#     if not s1_str and not s2_str: # Both empty
-#         return 1.0
-#     if not s1_str or not s2_str: # One empty, one not
-#         return 0.0
-#
-#     max_len = max(len(s1_str), len(s2_str))
-#
-#     try:
-#         distance = jellyfish.levenshtein_distance(s1_str, s2_str)
-#         return 1.0 - (float(distance) / max_len)
-#     except Exception as e:
-#         logger.error(f"Error calculating Levenshtein similarity for '{s1_str}' vs '{s2_str}': {e}", exc_info=True)
-#         return 0.0
