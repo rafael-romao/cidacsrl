@@ -199,8 +199,6 @@ def process_partition_for_phase(
     workflow_config_dict_bcast: Broadcast[Dict[str, Any]],
     phase_config_dict_bcast: Broadcast[Dict[str, Any]],
     es_config_dict_bcast: Broadcast[Dict[str, Any]],
-    source_schema_bcast: Broadcast[StructType], # Though not directly used in this version, kept for signature consistency if needed later
-    runtime_partition_value_bcast: Broadcast[Optional[str]]
 ) -> Iterator[Dict[str, Any]]:
     """
     Processa uma partição de dados da fonte para uma dada fase de linkage (blocking phase).
@@ -213,8 +211,6 @@ def process_partition_for_phase(
         workflow_config_dict_bcast (Broadcast[Dict[str, Any]]): Configurações do workflow (broadcast).
         phase_config_dict_bcast (Broadcast[Dict[str, Any]]): Configurações da fase de linkage (broadcast).
         es_config_dict_bcast (Broadcast[Dict[str, Any]]): Configurações de conexão do Elasticsearch (broadcast).
-        source_schema_bcast (Broadcast[StructType]): Schema dos dados da fonte (broadcast). (Não usado ativamente aqui)
-        runtime_partition_value_bcast (Broadcast[Optional[str]]): Valor da partição de runtime global (broadcast).
 
     Yields:
         Iterator[Dict[str, Any]]: Dicionários representando os pares fonte-candidato pontuados que
@@ -223,10 +219,7 @@ def process_partition_for_phase(
     workflow_cfg = workflow_config_dict_bcast.value
     phase_cfg = phase_config_dict_bcast.value
     es_cfg = es_config_dict_bcast.value
-    global_runtime_partition_value = runtime_partition_value_bcast.value
-    # source_schema = source_schema_bcast.value # Not used in current logic
 
-    # For logging purposes, identify the partition being processed (if possible)
     partition_id_for_log = f"phase_{phase_cfg.get('phase_name', 'UNKNOWN_PHASE')}"
     logger.info(f"Processing partition for {partition_id_for_log} started.")
 
@@ -252,46 +245,7 @@ def process_partition_for_phase(
 
     if not target_es_fields_to_fetch:
         logger.warning(f"No target ES fields to fetch (including ID) for {partition_id_for_log}. This is unusual. Skipping partition.")
-        return iter([])
-
-
-    # --- Determine Elasticsearch partition filter for this phase ---
-    effective_es_partition_value_for_query: Optional[str] = None
-    apply_es_partition_filter_for_this_phase: bool = True # Default to applying a partition filter if possible
-
-    phase_partition_override = phase_cfg.get('es_target_partition_value_override')
-
-    if phase_partition_override is not None:
-        if isinstance(phase_partition_override, str) and \
-           (phase_partition_override.upper() == "_DISABLE_" or phase_partition_override == ""):
-            # Phase explicitly disables partition filtering
-            apply_es_partition_filter_for_this_phase = False
-            logger.info(f"ES target partition filter explicitly disabled for phase '{phase_cfg.get('phase_name', 'N/A')}'.")
-        else:
-            # Phase overrides with a specific partition value
-            effective_es_partition_value_for_query = str(phase_partition_override)
-            logger.info(f"ES target partition filter overridden to '{effective_es_partition_value_for_query}' for phase '{phase_cfg.get('phase_name', 'N/A')}'.")
-    else: # No phase-specific override, use global runtime partition value if available
-        if global_runtime_partition_value is not None:
-            effective_es_partition_value_for_query = global_runtime_partition_value
-            logger.debug(f"Using global runtime partition value '{effective_es_partition_value_for_query}' for phase '{phase_cfg.get('phase_name', 'N/A')}'.")
-        else:
-            # No global value and no phase override, so no partition filter can be applied based on these.
-            apply_es_partition_filter_for_this_phase = False
-            logger.info(f"No global runtime partition value or phase override; ES target partition filter not applied for phase '{phase_cfg.get('phase_name', 'N/A')}'.")
-
-    # Construct the global filter clause if partitioning is active for this phase
-    global_es_filters_list_for_query: List[Dict[str, Any]] = []
-    if apply_es_partition_filter_for_this_phase and effective_es_partition_value_for_query:
-        es_partition_field_name = workflow_cfg.get('target_es_partition_filter_field')
-        if es_partition_field_name:
-            global_es_filters_list_for_query.append({
-                "term": {es_partition_field_name: effective_es_partition_value_for_query}
-            })
-            logger.debug(f"Applying ES target partition filter: {global_es_filters_list_for_query} for phase '{phase_cfg.get('phase_name', 'N/A')}'.")
-        else:
-            logger.warning(f"ES target partition filtering was requested for phase '{phase_cfg.get('phase_name', 'N/A')}' "
-                           f"but 'target_es_partition_filter_field' is not defined in workflow config. No filter applied.")
+        return iter([])    
 
 
     # Iterate over source rows in the partition
@@ -307,8 +261,7 @@ def process_partition_for_phase(
             source_row_dict=source_row_dict,
             rules_dicts=phase_cfg['rules'],
             target_es_fields_to_fetch=target_es_fields_to_fetch,
-            candidate_limit=phase_cfg['candidate_limit'],
-            global_filter_clauses=global_es_filters_list_for_query if global_es_filters_list_for_query else None
+            candidate_limit=phase_cfg['candidate_limit']
         )
 
         if es_query_body:
