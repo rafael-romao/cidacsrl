@@ -307,12 +307,6 @@ def main():
                 args.current_partition_value
             )
 
-            # Optional: Persist the results of this phase if they are large or reused
-            # if actual_checkpoint_dir_str:
-            #     df_strong_matches_this_phase = df_strong_matches_this_phase.checkpoint()
-            # else:
-            #     df_strong_matches_this_phase.persist(spark_settings.get("default_storage_level", "MEMORY_AND_DISK"))
-
 
             strong_matches_count_this_phase = df_strong_matches_this_phase.count()
             phase_execution_duration = time.time() - phase_execution_start_time
@@ -355,25 +349,15 @@ def main():
                     how="left_anti" # Keep only records from df_source_for_processing that are NOT in ids_matched_in_phase
                 )
 
-                # Optional: Unpersist df_strong_matches_this_phase if it was persisted
-                # if df_strong_matches_this_phase.is_cached:
-                #     df_strong_matches_this_phase.unpersist()
-
 
                 count_remaining_source_ids = df_source_for_processing.count() # This count is on the RDD after join
                 if count_remaining_source_ids > 0:
                     logger.info(f"{count_remaining_source_ids:,} source records remaining for next phase.")
                 else:
                     logger.info(f"No source records remaining after phase '{phase_config.phase_name}'. Workflow will terminate if no more phases.")
-                    # The loop will break naturally if this was the last phase or if next phase checks count.
-                    # If we want to explicitly break if no records remain:
-                    # break
 
             else: # No strong matches found in this phase
                 logger.info(f"No strong matches found in phase '{phase_config.phase_name}'.")
-                # No need to unpersist df_source_for_processing here as it wasn't modified by a join
-                # df_strong_matches_this_phase is empty, so no write or join occurs.
-                # Continue to the next phase, as subsequent phases might use different strategies.
 
             phase_loop_total_duration = time.time() - phase_loop_start_time
             logger.info(f"--- Phase '{phase_config.phase_name}' completed (total loop time: {phase_loop_total_duration:.2f}s) ---")
@@ -385,48 +369,11 @@ def main():
 
         logger.info("All linkage phases have been executed.")
 
-        # TODO: Consider a final consolidation step if `final_output_filename` is specified in config
-        # This would involve reading all intermediate phase results and creating a single output file.
-        # Example:
-        # if workflow_config.final_output_filename and intermediate_results_base_path.exists():
-        #     logger.info(f"Consolidating all phase results into: {workflow_config.final_output_filename}")
-        #     try:
-        #         df_all_matches = spark.read.option("basePath", str(intermediate_results_base_path)).parquet(str(intermediate_results_base_path / "*"))
-        #         # Further processing: select columns, deduplicate across phases if needed, etc.
-        #         # final_output_path = output_data_dir_path / workflow_config.final_output_filename
-        #         # df_all_matches.write.format("parquet").mode("overwrite").save(str(final_output_path))
-        #         # logger.info(f"Final consolidated results saved to: {final_output_path}")
-        #     except Exception as e_consolidate:
-        #         logger.error(f"Error consolidating final results: {e_consolidate}", exc_info=True)
-
 
     except Exception as e:
         logger.critical(f"Critical error in linkage workflow: {e}", exc_info=True)
-        # Attempt to stop SparkSession gracefully on critical error
-        active_spark_session_on_error = SparkSession.getActiveSession()
-        if active_spark_session_on_error:
-            try:
-                logger.info("Attempting to stop SparkSession due to critical error...")
-                active_spark_session_on_error.stop()
-                logger.info("SparkSession stopped after error.")
-            except Exception as e_stop_error:
-                logger.error(f"Error attempting to stop SparkSession after workflow error: {e_stop_error}", exc_info=True)
         exit(1) # Exit with error code
     finally:
-        # Final cleanup
-        # Unpersisting DataFrames managed in a list is removed as per discontinuation of safely_unpersist
-        # Spark usually handles unpersisting cached RDDs/DataFrames on stop,
-        # but explicit unpersist can be done if objects are known.
-
-        active_spark_session = SparkSession.getActiveSession()
-        if active_spark_session:
-            try:
-                logger.info("Attempting to stop active SparkSession at the end of the workflow...")
-                active_spark_session.stop()
-                logger.info("SparkSession stopped successfully.")
-            except Exception as e_stop_final:
-                logger.error(f"Error attempting to stop SparkSession at workflow completion: {e_stop_final}", exc_info=True)
-
         workflow_duration_total = time.time() - workflow_start_time
         mins, secs = divmod(workflow_duration_total, 60)
         logger.info(f"CIDACS-RL Engine Linkage Workflow completed in {workflow_duration_total:.2f} seconds "
