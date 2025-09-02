@@ -2,7 +2,7 @@ import argparse
 import logging
 import time
 from pathlib import Path
-import re
+
 from typing import Optional, Dict, Any
 
 from pyspark.sql import SparkSession, DataFrame
@@ -21,31 +21,6 @@ from cidacsrl_rlp.src.utils.spark_utils import create_spark_session
 
 # Logger for this module
 logger = logging.getLogger(__name__)
-
-
-def make_safe_filename_component(name: str) -> str:
-    """
-    Remove caracteres inválidos de uma string para que ela possa ser usada
-    com segurança como parte de um nome de diretório ou arquivo.
-    Caracteres inválidos são substituídos por underscores.
-
-    Args:
-        name (str): A string original a ser sanitizada.
-
-    Returns:
-        str: A string sanitizada, segura para uso em nomes de arquivo/diretório.
-             Retorna "unnamed_component" se a string de entrada for vazia ou None.
-             Retorna "sanitized_empty" se a string se tornar vazia após a sanitização.
-    """
-    if not name:
-        return "unnamed_component" # Handles None or empty string input
-    # Remove or replace characters invalid in Windows/Linux filenames
-    name = re.sub(r'[<>:"/\\|?*]', '_', name)
-    # Replace whitespace sequences with a single underscore
-    name = re.sub(r'\s+', '_', name)
-    # Strip leading/trailing underscores, dots, or whitespace (though whitespace should be gone)
-    name = name.strip('._ ')
-    return name if name else "sanitized_empty" # Ensure not returning an empty string
 
 
 def execute_linkage_phase(
@@ -214,13 +189,13 @@ def main():
     es_settings = load_service_config(args.es_config_path, service_name="elasticsearch")
     spark_settings = load_service_config(args.spark_config_path, service_name="spark")
 
-    safe_source_name = make_safe_filename_component(workflow_config.source_table)
-    safe_target_name = make_safe_filename_component(workflow_config.target_es_index) # Uses target_es_index
+    safe_source_name = sanitize_string(workflow_config.source_table)
+    safe_target_name = sanitize_string(workflow_config.target_es_index) # Uses target_es_index
 
     # Construct a descriptive application name for Spark UI
     app_name_parts = [workflow_config.workflow_name or f"linkage-{safe_source_name}_vs_{safe_target_name}"]
     if args.current_partition_value:
-        app_name_parts.append(f"partition-{make_safe_filename_component(args.current_partition_value)}")
+        app_name_parts.append(f"partition-{sanitize_string(args.current_partition_value)}")
     app_name = "_".join(app_name_parts)
 
     spark = create_spark_session(
@@ -230,11 +205,9 @@ def main():
 
     try:
         output_data_dir_path = Path(args.output_data_dir)
-
-        # Define base directory for intermediate phase results
         workflow_prefix_for_dir = ""
         if workflow_config.workflow_name:
-            workflow_prefix_for_dir = make_safe_filename_component(workflow_config.workflow_name) + "_"
+            workflow_prefix_for_dir = sanitize_string(workflow_config.workflow_name) + "_"
         # Base name for directory holding all intermediate phase results for this workflow
         intermediate_base_dir_name = f"{workflow_prefix_for_dir}{safe_source_name}_vs_{safe_target_name}_intermediate_phases"
         intermediate_results_base_path = output_data_dir_path / intermediate_base_dir_name
@@ -347,7 +320,7 @@ def main():
             logger.info(f"{strong_matches_count_this_phase:,} strong match candidates (before distinct on source ID) found in the phase '{phase_config.phase_name}'.")
 
             if strong_matches_count_this_phase > 0:
-                safe_phase_name_for_path_component = make_safe_filename_component(phase_config.phase_name)
+                safe_phase_name_for_path_component = sanitize_string(phase_config.phase_name)
                 # Define output path for this phase's results, partitioned by phase name
                 phase_output_path = intermediate_results_base_path / f"linkage_phase_name={safe_phase_name_for_path_component}"
 
