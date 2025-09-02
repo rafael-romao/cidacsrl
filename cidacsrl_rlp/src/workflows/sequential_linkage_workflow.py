@@ -218,23 +218,8 @@ def main():
         source_data_path_obj = Path(args.source_data_path)
         source_data_path_to_load = source_data_path_obj
 
-        # Adjust source data path if processing a specific partition and path structure reflects this
-        # This assumes source data might be Hive-partitioned by the same key as target_es_partition_filter_field.
-        partition_key_for_path_filter = workflow_config.target_es_partition_filter_field # Or a specific source partition field
-        if args.current_partition_value and partition_key_for_path_filter:
-            # Example: /path/to/data/uf=SP
-            potential_partitioned_path = source_data_path_obj / f"{partition_key_for_path_filter}={args.current_partition_value}"
-            # Check if this specific partitioned path exists; otherwise, fall back to the base path
-            if potential_partitioned_path.exists() and potential_partitioned_path.is_dir():
-                source_data_path_to_load = potential_partitioned_path
-                logger.info(f"Adjusted source data path to load specific partition: {source_data_path_to_load}")
-            else:
-                logger.warning(f"Partitioned source data path {potential_partitioned_path} not found or not a directory. "
-                               f"Attempting to load from base source path: {source_data_path_obj}")
-                if not source_data_path_obj.exists() or not source_data_path_obj.is_dir():
-                     logger.error(f"Base source data path does not exist or is not a directory: {source_data_path_obj}")
-                     raise FileNotFoundError(f"Base source data path not found: {source_data_path_obj}")
-        elif not source_data_path_obj.exists() or not source_data_path_obj.is_dir():
+        
+        if not source_data_path_obj.exists() or not source_data_path_obj.is_dir():
             logger.error(f"Source data path does not exist or is not a directory: {source_data_path_obj}")
             raise FileNotFoundError(f"Source data path not found: {source_data_path_obj}")
 
@@ -276,17 +261,6 @@ def main():
             if not phase_config.enabled:
                 logger.info(f"Skipping disabled phase: '{phase_config.phase_name}'")
                 continue
-
-            # Persist the current state of df_source_for_processing before counting and processing
-            # This is important because it will be used as input to execute_linkage_phase
-            # and also for the left_anti join later.
-            if actual_checkpoint_dir_str:
-                logger.debug(f"Checkpointing df_source_for_processing for phase '{phase_config.phase_name}' at: {actual_checkpoint_dir_str}")
-                df_source_for_processing = df_source_for_processing.checkpoint(eager=False) # Non-eager checkpoint
-            else:
-                logger.debug(f"Persisting df_source_for_processing for phase '{phase_config.phase_name}' with default storage level.")
-                df_source_for_processing.persist(spark_settings.get("default_storage_level", "MEMORY_AND_DISK"))
-
 
             current_source_count_for_phase = df_source_for_processing.select(workflow_config.id_source_table).count()
 
@@ -336,10 +310,6 @@ def main():
                 ids_matched_in_phase = df_strong_matches_this_phase.select(workflow_config.id_source_table).distinct()
                 num_unique_source_ids_matched = ids_matched_in_phase.count()
                 logger.info(f"{num_unique_source_ids_matched:,} unique source IDs found strong matches in phase '{phase_config.phase_name}'.")
-
-                # Unpersist the previous version of df_source_for_processing before reassigning
-                if df_source_for_processing.is_cached: # Or check storageLevel if not MEMORY_ONLY
-                     df_source_for_processing.unpersist()
 
 
                 # Remove matched source IDs from the pool for subsequent phases
