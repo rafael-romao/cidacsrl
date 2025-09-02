@@ -7,6 +7,7 @@ from pyspark.sql import SparkSession
 from cidacsrl_rlp.src.config.loader import load_index_config, load_service_config
 from cidacsrl_rlp.src.es.indexing_operations import create_es_index_and_ingest_data
 from cidacsrl_rlp.src.utils.logging_config import setup_logging
+from cidacsrl_rlp.src.utils.spark_utils import create_spark_session
 
 # Configure logging
 logger = logging.getLogger(__name__)
@@ -96,35 +97,16 @@ def main():
 
     # Load configurations
     logger.info("Loading configurations...")
-    spark_config_settings = load_service_config(
-        args.spark_config_path, service_name="spark"
-    )
     index_definition = load_index_config(args.index_config_path)
     es_connection_config = load_service_config(
         args.es_config_path, service_name="elasticsearch"
     )
 
-    # Initialize Spark session with Spark configurations
-    logger.info("Initializing SparkSession...")
-    spark_builder = SparkSession.builder.appName(f"IndexerApp-{index_definition.name}")
-
-    loaded_spark_configs = spark_config_settings.get("spark_configs", {})
-    if isinstance(loaded_spark_configs, dict):
-        for key, value in loaded_spark_configs.items():
-            spark_builder = spark_builder.config(key, value)
-    else:
-        logger.warning(
-            "No 'spark_configs' dictionary found in Spark configuration file or it's not a dictionary. "
-            "Using Spark defaults or external submission configs."
-        )
-
-    spark = spark_builder.getOrCreate()
-    logger.info(
-        f"SparkSession initialized. Application Name: {spark.conf.get('spark.app.name')}"
+    # Initialize Spark session
+    spark = create_spark_session(
+        app_name=f"IndexerApp-{index_definition.name}",
+        spark_config_path=args.spark_config_path,
     )
-    logger.debug("Spark configurations:")
-    for key, value in loaded_spark_configs.items():
-        logger.debug(f"{key}: {value}")
 
     # Load source data from Parquet
     try:

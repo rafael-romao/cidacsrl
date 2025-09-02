@@ -16,6 +16,8 @@ from cidacsrl_rlp.src.config.loader import load_sequential_blocking_workflow_con
 from cidacsrl_rlp.src.linkage.rdd_processing import process_partition_for_phase
 from cidacsrl_rlp.src.utils.schema_helpers import define_phase_output_schema, define_workflow_output_schema
 from cidacsrl_rlp.src.utils.logging_config import setup_logging
+from cidacsrl_rlp.src.utils.utils import sanitize_string
+from cidacsrl_rlp.src.utils.spark_utils import create_spark_session
 
 # Logger for this module
 logger = logging.getLogger(__name__)
@@ -221,29 +223,10 @@ def main():
         app_name_parts.append(f"partition-{make_safe_filename_component(args.current_partition_value)}")
     app_name = "_".join(app_name_parts)
 
-    # Initialize SparkSession
-    spark_builder = SparkSession.builder.appName(app_name)
-    if "spark_configs" in spark_settings and isinstance(spark_settings["spark_configs"], dict):
-        for key, value in spark_settings["spark_configs"].items():
-            spark_builder = spark_builder.config(key, value)
-    spark = spark_builder.getOrCreate()
-    logger.info(f"SparkSession '{app_name}' created successfully.")
-    master_config = spark.conf.get("spark.master", "local[*]") # Default to local if not set
-    logger.info(f"Spark running in mode: {master_config}")
-
-    # Configure Spark checkpoint directory if provided
-    actual_checkpoint_dir_str = None
-    if args.spark_checkpoint_base_dir:
-        # Create a job-specific subdirectory for checkpoints
-        checkpoint_dir_path = Path(args.spark_checkpoint_base_dir) / make_safe_filename_component(app_name)
-        try:
-            checkpoint_dir_path.mkdir(parents=True, exist_ok=True)
-            spark.sparkContext.setCheckpointDir(str(checkpoint_dir_path))
-            actual_checkpoint_dir_str = str(checkpoint_dir_path)
-            logger.info(f"Spark checkpoint directory set to: {actual_checkpoint_dir_str}")
-        except Exception as e_mkdir:
-            logger.warning(f"Could not create or set Spark checkpoint directory {checkpoint_dir_path}: {e_mkdir}. "
-                           "Checkpointing will be disabled for this run.", exc_info=True)
+    spark = create_spark_session(
+        app_name=app_name,
+        spark_config_path=spark_settings,
+    )
 
     try:
         output_data_dir_path = Path(args.output_data_dir)
