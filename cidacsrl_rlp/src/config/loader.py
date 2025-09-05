@@ -7,6 +7,7 @@ from cidacsrl_rlp.src.cleaning.column_cleaner import ColumnConfig, ConcatenateCo
 
 from cidacsrl_rlp.src.linkage.models import (
     SequentialBlockingWorkflow,
+    WorkflowConfig,
     load_workflow_from_dict
 )
 
@@ -361,3 +362,25 @@ def load_service_config(
         f"Configuration for service '{service_name}' loaded successfully from '{file_name}'."
     )
     return config_data
+
+
+def load_workflow_config(config_path: Union[str, Path]) -> WorkflowConfig:
+    """
+    Carrega a configuração do workflow de um arquivo YAML.
+    
+    Args:
+        config_path: Caminho para o arquivo de configuração YAML do workflow.
+        
+    Returns:
+        Uma instância de WorkflowConfig com as configurações carregadas.
+        
+    Raises:
+        FileNotFoundError: Se o arquivo de configuração não for encontrado.
+        ValueError: Se a configuração for inválida.
+    """
+    config_data = load_yaml(config_path)
+    
+    try:
+        return WorkflowConfig(**config_data)
+    except TypeError as e:
+        raise ValueError(f"Configuração inválida no arquivo {config_path}: {e}") from e

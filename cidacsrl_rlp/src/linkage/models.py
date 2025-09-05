@@ -5,6 +5,21 @@ from typing import List, Optional, Dict, Any
 logger = logging.getLogger(__name__)
 
 @dataclass
+class WorkflowConfig:
+    """Configuração do workflow de linkage sequencial."""
+    linkage_config_path: str
+    es_config_path: str
+    spark_config_path: str
+    output_data_dir: str
+    source_data_path: str
+    sample_fraction: Optional[float] = None
+    sample_seed: int = 42
+    spark_checkpoint_base_dir: Optional[str] = None
+    current_partition_value: Optional[str] = None
+
+
+
+@dataclass
 class ComparisonRule:
     """
     Define uma regra de comparação entre uma coluna da fonte e uma coluna do alvo.
