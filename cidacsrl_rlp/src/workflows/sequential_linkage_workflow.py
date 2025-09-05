@@ -135,9 +135,6 @@ def main():
         --output-data-dir (str): Diretório base para salvar todos os resultados
             das fases de linkage.
         --source-data-path (str): Caminho para os dados da fonte (ex: diretório Parquet).
-        --current-partition-value (str, opcional): Valor da partição atual sendo
-            processada (ex: 'SP'). Usado para filtrar dados no Elasticsearch e,
-            potencialmente, no caminho dos dados da fonte.
         --log-level (str): Nível de logging (padrão: "INFO").
         --sample-fraction (float, opcional): Fração dos dados da fonte para
             amostragem (entre 0.0 e 1.0).
@@ -156,7 +153,6 @@ def main():
                 --spark-config-path /path/to/your_spark_config.yaml \\
                 --output-data-dir /path/to/output/data \\
                 --source-data-path /path/to/source_data.parquet \\
-                --current-partition-value SP \\
                 --log-level DEBUG
     """
     parser = argparse.ArgumentParser(description="Executes a Sequential Blocking Linkage Workflow using Elasticsearch and Spark.")
@@ -165,10 +161,6 @@ def main():
     parser.add_argument("--spark-config-path", required=True, help="Path to the Spark configuration YAML file.")
     parser.add_argument("--output-data-dir", required=True, help="Base directory for saving all linkage phase outputs and final results.")
     parser.add_argument("--source-data-path", required=True, help="Path to the source data (e.g., Parquet directory).")
-    parser.add_argument("--current-partition-value", type=str, default=None,
-                        help="Value of the current partition being processed (e.g., 'SP' for a UF partition). "
-                             "Used with 'target_es_partition_filter_field' from workflow config for ES queries, "
-                             "and potentially for filtering source data path if it's partitioned.")
     parser.add_argument("--log-level", default="INFO", choices=["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"],
                         help="Logging level for the application (default: INFO).")
     parser.add_argument("--sample-fraction", type=float, default=None,
