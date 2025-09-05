@@ -8,6 +8,7 @@ def create_es_query_for_phase(
     rules_dicts: List[Dict[str, Any]],
     target_es_fields_to_fetch: List[str],
     candidate_limit: int,
+    filter_query: dict,
 ) -> Optional[Dict[str, Any]]:
     """
     Cria o corpo da consulta Elasticsearch para um único registro da fonte,
@@ -122,8 +123,22 @@ def create_es_query_for_phase(
         if not must_clauses and "minimum_should_match" not in bool_query_conditions:
              bool_query_conditions["minimum_should_match"] = 1
 
-    if filter_clauses:
-        bool_query_conditions["filter"] = filter_clauses
+    # if filter_clauses:
+    #     bool_query_conditions["filter"] = filter_clauses
+
+    if filter_query:
+        if filter_query.get('query'):
+            bool_query_conditions['filter'] = filter_query.get('query')
+        elif filter_query.get('column'):
+            col_filter = filter_query.get('column')
+            bool_query_conditions['filter'] = [{
+                'term': {
+                    col_filter: source_row_dict.get(col_filter) # tolink_cols_dict[col_filter]
+                }
+            }]
+        else:
+            raise Exception(f"Estrutura do filter inválida: {filter_query}")
+
     if must_not_clauses:
         bool_query_conditions["must_not"] = must_not_clauses
 
