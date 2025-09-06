@@ -101,7 +101,7 @@ def main():
 
     # Load data
     try:
-        df_raw = spark.read.format("parquet").load(args.raw_path)
+        df_raw = spark.read.format("parquet").load(args.source_data_path)
     except Exception as e:
         logger.error(f"Failed to load raw data: {e}")
         exit(1)
@@ -135,12 +135,12 @@ def main():
     logger.info("Writing data...")
     write_start_time = time.time()
     df_cleaned.write.mode("overwrite").format("parquet").save(
-        args.trusted_path, compression="snappy"
+        args.output_data_path, compression="snappy"
     )
     write_duration_seconds = time.time() - write_start_time
     write_minutes, write_seconds = divmod(write_duration_seconds, 60)
     logger.info(
-        f"Data written to {args.trusted_path} in {write_minutes} minutes and {write_seconds:.2f} seconds."
+        f"Data written to {args.output_data_path} in {write_minutes} minutes and {write_seconds:.2f} seconds."
     )
 
 
