@@ -7,11 +7,9 @@ from typing import Optional, Dict, Any
 
 from pyspark.sql import SparkSession, DataFrame
 
-# Project-specific imports
 from cidacsrl_rlp.src.linkage.models import (
     SequentialBlockingWorkflow,
-    BlockingPhase,
-    WorkflowConfig
+    BlockingPhase
 )
 from cidacsrl_rlp.src.config.loader import load_sequential_blocking_workflow_config, load_service_config, load_workflow_config
 from cidacsrl_rlp.src.linkage.rdd_processing import process_partition_for_phase
