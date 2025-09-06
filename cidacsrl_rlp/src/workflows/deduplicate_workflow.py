@@ -4,7 +4,7 @@ import logging
 from typing import Dict, Any
 
 import pyspark.sql.functions as F
-from pyspark.sql import SparkSession, DataFrame
+from pyspark.sql import DataFrame
 from graphframes import GraphFrame
 
 from cidacsrl_rlp.src.config.loader import load_yaml

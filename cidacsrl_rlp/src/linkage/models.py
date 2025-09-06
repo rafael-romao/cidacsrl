@@ -14,8 +14,6 @@ class WorkflowConfig:
     source_data_path: str
     sample_fraction: Optional[float] = None
     sample_seed: int = 42
-    spark_checkpoint_base_dir: Optional[str] = None
-    current_partition_value: Optional[str] = None
 
 
 
