@@ -1,1 +1,0 @@
-python -m cidacsrl_rlp.src.workflows.sequential_linkage_workflow --workflow_config_path cidacsrl_rlp/src/config-workflow.yml --es_config_path cidacsrl_rlp/src/config-es.yml --spark_config_path cidacsrl_rlp/src/config-spark.yml --output_data_dir /tmp/ --source_data_path $HOME/data/raw/enderecos_ficticios --log_level DEBUG
