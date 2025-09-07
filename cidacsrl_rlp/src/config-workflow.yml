@@ -18,7 +18,11 @@ indexed_dataset_filter:
   #         lt: "2018-01-01"
   #   - term:
   #       municipio: 291234
-
+partition_by:
+  partition: "uf"
+  filter_partitions:
+    - 29
+    - 35
 
 blocking_phases: 
   - phase_name: "exact_cep"
