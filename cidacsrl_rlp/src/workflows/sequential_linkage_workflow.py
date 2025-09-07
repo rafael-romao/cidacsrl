@@ -1,20 +1,23 @@
 import argparse
 import logging
 import time
+import re
+import os
 from pathlib import Path
 
 from typing import Optional, Dict, Any
 
+import pyspark.sql.functions as F
 from pyspark.sql import SparkSession, DataFrame
 
 # Project-specific imports
+from cidacsrl_rlp.src.linkage.cidacsrl import cidacsrl
 from cidacsrl_rlp.src.linkage.models import (
     SequentialBlockingWorkflow,
     BlockingPhase
 )
 from cidacsrl_rlp.src.config.loader import load_sequential_blocking_workflow_config, load_service_config
 from cidacsrl_rlp.src.linkage.rdd_processing import process_partition_for_phase
-from cidacsrl_rlp.src.utils.schema_helpers import define_phase_output_schema, define_workflow_output_schema
 from cidacsrl_rlp.src.utils.logging_config import setup_logging
 from cidacsrl_rlp.src.utils.utils import sanitize_string
 from cidacsrl_rlp.src.utils.spark_utils import create_spark_session
@@ -22,84 +25,23 @@ from cidacsrl_rlp.src.utils.spark_utils import create_spark_session
 # Logger for this module
 logger = logging.getLogger(__name__)
 
-
-def execute_linkage_phase(
-    spark: SparkSession,
-    df_source_this_phase: DataFrame,
-    workflow_config: SequentialBlockingWorkflow,
-    phase_config: BlockingPhase,
-    es_settings: Dict[str, Any],
-    runtime_partition_value: Optional[str] = None
-) -> DataFrame:
-    """
-    Executa uma única fase de linkage (blocking phase).
-
-    Esta função pega o DataFrame da fonte para a fase atual, aplica as regras de blocking
-    e similaridade definidas na `phase_config` para encontrar e pontuar candidatos
-    do Elasticsearch.
-
-    Args:
-        spark (SparkSession): A sessão Spark ativa.
-        df_source_this_phase (DataFrame): DataFrame contendo os registros da fonte a serem processados nesta fase.
-        workflow_config (SequentialBlockingWorkflow): Configuração geral do workflow.
-        phase_config (BlockingPhase): Configuração específica para esta fase de linkage.
-        es_settings (Dict[str, Any]): Configurações de conexão com o Elasticsearch.
-        runtime_partition_value (Optional[str]): Valor da partição de runtime, se aplicável,
-                                                 para filtrar dados no Elasticsearch.
-
-    Returns:
-        DataFrame: Um DataFrame contendo todos os pares fonte-candidato encontrados e
-                   pontuados por esta fase. O DataFrame de saída conterá o `id_source_table`
-                   da fonte, dados do candidato (prefixados) e os scores calculados.
-                   Retorna um DataFrame vazio com o schema esperado se não houver dados de entrada
-                   ou se nenhum candidato for encontrado.
-    """
-    source_df_schema_for_phase = df_source_this_phase.schema
-
-    if df_source_this_phase.rdd.isEmpty():
-        logger.warning(f"Source DataFrame for phase '{phase_config.phase_name}' is empty. Returning an empty DataFrame with defined schema.")
-        # Define schema based on the (empty) source DataFrame's schema and phase config
-        raw_output_schema = define_phase_output_schema(source_df_schema_for_phase, workflow_config, phase_config)
-        return spark.createDataFrame([], schema=raw_output_schema)
-
-    # Define the output schema for the results of this phase
-    raw_output_schema = define_phase_output_schema(source_df_schema_for_phase, workflow_config, phase_config)
-
-    # Prepare configurations for broadcasting (must be dicts)
-    workflow_config_dict = vars(workflow_config).copy() # Convert dataclass to dict
-    phase_config_dict = vars(phase_config).copy()       # Convert dataclass to dict
-    # Convert nested ComparisonRule objects to dicts as well
-    phase_config_dict['rules'] = [vars(rule) for rule in phase_config.rules]
-
-    # Broadcast variables to all Spark executors
-    workflow_config_dict_bcast = spark.sparkContext.broadcast(workflow_config_dict)
-    phase_config_dict_bcast = spark.sparkContext.broadcast(phase_config_dict)
-    es_config_dict_bcast = spark.sparkContext.broadcast(es_settings)
-    source_schema_bcast = spark.sparkContext.broadcast(source_df_schema_for_phase) # Broadcast source schema
-    runtime_partition_value_bcast = spark.sparkContext.broadcast(runtime_partition_value)
-
-    # process_partition_for_phase is designed to accept these broadcasted dict configurations
-    scored_candidates_rdd = df_source_this_phase.rdd.mapPartitions(
-        lambda partition_iter: process_partition_for_phase(
-            partition_iter,
-            workflow_config_dict_bcast,
-            phase_config_dict_bcast,
-            es_config_dict_bcast,
-            source_schema_bcast,
-            runtime_partition_value_bcast
-        )
-    )
-
-    if scored_candidates_rdd.isEmpty():
-        logger.warning(f"Scored candidates RDD for phase '{phase_config.phase_name}' is empty. Returning an empty DataFrame.")
-        return spark.createDataFrame([], schema=raw_output_schema)
+def ler_particao(path, partition_by, partition, spark):
+    if partition == "*":
+        # Serão consideradas todas as partições (sem filtro)
+        read_path = str(path)
+        logger.info(f"> Lendo dados em: {path}")
+        return spark.read.parquet(read_path)
     else:
-        logger.info(f"RDD with scored candidates for phase '{phase_config.phase_name}' created successfully.")
-
-    # Create DataFrame from the RDD of scored candidates
-    df_phase_scored_candidates = spark.createDataFrame(scored_candidates_rdd, schema=raw_output_schema)
-
-    return df_phase_scored_candidates
+        read_path = f"{re.sub("\/$", "", str(path))}/{partition_by}={partition}"
+        # Verifica se os dados de origem foram particionados na escrita
+        if os.path.exists(read_path):
+            logger.info(f"> Lendo dados em: {read_path}")
+            return spark.read.parquet(read_path).withColumn(partition_by, F.lit(partition))
+        else:
+            # Os dados fonte não foram particionados na escrita então serão lidos e filtrados de acordo com o valor da partição
+            read_path = "/".join(read_path.split("/")[:-1])
+            logger.info(f"Lendo dados em {read_path} e filtrando partição: {partition_by}={partition}")
+            return spark.read.parquet(read_path).filter(f"{partition_by}={partition}")
 
 
 def main():
@@ -195,12 +137,13 @@ def main():
     # Construct a descriptive application name for Spark UI
     app_name_parts = [workflow_config.workflow_name or f"linkage-{safe_source_name}_vs_{safe_target_name}"]
     if args.current_partition_value:
+        # FIXME: podemos remover esse argumento das configurações uma vez que o melhorei com o `filter_partitions``
         app_name_parts.append(f"partition-{sanitize_string(args.current_partition_value)}")
     app_name = "_".join(app_name_parts)
 
     spark = create_spark_session(
         app_name=app_name,
-        spark_config_path=spark_settings,
+        spark_config_path=args.spark_config_path,
     )
 
     try:
@@ -223,118 +166,67 @@ def main():
             logger.error(f"Source data path does not exist or is not a directory: {source_data_path_obj}")
             raise FileNotFoundError(f"Source data path not found: {source_data_path_obj}")
 
-        try:
-            df_source_for_processing = spark.read.parquet(str(source_data_path_to_load))
-            # Remove duplicates from source based on its ID to avoid redundant processing
-            df_source_for_processing = df_source_for_processing.dropDuplicates([workflow_config.id_source_table])
-            logger.info(f"Source DataFrame loaded successfully from '{source_data_path_to_load}'.")
-            logger.info(f"Source DataFrame initially has {df_source_for_processing.rdd.getNumPartitions()} partitions.")
-            # Consider making repartitioning configurable via spark_settings or workflow_config
-            num_shuffle_partitions = 50
-            df_source_for_processing = df_source_for_processing.repartition(num_shuffle_partitions)
-            logger.info(f"Source DataFrame repartitioned to {df_source_for_processing.rdd.getNumPartitions()} partitions.")
-        except Exception as e_read_source:
-            logger.error(f"Failed to read source data from '{source_data_path_to_load}'. "
-                         f"Verify path and format. Error: {e_read_source}", exc_info=True)
-            raise
+        # Se existir o parâmetro que indica que os dados foram particionados
+        partitions = None
+        if workflow_config.partition_by['partition']:
+            partitions = [x[0] for x in spark.read.parquet(str(source_data_path_to_load)).select(workflow_config.partition_by['partition']).distinct().collect()]
+            if workflow_config.partition_by['filter_partitions']:
+                partitions = [x for x in partitions if x in workflow_config.partition_by['filter_partitions']]
+        else:
+            partitions = ["*"]
 
-        # Apply sampling if configured
-        if args.sample_fraction and 0.0 < args.sample_fraction <= 1.0:
-            df_source_for_processing = df_source_for_processing.sample(
-                withReplacement=False, fraction=args.sample_fraction, seed=args.sample_seed
-            )
-            logger.info(f"Sampled source DataFrame with fraction {args.sample_fraction} and seed {args.sample_seed}.")
-
-        initial_source_count = df_source_for_processing.count()
-        logger.info(f"{initial_source_count:,} unique source records submitted for linkage after initial load and deduplication.")
-
-        original_source_schema = df_source_for_processing.schema # Keep original schema for final output construction
-
-        if initial_source_count == 0:
-            logger.info("No source records found to process after loading (and sampling, if any). Linkage workflow terminating.")
-            return
-
-        # Main loop through linkage phases (blocking phases)
-        for phase_config in workflow_config.blocking_phases:
-            phase_loop_start_time = time.time()
-
-            if not phase_config.enabled:
-                logger.info(f"Skipping disabled phase: '{phase_config.phase_name}'")
-                continue
-
-            current_source_count_for_phase = df_source_for_processing.select(workflow_config.id_source_table).count()
-
-            if current_source_count_for_phase == 0:
-                logger.info(f"No source records remaining. Stopping workflow before phase '{phase_config.phase_name}'.")
-                break # No more records to process
-
-            logger.info(f"--- Starting Phase: '{phase_config.phase_name}' ({phase_config.phase_description or 'No description'}) ---")
-            logger.info(f"Source records for this phase: {current_source_count_for_phase:,}")
-
-            phase_execution_start_time = time.time()
-            df_strong_matches_this_phase = execute_linkage_phase(
-                spark,
-                df_source_for_processing, # Current set of source records to link
-                workflow_config,
-                phase_config,
-                es_settings,
-                args.current_partition_value
-            )
-
-
-            strong_matches_count_this_phase = df_strong_matches_this_phase.count()
-            phase_execution_duration = time.time() - phase_execution_start_time
-            logger.info(f"Execution of phase '{phase_config.phase_name}' completed in {phase_execution_duration:.2f}s.")
-            logger.info(f"{strong_matches_count_this_phase:,} strong match candidates (before distinct on source ID) found in the phase '{phase_config.phase_name}'.")
-
-            if strong_matches_count_this_phase > 0:
-                safe_phase_name_for_path_component = sanitize_string(phase_config.phase_name)
-                # Define output path for this phase's results, partitioned by phase name
-                phase_output_path = intermediate_results_base_path / f"linkage_phase_name={safe_phase_name_for_path_component}"
-
-                # Use define_workflow_output_schema for the schema when writing phase results
-                # This schema includes source ID, candidate data (prefixed), all scores, and phase name.
-                schema_for_writing_phase_results = define_workflow_output_schema(
-                    original_source_schema, workflow_config, phase_config, include_phase_name=True
+        # Percorre todas as partições do DataFrame caso os dados estejam particionados ou lê o DataFrame completo caso contrário.
+        for partition in partitions:
+            try:
+                # df_source_for_processing = spark.read.parquet(str(source_data_path_to_load))
+                df_source_for_processing = ler_particao(
+                    path=str(source_data_path_to_load),
+                    partition_by=workflow_config.partition_by['partition'],
+                    partition=partition,
+                    spark=spark,
                 )
 
-                cols_to_select_for_writing = [field.name for field in schema_for_writing_phase_results.fields]
+                # Remove duplicates from source based on its ID to avoid redundant processing
+                df_source_for_processing = df_source_for_processing.dropDuplicates([workflow_config.id_source_table])
+                logger.info(f"Source DataFrame loaded successfully from '{source_data_path_to_load}'.")
+                logger.info(f"Source DataFrame initially has {df_source_for_processing.rdd.getNumPartitions()} partitions.")
+                # Consider making repartitioning configurable via spark_settings or workflow_config
+                num_shuffle_partitions = 50
+                df_source_for_processing = df_source_for_processing.repartition(num_shuffle_partitions)
+                logger.info(f"Source DataFrame repartitioned to {df_source_for_processing.rdd.getNumPartitions()} partitions.")
+            except Exception as e_read_source:
+                logger.error(f"Failed to read source data from '{source_data_path_to_load}'. "
+                            f"Verify path and format. Error: {e_read_source}", exc_info=True)
+                raise
 
-                # Ensure only necessary columns according to the defined schema are selected before writing
-                df_strong_matches_to_write = df_strong_matches_this_phase.select(cols_to_select_for_writing)
-
-                df_strong_matches_to_write.write.format("parquet").mode("overwrite").save(str(phase_output_path))
-                logger.info(f"Strong match candidates from phase '{phase_config.phase_name}' written successfully to: {phase_output_path}")
-
-                # Identify unique source IDs that found a strong match in this phase
-                ids_matched_in_phase = df_strong_matches_this_phase.select(workflow_config.id_source_table).distinct()
-                num_unique_source_ids_matched = ids_matched_in_phase.count()
-                logger.info(f"{num_unique_source_ids_matched:,} unique source IDs found strong matches in phase '{phase_config.phase_name}'.")
-
-
-                # Remove matched source IDs from the pool for subsequent phases
-                df_source_for_processing = df_source_for_processing.join(
-                    ids_matched_in_phase, # DataFrame with distinct source IDs matched in this phase
-                    on=workflow_config.id_source_table,
-                    how="left_anti" # Keep only records from df_source_for_processing that are NOT in ids_matched_in_phase
+            # Apply sampling if configured
+            if args.sample_fraction and 0.0 < args.sample_fraction <= 1.0:
+                df_source_for_processing = df_source_for_processing.sample(
+                    withReplacement=False, fraction=args.sample_fraction, seed=args.sample_seed
                 )
+                logger.info(f"Sampled source DataFrame with fraction {args.sample_fraction} and seed {args.sample_seed}.")
 
+            initial_source_count = df_source_for_processing.count()
+            logger.info(f"{initial_source_count:,} unique source records submitted for linkage after initial load and deduplication.")
 
-                count_remaining_source_ids = df_source_for_processing.count() # This count is on the RDD after join
-                if count_remaining_source_ids > 0:
-                    logger.info(f"{count_remaining_source_ids:,} source records remaining for next phase.")
-                else:
-                    logger.info(f"No source records remaining after phase '{phase_config.phase_name}'. Workflow will terminate if no more phases.")
+            if initial_source_count == 0:
+                logger.info("No source records found to process after loading (and sampling, if any). Linkage workflow terminating.")
+                return
 
-            else: # No strong matches found in this phase
-                logger.info(f"No strong matches found in phase '{phase_config.phase_name}'.")
+            #################################################### Cidacs - Record Linkage ############################################
 
-            phase_loop_total_duration = time.time() - phase_loop_start_time
-            logger.info(f"--- Phase '{phase_config.phase_name}' completed (total loop time: {phase_loop_total_duration:.2f}s) ---")
-
-            if df_source_for_processing.count() == 0 and phase_config != workflow_config.blocking_phases[-1]:
-                logger.info("All source records have been matched. Terminating linkage phases early.")
-                break
+            # Executa o linkage
+            cidacsrl(
+                df=df_source_for_processing,
+                linkage_name=f"linkage-{safe_source_name}_vs_{safe_target_name}{'-' + partition if partition != '*' else ''}",
+                workflow_config=workflow_config,
+                spark=spark,
+                es_settings=es_settings,
+                intermediate_results_base_path=intermediate_results_base_path,
+                partition=partition,
+                log_file=f"{output_data_dir_path}/metadata_linkages.csv",
+                logger=logger,
+            )
 
 
         logger.info("All linkage phases have been executed.")
