@@ -70,6 +70,7 @@ class SequentialBlockingWorkflow:
     target_es_index: str  # Name of the target Elasticsearch index
     id_target_table: str  # Name of the unique ID field in the target Elasticsearch documents
     indexed_dataset_filter : str # Estrutura de filter usado na query do streamlit
+    partition_by: dict
 
     workflow_description: Optional[str] = None
     source_es_index_name: Optional[str] = None # Optional: if source is also an ES index for some operations
