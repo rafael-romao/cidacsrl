@@ -20,27 +20,27 @@ A plataforma CIDACS-RL 3 oferece fluxo automatizado para quatro etapas de integr
 ## Instalação
 
 1. **Clone o repositório**:
-    ```bash
-    git clone https://github.com/rafael-romao/cidacsrl-rlp.git
-    cd cidacsrl-rlp
-    ```
+```bash
+git clone https://github.com/rafael-romao/cidacsrl-rlp.git
+cd cidacsrl-rlp
+```
 
 2. **(Opcional, mas recomendado) Crie e ative um ambiente virtual**:
-    ```bash
-    python -m venv .venv
-    source .venv/bin/activate
-    ```
+```bash
+python -m venv .venv
+source .venv/bin/activate
+```
 3. **Instale a ferramenta de build**:
-    ```bash
-    pip install build
-    ```
+```bash
+pip install build
+```
 
 Caso o ambiente de execução tenha os requisitos do projeto instalados, você pode pular esta etapa.
 
 4. **Build o pacote e suas dependências**: Execute o make abaixo na raiz do projeto. Isso criará um pacote `wheel` do projeto, além de baixar o `wheels` de todas as suas dependências para um único diretório.
-    ```bash
-    make build
-    ```
+```bash
+make build
+```
 
 ## Executando fluxos com `spark-submit`
 
@@ -65,9 +65,7 @@ spark-submit \
 
 Importante: O caminho para o arquivo de configuração deve ser acessível por todos os nós do cluster.
 
-
-
-2.1 Fluxo de deduplicação
+2.1 **Fluxo de deduplicação**
 
 O fluxo de deduplicação tem o pacote `graphframes` como dependência. Como não é possível incluir pacotes adicionais na flag `--py-files`, é necessário usar a flag `--packages` do Spark para baixar o pacote diretamente do repositório Maven ou `--jars` com o caminho para o arquivo JAR.
 
@@ -84,6 +82,18 @@ spark-submit \
   --py-files "$PY_FILES" \
   cidacsrl_rlp/src/workflows/deduplicate_workflow.py \
   --config-path /caminho/completo/no/cluster/para/configs/deduplicate_config.yaml
+```
+
+## Executando fluxos com PySpark em modo local
+Como todas as dependências instaladas localmente, você pode executar os fluxos diretamente com o Python.
+
+Para executar os fluxos em modo local, adicione a raiz do projeto ao PYTHONPATH:
+```bash
+export PYTHONPATH=$(pwd):$PYTHONPATH
+```
+Agora é possível executar o módulo desejado:
+```bash
+python3 -m cidacsrl_rlp.src.workflows.deduplicate_workflow --config-path ...
 ```
 
 ## Exemplos de Uso
