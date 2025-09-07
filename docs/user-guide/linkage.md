@@ -1,58 +1,131 @@
 # Guia de Uso: Linkage de Dados
 
-Esta é a etapa central de todo o processo. O **Workflow de Linkage de Dados** utiliza os dados que foram previamente [limpos](./cleaning.md) e [indexados](./indexing.md) para encontrar e comparar registros entre diferentes fontes de dados, com o objetivo de identificar quais registros se referem à mesma entidade (por exemplo, a mesma pessoa).
+O módulo **sequential_linkage_workflow** utiliza uma fonte de dados (em parquet), preferencialmente [limpos e harmonizados](./cleaning.md) para buscar candidatos em um [índice](./indexing.md) e comparar seus registros com o objetivo de conceder uma pontuação (score) e, assim, identificar quais registros se referem à mesma entidade (por exemplo, a mesma pessoa).
 
-## O Método de Blocagem Sequencial (Sequential Blocking)
+## Visão Geral do Processo
 
-Comparar cada registro de uma fonte de dados com todos os registros de outra é computacionalmente inviável para grandes volumes de dados. Para resolver isso, utilizamos uma estratégia chamada **blocagem (blocking)**.
+O módulo **sequential_linkage_workflow** executa as seguintes etapas:
 
-A ideia é simples: em vez de comparar tudo com tudo, agrupamos os registros em "blocos" com base em características comuns e só comparamos os registros dentro do mesmo bloco. Por exemplo, um bloco pode conter todos os indivíduos que nasceram no mesmo ano e cujo primeiro nome começa com a letra 'J'.
+1.  **Carregamento de Dados e Configurações**: Lê os dados da fonte (em formato Parquet) e carrega os arquivos de configuração do workflow, do Spark e do Elasticsearch.
+2.  **Amostragem (Opcional)**: Se configurado, seleciona uma fração dos dados da fonte para processamento, útil para testes e depuração.
+3.  **Execução em Fases (Sequential Blocking)**: Itera através das "fases de bloqueio" definidas no arquivo de configuração.
+4.  **Busca de Candidatos**: Para cada registro da fonte, busca por registros candidatos em um índice do Elasticsearch com base nas regras da fase atual.
+5.  **Cálculo de Score**: Compara os registros da fonte com os candidatos encontrados e calcula um score de similaridade.
+6.  **Identificação de Pares Fortes**: Filtra os pares que atingem um limiar de pontuação (`strong_match_score_threshold`), considerando-os como correspondências.
+7.  **Remoção de Pares Encontrados**: Os registros da fonte que encontram uma correspondência forte em uma fase são removidos do conjunto de dados para as fases seguintes, otimizando o processo.
+8.  **Salvamento dos Resultados**: Os pares encontrados em cada fase são salvos em um diretório de saída, particionados pelo nome da fase.
 
-O **Workflow de Linkage Sequencial** aprimora essa ideia executando o processo em múltiplas **fases**. Cada fase usa uma chave de blocagem diferente.
+## Configurando o Linkage
 
-*   **Fase 1**: Pode agrupar por `(primeira_letra_do_nome, ano_de_nascimento)`.
-*   **Fase 2**: Pode agrupar por `(código_do_município, mês_de_nascimento)`.
-
-Essa abordagem aumenta a chance de encontrar um par verdadeiro, mesmo que a informação usada em uma das fases esteja incorreta ou ausente.
-
-## Configurando o Workflow de Linkage
-
-Toda a lógica do workflow — as fases, as chaves de blocagem e como as colunas devem ser comparadas — é definida em um arquivo de configuração YAML.
+A configuração do workflow de linkage é feita através de um arquivo YAML, onde são especificados os caminhos de entrada e saída, além de configurações do Spark.
 
 ### Exemplo de Configuração de Linkage
 
-Abaixo, um exemplo simplificado de um workflow com duas fases:
+Abaixo, um exemplo simplificado de linkage com duas fases:
 
 ```yaml
-# Exemplo de arquivo linkage_config.yaml
-workflow_name: "linkage_cidadaos_basico"
-phases:
-  - phase_name: "bloco_por_nome_e_ano"
-    blocking_keys: ["primeira_letra_nome", "ano_nasc"]
-    comparison_fields:
-      - field_name: "nome_completo"
-        metric: "jaro_winkler" # Algoritmo para comparar similaridade de strings
-        threshold: 0.85
-      - field_name: "nome_da_mae"
-        metric: "jaro_winkler"
-        threshold: 0.85
+# Exemplo de arquivo linkage_pacientes.yaml
+source_table: "cleaned_pacientes"
+id_source_table: "id_table"
 
-  - phase_name: "bloco_por_municipio_e_data"
-    blocking_keys: ["cod_municipio", "data_nasc_completa"]
-    comparison_fields:
-      - field_name: "nome_completo"
-        metric: "jaro_winkler"
-        threshold: 0.90
+target_es_index: "pacientes"
+id_target_table: "id_table"
+
+blocking_phases: 
+  - phase_name: "exact"
+    phase_description: "Fase exata"
+    enabled: true
+    candidate_limit: 5
+    strong_match_score_threshold: 0.95
+
+    rules: 
+      - source_column: "nome_completo"
+        target_column: "nome_completo"
+        es_clause_type: "must"
+        similarity: "jaro_winkler"
+        weight: 3.0 
+        penalty: 0.1 
+      - source_column: "nome_da_mae"
+        target_column: "nome_da_mae"
+        es_clause_type: "must"
+        similarity: "jaro_winkler"
+        weight: 3.0 
+        penalty: 0.1 
+      - source_column: "municipio_nascimento"
+        target_column: "municipio_nascimento"
+        es_clause_type: "must"
+        query_type: "term"
+        similarity: "exact"
+        weight: 1.0
+        penalty: 0.1
+      - source_column: "uf_nascimento"
+        target_column: "uf_nascimento"
+        es_clause_type: "must"
+        query_type: "term"
+        similarity: "exact"
+        weight: 1.0
+        penalty: 0.1
+  
+  - phase_name: "non_exact"
+    phase_description: "Fase não exata"
+    enabled: false
+    candidate_limit: 500
+    strong_match_score_threshold: 0.60
+
+    rules: 
+      - source_column: "nome_completo"
+        target_column: "nome_completo"
+        es_clause_type: "must"
+        similarity: "jaro_winkler"
+        weight: 3.0 
+        penalty: 0.1 
+      - source_column: "nome_da_mae"
+        target_column: "nome_da_mae"
+        es_clause_type: "should"
+        similarity: "jaro_winkler"
+        weight: 3.0 
+        penalty: 0.1 
+      - source_column: "municipio_nascimento"
+        target_column: "municipio_nascimento"
+        es_clause_type: "should"
+        query_type: "term"
+        similarity: "exact"
+        weight: 1.0
+        penalty: 0.1
+      - source_column: "uf_nascimento"
+        target_column: "uf_nascimento"
+        es_clause_type: "should"
+        query_type: "term"
+        similarity: "exact"
+        weight: 1.0
+        penalty: 0.1
+      
 ```
-
-## O Resultado do Processo
-
-O resultado final do workflow é um conjunto de dados contendo os pares de registros identificados como potenciais correspondências. Para cada par, a plataforma calcula um **score de similaridade** que indica a força da correspondência.
-
-Este resultado permite que pesquisadores e analistas tomem decisões informadas sobre quais pares devem ser considerados uma ligação verdadeira.
 
 ## Como Executar
 
-O workflow é executado através de um script de linha de comando, que orquestra a execução de cada fase de forma sequencial.
+A execução do módulo **sequential_linkage_workflow** é configurável a partir de um arquivo YAML. A exemplo:
 
-Para obter instruções detalhadas sobre os comandos e todos os argumentos disponíveis, consulte a [Referência Técnica do Workflow de Linkage Sequencial](../reference/sequential_linkage_workflow.md).
+
+```yaml
+# Exemplo de arquivo cleaning_config.yaml
+# Caminhos para os arquivos de configuração específicos
+linkage_config_path: "/path/to/linkage_workflow.yaml"
+es_config_path: "/path/to/elasticsearch_config.yaml"
+spark_config_path: "/path/to/spark_config.yaml"
+output_data_path: "/path/to/output/data"
+source_data_path: "/path/to/source_data"
+
+# Opcional
+sample_fraction: 0.1  # Fração dos dados a serem processados (0.1 = 10%)
+sample_seed: 42       # Semente para amostragem reproduzível
+```
+Para executar o módulo **sequential_linkage_workflow** é necessário fornecer o caminho para o arquivo de configuração.
+
+```bash
+python -m cidacsrl_rlp.src.workflows.sequential_linkage_workflow --config-path /path/to/sequential_linkage_config.yaml
+```
+
+## Próximos Passos
+
+É possível submeter resultado do linkage a [deduplicação](./deduplicate.md) de registros.
