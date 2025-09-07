@@ -3,15 +3,37 @@ name = "cidacsrl-rlp"
 version = "0.1.0"
 description = ""
 authors = [
-    {name = "Rafael Romão",email = "leafaromao@gmail.com"}
+    { name = "Rafael Romão", email = "leafaromao@gmail.com" }
 ]
+maintainers = [
+  { name = "Rafael Romão", email = "leafaromao@gmail.com" },
+]
+
+keywords = ["record linkage", "cidacsrl", "pyspark", "elasticsearch"]
+
 readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [
+    "elasticsearch>=9.1.0",
+    "jellyfish>=1.2.0",
 ]
 
-[tool.poetry]
-packages = [{include = "cidacsrl_rlp", from = "src"}]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.12",
+]
+
+[tool.isort]
+profile = "black"
+line_length = 79
+known_third_party = ["elasticsearch", "pyspark", "jellyfish", "blue"]
+default_section = "THIRDPARTY"
+skip = ["tests"]
+
+[tool.setuptools.packages.find]
+include = ["cidacsrl_rlp*"]
+exclude = ["spark_packages*"]
 
 
 [tool.poetry.group.dev.dependencies]
@@ -20,7 +42,8 @@ pytest-cov = "^6.2.1"
 elasticsearch = "^9.1.0"
 pyspark = "^4.0.0"
 jellyfish = "^1.2.0"
-faker = "^37.5.3"
+blue = "^0.9.1"
+isort = "^6.0.1"
 
 
 [tool.poetry.group.doc.dependencies]
@@ -29,5 +52,10 @@ mkdocstrings = "^0.29.1"
 mkdocstrings-python = "^1.16.12"
 
 [build-system]
-requires = ["poetry-core>=2.0.0,<3.0.0"]
-build-backend = "poetry.core.masonry.api"
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project.urls]
+"Documentação" = "https://github.com/rafael-romao/cidacsrl-rlp/docs"
+"Código" = "https://github.com/rafael-romao/cidacsrl-rlp"
+"Bug Tracker" = "https://github.com/rafael-romao/cidacsrl-rlp/issues"
