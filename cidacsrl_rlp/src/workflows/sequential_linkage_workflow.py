@@ -11,7 +11,7 @@ from cidacsrl_rlp.src.linkage.models import (
     SequentialBlockingWorkflow,
     BlockingPhase
 )
-from cidacsrl_rlp.src.config.loader import load_sequential_blocking_workflow_config, load_service_config, load_workflow_config
+from cidacsrl_rlp.src.config.loader import load_sequential_blocking_workflow_config, load_service_config, load_linkage_workflow_config
 from cidacsrl_rlp.src.linkage.rdd_processing import process_partition_for_phase
 from cidacsrl_rlp.src.utils.schema_helpers import define_phase_output_schema, define_workflow_output_schema
 from cidacsrl_rlp.src.utils.logging_config import setup_logging
@@ -163,7 +163,7 @@ def main():
         consultas ao Elasticsearch.
 
     Args:
-        --config (str): Caminho para o arquivo de configuração YAML principal
+        --config-path (str): Caminho para o arquivo de configuração YAML principal
             do fluxo de trabalho que contém todos os parâmetros necessários.
         --log-level (str): Nível de logging (padrão: "INFO").
 
@@ -172,8 +172,8 @@ def main():
 
         .. code-block:: bash
 
-            python -m src.workflows.sequential_linkage_workflow \\
-                --config /path/to/workflow_config.yaml \\
+            python -m cidacsrl_rlp.src.workflows.sequential_linkage_workflow \\
+                --config-path /path/to/workflow_config.yaml \\
                 --log-level DEBUG
 
         Exemplo do arquivo de configuração YAML `workflow_config.yaml`:
@@ -183,14 +183,13 @@ def main():
             linkage_config_path: "/path/to/linkage_workflow.yaml"
             es_config_path: "/path/to/elasticsearch_config.yaml"
             spark_config_path: "/path/to/spark_config.yaml"
-            output_data_dir: "/path/to/output/data"
-            source_data_path: "/path/to/source_data.parquet"
+            output_base_path: "/path/to/output/data"
+            source_data_path: "/path/to/source_data"
             sample_fraction: 0.1  # opcional - para teste/debug
             sample_seed: 42       # opcional
-            spark_checkpoint_base_dir: "/path/to/checkpoints"  # opcional
     """
     parser = argparse.ArgumentParser(description="Executes a Sequential Blocking Linkage Workflow using Elasticsearch and Spark.")
-    parser.add_argument("--config", required=True, 
+    parser.add_argument("--config-path", required=True, 
                         help="Path to the main workflow configuration YAML file containing all parameters.")
     parser.add_argument("--log-level", default="INFO", choices=["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"],
                         help="Logging level for the application (default: INFO).")
@@ -201,14 +200,27 @@ def main():
     setup_logging(level=getattr(logging, args.log_level.upper()))
     
     # Load main workflow configuration
-    workflow_config = load_workflow_config(args.config)    
+    try:
+        logger.info("Loading workflow configuration...")
+        workflow_config = load_linkage_workflow_config(args.config_path)
+        logger.info(f"Workflow configuration loaded successfully for linkage config: {workflow_config.linkage_config_path}")
+    except (FileNotFoundError, ValueError, IOError) as e:
+        logger.error(f"Failed to load workflow configuration: {e}")
+        exit(1)
+    
     logger.info(f"Starting CIDACS-RL Workflow")
     workflow_start_time = time.time()
 
     # Load configurations
-    linkage_config = load_sequential_blocking_workflow_config(workflow_config.linkage_config_path)
-    es_settings = load_service_config(workflow_config.es_config_path, service_name="elasticsearch")
-    spark_settings = load_service_config(workflow_config.spark_config_path, service_name="spark")
+    try:
+        logger.info("Loading individual configurations...")
+        linkage_config = load_sequential_blocking_workflow_config(workflow_config.linkage_config_path)
+        es_settings = load_service_config(workflow_config.es_config_path, service_name="elasticsearch")
+        spark_settings = load_service_config(workflow_config.spark_config_path, service_name="spark")
+        logger.info("All configurations loaded successfully.")
+    except (FileNotFoundError, ValueError, IOError) as e:
+        logger.error(f"Failed to load configurations: {e}")
+        exit(1)
 
     source_name = sanitize_string(linkage_config.source_table)
     target_name = sanitize_string(linkage_config.target_es_index) 
@@ -240,6 +252,8 @@ def main():
 
         original_source_schema = df_source.schema
         output_base_path = Path(workflow_config.output_base_path)
+        
+        df_source_for_processing = df_source
          
 
         if source_count == 0:
@@ -263,11 +277,17 @@ def main():
                 logger.info(f"Skipping disabled phase: '{phase_name}'")
                 continue           
 
-            if df_source.count() == 0:
+            if df_source_for_processing.count() == 0:
                 logger.info(f"No source records remaining. Stopping workflow before phase '{phase_name}'.")
                 break
 
-            df_matches = process_phase(df_source, phase, spark)
+            df_matches = process_phase(
+                spark=spark,
+                df_source=df_source_for_processing,
+                linkage_config=linkage_config,
+                phase=phase,
+                es_settings=es_settings
+            )
 
             if df_matches.count() == 0:
                 logger.info(f"No matches found in phase '{phase_name}'.")

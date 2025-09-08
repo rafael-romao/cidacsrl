@@ -7,7 +7,10 @@ from cidacsrl_rlp.src.cleaning.column_cleaner import ColumnConfig, ConcatenateCo
 
 from cidacsrl_rlp.src.linkage.models import (
     SequentialBlockingWorkflow,
-    WorkflowConfig,
+    LinkageWorkflowConfig,
+    ElasticsearchIndexingWorkflowConfig,
+    CleaningWorkflowConfig,
+    DeduplicateWorkflowConfig,
     load_workflow_from_dict
 )
 
@@ -364,15 +367,15 @@ def load_service_config(
     return config_data
 
 
-def load_workflow_config(config_path: Union[str, Path]) -> WorkflowConfig:
+def load_linkage_workflow_config(config_path: Union[str, Path]) -> LinkageWorkflowConfig:
     """
-    Carrega a configuração do workflow de um arquivo YAML.
+    Carrega a configuração do workflow de linkage sequencial de um arquivo YAML.
     
     Args:
-        config_path: Caminho para o arquivo de configuração YAML do workflow.
+        config_path: Caminho para o arquivo de configuração YAML do workflow de linkage.
         
     Returns:
-        Uma instância de WorkflowConfig com as configurações carregadas.
+        Uma instância de LinkageWorkflowConfig com as configurações carregadas.
         
     Raises:
         FileNotFoundError: Se o arquivo de configuração não for encontrado.
@@ -381,6 +384,94 @@ def load_workflow_config(config_path: Union[str, Path]) -> WorkflowConfig:
     config_data = load_yaml(config_path)
     
     try:
-        return WorkflowConfig(**config_data)
+        return LinkageWorkflowConfig(**config_data)
     except TypeError as e:
         raise ValueError(f"Configuração inválida no arquivo {config_path}: {e}") from e
+
+
+def load_cleaning_workflow_config(config_path: Union[str, Path]) -> CleaningWorkflowConfig:
+    """
+    Carrega a configuração do workflow de limpeza de dados de um arquivo YAML.
+    
+    Args:
+        config_path: Caminho para o arquivo de configuração YAML do workflow de limpeza.
+        
+    Returns:
+        Uma instância de CleaningWorkflowConfig com as configurações carregadas.
+        
+    Raises:
+        FileNotFoundError: Se o arquivo de configuração não for encontrado.
+        ValueError: Se a configuração for inválida ou se campos obrigatórios estiverem ausentes.
+    """
+    config_data = load_yaml(config_path)
+    file_name = Path(config_path).name
+    
+    # Validate required keys
+    required_keys = ['spark_config_path', 'columns_config_path', 'source_data_path', 'output_data_path']
+    missing_keys = [key for key in required_keys if key not in config_data.keys()]
+    if missing_keys:
+        raise ValueError(f"Missing required configuration keys in '{file_name}': {missing_keys}")
+    
+    try:
+        return CleaningWorkflowConfig(**config_data)
+    except TypeError as e:
+        raise ValueError(f"Configuração inválida no arquivo '{file_name}': {e}") from e
+
+
+def load_elasticsearch_indexing_workflow_config(config_path: Union[str, Path]) -> ElasticsearchIndexingWorkflowConfig:
+    """
+    Carrega a configuração do workflow de indexação Elasticsearch de um arquivo YAML.
+    
+    Args:
+        config_path: Caminho para o arquivo de configuração YAML do workflow de indexação.
+        
+    Returns:
+        Uma instância de ElasticsearchIndexingWorkflowConfig com as configurações carregadas.
+        
+    Raises:
+        FileNotFoundError: Se o arquivo de configuração não for encontrado.
+        ValueError: Se a configuração for inválida ou se campos obrigatórios estiverem ausentes.
+    """
+    config_data = load_yaml(config_path)
+    file_name = Path(config_path).name
+    
+    # Validate required keys
+    required_keys = ['es_config_path', 'spark_config_path', 'index_config_path', 'source_data_path']
+    missing_keys = [key for key in config_data.keys() if key in required_keys]
+    if len(missing_keys) != len(required_keys):
+        actual_missing = [key for key in required_keys if key not in config_data.keys()]
+        raise ValueError(f"Missing required configuration keys in '{file_name}': {actual_missing}")
+    
+    try:
+        return ElasticsearchIndexingWorkflowConfig(**config_data)
+    except TypeError as e:
+        raise ValueError(f"Configuração inválida no arquivo '{file_name}': {e}") from e
+
+
+def load_deduplicate_workflow_config(config_path: Union[str, Path]) -> DeduplicateWorkflowConfig:
+    """
+    Carrega a configuração do workflow de deduplicação de dados de um arquivo YAML.
+    
+    Args:
+        config_path: Caminho para o arquivo de configuração YAML do workflow de deduplicação.
+        
+    Returns:
+        Uma instância de DeduplicateWorkflowConfig com as configurações carregadas.
+        
+    Raises:
+        FileNotFoundError: Se o arquivo de configuração não for encontrado.
+        ValueError: Se a configuração for inválida ou se campos obrigatórios estiverem ausentes.
+    """
+    config_data = load_yaml(config_path)
+    file_name = Path(config_path).name
+    
+    # Validate required keys
+    required_keys = ['spark_config_path', 'source_data_path', 'output_data_path']
+    missing_keys = [key for key in required_keys if key not in config_data.keys()]
+    if missing_keys:
+        raise ValueError(f"Missing required configuration keys in '{file_name}': {missing_keys}")
+    
+    try:
+        return DeduplicateWorkflowConfig(**config_data)
+    except TypeError as e:
+        raise ValueError(f"Configuração inválida no arquivo '{file_name}': {e}") from e

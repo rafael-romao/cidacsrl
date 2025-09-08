@@ -4,7 +4,7 @@ from pathlib import Path
 
 from pyspark.sql import SparkSession
 
-from cidacsrl_rlp.src.config.loader import load_index_config, load_service_config
+from cidacsrl_rlp.src.config.loader import load_index_config, load_service_config, load_elasticsearch_indexing_workflow_config
 from cidacsrl_rlp.src.es.indexing_operations import create_es_index_and_ingest_data
 from cidacsrl_rlp.src.utils.logging_config import setup_logging
 from cidacsrl_rlp.src.utils.spark_utils import create_spark_session
@@ -20,21 +20,19 @@ def main():
     Parquet para um índice no Elasticsearch. Ele é projetado para ser executado
     a partir da linha de comando e realiza as seguintes operações:
 
-    1.  Carrega as configurações do Spark, do Elasticsearch e a definição do
-        índice a partir de arquivos YAML.
-    2.  Inicializa uma sessão Spark com as configurações fornecidas.
-    3.  Lê os dados da fonte (de um diretório Parquet) para um DataFrame Spark.
-    4.  Cria um novo índice no Elasticsearch (se não existir) com os mapeamentos
+    1.  Carrega as configurações do workflow a partir de um arquivo YAML central.
+    2.  Carrega as configurações do Spark, do Elasticsearch e a definição do
+        índice a partir dos arquivos especificados na configuração.
+    3.  Inicializa uma sessão Spark com as configurações fornecidas.
+    4.  Lê os dados da fonte (de um diretório Parquet) para um DataFrame Spark.
+    5.  Cria um novo índice no Elasticsearch (se não existir) com os mapeamentos
         e configurações definidos.
-    5.  Ingesta os dados do DataFrame no índice do Elasticsearch.
+    6.  Ingesta os dados do DataFrame no índice do Elasticsearch.
 
     Args:
-        --source-data-path (str): Caminho para o diretório Parquet de origem.
-        --index-config-path (str): Caminho para o arquivo de configuração YAML
-            do índice do Elasticsearch.
-        --spark-config-path (str): Caminho para o arquivo de configuração YAML do Spark.
-        --es-config-path (str): Caminho para o arquivo de configuração YAML da
-            conexão com o Elasticsearch.
+        --config-path (str): Caminho para o arquivo de configuração YAML principal
+            do workflow que contém os caminhos para todos os outros arquivos de
+            configuração.
         --log-level (str): Nível de logging para a aplicação (padrão: "INFO").
 
     Example:
@@ -43,35 +41,26 @@ def main():
         .. code-block:: bash
 
             python -m cidacsrl_rlp.src.workflows.elasticsearch_indexing_workflow \\
-                --source-data-path /path/to/trusted_data.parquet \\
-                --index-config-path /path/to/your_index.yaml \\
-                --spark-config-path /path/to/your_spark_config.yaml \\
-                --es-config-path /path/to/your_es_config.yaml \\
+                --config-path /path/to/workflow_config.yaml \\
                 --log-level DEBUG
+
+        O arquivo de configuração do workflow deve conter:
+
+        .. code-block:: yaml
+
+            es_config_path: "/path/to/elasticsearch_connection_config.yaml"
+            spark_config_path: "/path/to/spark_config.yaml"
+            index_config_path: "/path/to/elasticsearch_index_config.yaml"
+            source_data_path: "/path/to/trusted_data.parquet"
     """
     # Parse command-line arguments
     parser = argparse.ArgumentParser(
         description="Indexes datasets from a Parquet source into Elasticsearch."
     )
     parser.add_argument(
-        "--source-data-path",
+        "--config-path",
         required=True,
-        help="The path to the source Parquet directory (trusted zone data).",
-    )
-    parser.add_argument(
-        "--index-config-path",
-        required=True,
-        help="The path to the Elasticsearch index configuration YAML file.",
-    )
-    parser.add_argument(
-        "--spark-config-path",
-        required=True,
-        help="The path to the Spark configuration YAML file.",
-    )
-    parser.add_argument(
-        "--es-config-path",
-        required=True,
-        help="The path to the Elasticsearch connection configuration YAML file.",
+        help="The path to the workflow configuration YAML file containing all necessary paths and settings.",
     )
     parser.add_argument(
         "--log-level",
@@ -82,10 +71,19 @@ def main():
     args = parser.parse_args()
 
     setup_logging(level=getattr(logging, args.log_level.upper()))
-    logger.info(f"Starting indexing workflow with arguments: {args}")
+    logger.info(f"Starting indexing workflow with config: {args.config_path}")
+
+    # Load workflow configuration
+    try:
+        logger.info("Loading workflow configuration...")
+        workflow_config = load_elasticsearch_indexing_workflow_config(args.config_path)
+        logger.info(f"Workflow configuration loaded successfully for ES config: {workflow_config.es_config_path}")
+    except (FileNotFoundError, ValueError, IOError) as e:
+        logger.error(f"Failed to load workflow configuration: {e}")
+        exit(1)
 
     # Validate if the source data path exists
-    source_data_path = Path(args.source_data_path)
+    source_data_path = Path(workflow_config.source_data_path)
     if not source_data_path.exists():
         logger.error(f"Source data path '{source_data_path}' does not exist.")
         raise FileNotFoundError(f"Source data path '{source_data_path}' does not exist.")
@@ -96,16 +94,16 @@ def main():
         )
 
     # Load configurations
-    logger.info("Loading configurations...")
-    index_definition = load_index_config(args.index_config_path)
+    logger.info("Loading individual configurations...")
+    index_definition = load_index_config(workflow_config.index_config_path)
     es_connection_config = load_service_config(
-        args.es_config_path, service_name="elasticsearch"
+        workflow_config.es_config_path, service_name="elasticsearch"
     )
 
     # Initialize Spark session
     spark = create_spark_session(
         app_name=f"IndexerApp-{index_definition.name}",
-        spark_config_path=args.spark_config_path,
+        spark_config_path=workflow_config.spark_config_path,
     )
 
     # Load source data from Parquet
