@@ -5,6 +5,47 @@ from typing import List, Optional, Dict, Any
 logger = logging.getLogger(__name__)
 
 @dataclass
+class LinkageWorkflowConfig:
+    """Configuração do workflow de linkage sequencial."""
+    linkage_config_path: str
+    es_config_path: str
+    spark_config_path: str
+    output_base_path: str
+    source_data_path: str
+    sample_fraction: Optional[float] = None
+    sample_seed: int = 42
+
+
+@dataclass
+class ElasticsearchIndexingWorkflowConfig:
+    """Configuração do workflow de indexação no Elasticsearch."""
+    es_config_path: str
+    spark_config_path: str
+    index_config_path: str
+    source_data_path: str
+
+
+@dataclass
+class CleaningWorkflowConfig:
+    """Configuração do workflow de limpeza de dados."""
+    spark_config_path: str
+    columns_config_path: str
+    source_data_path: str
+    output_data_path: str
+
+
+@dataclass
+class DeduplicateWorkflowConfig:
+    """Configuração do workflow de deduplicação de dados."""
+    spark_config_path: str
+    source_data_path: str
+    output_data_path: str
+    app_name: Optional[str] = "DeduplicationApp"
+    log_level: str = "INFO"
+
+
+
+@dataclass
 class ComparisonRule:
     """
     Define uma regra de comparação entre uma coluna da fonte e uma coluna do alvo.
@@ -64,7 +105,6 @@ class SequentialBlockingWorkflow:
     Configuração de nível superior para um workflow de linkage sequencial,
     baseado em múltiplas fases de blocking.
     """
-    workflow_name: str
     source_table: str  # Identifier for the source dataset
     id_source_table: str  # Name of the unique ID column in the source table
     target_es_index: str  # Name of the target Elasticsearch index
@@ -102,7 +142,7 @@ class SequentialBlockingWorkflow:
                              f"prefixed_id_target_table ('{self.prefixed_id_target_table}'). "
                              f"Consider changing id_target_table or _candidate_prefix.")
 
-        logger.debug(f"SequentialBlockingWorkflow '{self.workflow_name}' initialized.")
+        
         logger.debug(f"  Prefixed ID target table: {self.prefixed_id_target_table}")
         logger.debug(f"  Source table name: {self.source_table}")
         logger.debug(f"  Target ES Index: {self.target_es_index}")
@@ -143,7 +183,7 @@ def load_workflow_from_dict(config: Dict[str, Any]) -> SequentialBlockingWorkflo
                     durante a instanciação dos dataclasses.
         TypeError: Se chaves inesperadas forem passadas para os construtores dos dataclasses.
     """
-    logger.debug(f"Loading SequentialBlockingWorkflow from dictionary: {config.get('workflow_name', 'N/A')}")
+    
 
     # The config dictionary is expected to have a "blocking_phases" key
     # containing a list of phase configurations.
@@ -160,7 +200,6 @@ def load_workflow_from_dict(config: Dict[str, Any]) -> SequentialBlockingWorkflo
 
     try:
         workflow = SequentialBlockingWorkflow(**config)
-        logger.info(f"SequentialBlockingWorkflow configuration '{workflow.workflow_name}' parsed successfully.")
         return workflow
     except TypeError as e: # Handles errors like unexpected keyword arguments
         logger.error(f"Type error creating SequentialBlockingWorkflow: {e}. Check for unexpected or misspelled keys in the configuration.", exc_info=True)

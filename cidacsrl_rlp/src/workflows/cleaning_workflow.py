@@ -6,7 +6,8 @@ from pyspark.sql import SparkSession
 
 from cidacsrl_rlp.src.cleaning.column_cleaner import ColumnCleanerPipeline
 from cidacsrl_rlp.src.config.loader import (load_column_config,
-                                            load_service_config)
+                                            load_service_config,
+                                            load_cleaning_workflow_config)
 from cidacsrl_rlp.src.utils.logging_config import setup_logging
 
 # Configure logging
@@ -22,14 +23,12 @@ def main():
     de limpeza definidas e salva o resultado em um novo arquivo Parquet.
 
     O script é projetado para ser executado a partir da linha de comando,
-    recebendo os caminhos para os arquivos de configuração e dados como
-    argumentos.
+    recebendo o caminho para o arquivo de configuração como argumento.
 
     Args:
-        --spark-config-path (str): Caminho para o arquivo de configuração do Spark.
-        --columns-config-path (str): Caminho para o arquivo de configuração das colunas a serem limpas.
-        --source-data-path (str): Caminho para a tabela de dados brutos em formato Parquet.
-        --output-data-path (str): Caminho para salvar a tabela de dados limpos em formato Parquet.
+        --config-path (str): Caminho para o arquivo de configuração YAML principal
+            do workflow que contém os caminhos para todos os outros arquivos de
+            configuração.
         --log-level (str): Nível de logging para a aplicação. Opções: "DEBUG",
             "INFO", "WARNING", "ERROR", "CRITICAL". O padrão é "INFO".
 
@@ -39,32 +38,25 @@ def main():
         .. code-block:: bash
 
             python -m cidacsrl_rlp.src.workflows.cleaning_workflow \\
-                --spark-config-path /path/to/spark_config.yaml \\
-                --columns-config-path /path/to/columns_config.yaml \\
-                --source-data-path /path/to/raw_data.parquet \\
-                --output-data-path /path/to/cleaned_data.parquet \\
+                --config-path /path/to/cleaning_workflow_config.yaml \\
                 --log-level DEBUG
+
+        O arquivo de configuração do workflow deve conter:
+
+        .. code-block:: yaml
+
+            spark_config_path: "/path/to/spark_config.yaml"
+            columns_config_path: "/path/to/columns_config.yaml"
+            source_data_path: "/path/to/raw_data.parquet"
+            output_data_path: "/path/to/cleaned_data.parquet"
 
     """
     # Parse command-line arguments
     parser = argparse.ArgumentParser(description="Cleaning datasets.")
     parser.add_argument(
-        "--spark-config-path",
+        "--config-path",
         required=True,
-        help="The path to the spark configuration file.",
-    )
-    parser.add_argument(
-        "--columns-config-path",
-        required=True,
-        help="The path to the column configuration file.",
-    )
-    parser.add_argument(
-        "--source-data-path", required=True, help="The path to the raw table."
-    )
-    parser.add_argument(
-        "--output-data-path",
-        required=True,
-        help="The path to save the cleaned table.",
+        help="The path to the workflow configuration YAML file containing all necessary paths and settings.",
     )
     parser.add_argument(
         "--log-level",
@@ -74,11 +66,21 @@ def main():
     )
     args = parser.parse_args()
     setup_logging(level=getattr(logging, args.log_level.upper()))
+    logger.info(f"Starting cleaning workflow with config: {args.config_path}")
 
-    # Load the configuration file
-    logger.info("Loading configurations...")
-    columns_config = load_column_config(args.columns_config_path)
-    spark_config = load_service_config(args.spark_config_path, service_name="spark")
+    # Load workflow configuration
+    try:
+        logger.info("Loading workflow configuration...")
+        workflow_config = load_cleaning_workflow_config(args.config_path)
+        logger.info(f"Workflow configuration loaded successfully for source: {workflow_config.source_data_path}")
+    except (FileNotFoundError, ValueError, IOError) as e:
+        logger.error(f"Failed to load workflow configuration: {e}")
+        exit(1)
+
+    # Load the configuration files
+    logger.info("Loading individual configurations...")
+    columns_config = load_column_config(workflow_config.columns_config_path)
+    spark_config = load_service_config(workflow_config.spark_config_path, service_name="spark")
 
     # Initialize Spark session with Spark configurations
     logger.info("Initializing SparkSession...")
@@ -92,56 +94,61 @@ def main():
     for key, value in spark_config.items():
         logger.info(f"{key}: {value}")
 
-    # Create the column cleaner pipeline
-    cleaner_pipeline = ColumnCleanerPipeline(columns_config)
-    raw_columns = [col.name for col in cleaner_pipeline.columns]
-    cleaned_columns = ["id_table"] + [
-        col.cleaned_name for col in cleaner_pipeline.columns
-    ]
-
-    # Load data
     try:
-        df_raw = spark.read.format("parquet").load(args.raw_path)
-    except Exception as e:
-        logger.error(f"Failed to load raw data: {e}")
-        exit(1)
-    logger.info(f"Raw data loaded with {df_raw.count():,} records.")
+        # Create the column cleaner pipeline
+        cleaner_pipeline = ColumnCleanerPipeline(columns_config)
+        raw_columns = [col.name for col in cleaner_pipeline.columns]
+        cleaned_columns = ["id_table"] + [
+            col.cleaned_name for col in cleaner_pipeline.columns
+        ]
 
-    # Check if the raw columns exist in the DataFrame
-    if not all(col in df_raw.columns for col in raw_columns):
-        logger.warning(
-            f"Columns {raw_columns} not found in raw data. "
-            "Selecting from the struct column 'endereco' instead."
-        )
+        # Load data
         try:
-            df_raw = df_raw.select("endereco.*").select(*raw_columns)
+            df_raw = spark.read.format("parquet").load(workflow_config.source_data_path)
         except Exception as e:
-            logger.error(f"Failed to select columns: {e}")
+            logger.error(f"Failed to load raw data: {e}")
             exit(1)
-    else:
-        df_raw = df_raw.select(*raw_columns)
-    logger.info(f"Selected columns: {raw_columns}")
+        logger.info(f"Raw data loaded with {df_raw.count():,} records.")
 
-    # Apply the cleaning pipeline
-    try:
-        df_cleaned = cleaner_pipeline.apply(df_raw).select(*cleaned_columns)
-        logger.info(
-            f"Pipeline applied. Final columns selected. Dataframe with {df_cleaned.count():,} records."
+        # Check if the raw columns exist in the DataFrame
+        if not all(col in df_raw.columns for col in raw_columns):
+            logger.warning(
+                f"Columns {raw_columns} not found in raw data. "
+                "Selecting from the struct column 'endereco' instead."
+            )
+            try:
+                df_raw = df_raw.select("endereco.*").select(*raw_columns)
+            except Exception as e:
+                logger.error(f"Failed to select columns: {e}")
+                exit(1)
+        else:
+            df_raw = df_raw.select(*raw_columns)
+        logger.info(f"Selected columns: {raw_columns}")
+
+        # Apply the cleaning pipeline
+        try:
+            df_cleaned = cleaner_pipeline.apply(df_raw).select(*cleaned_columns)
+            logger.info(
+                f"Pipeline applied. Final columns selected. Dataframe with {df_cleaned.count():,} records."
+            )
+        except Exception as e:
+            logger.error(f"Failed to apply cleaning pipeline: {e}")
+            exit(1)
+
+        logger.info("Writing data...")
+        write_start_time = time.time()
+        df_cleaned.write.mode("overwrite").format("parquet").save(
+            workflow_config.output_data_path, compression="snappy"
         )
+        write_duration_seconds = time.time() - write_start_time
+        write_minutes, write_seconds = divmod(write_duration_seconds, 60)
+        logger.info(
+            f"Data written to {workflow_config.output_data_path} in {write_minutes} minutes and {write_seconds:.2f} seconds."
+        )
+        
     except Exception as e:
-        logger.error(f"Failed to apply cleaning pipeline: {e}")
+        logger.critical(f"Critical error in cleaning workflow: {e}", exc_info=True)
         exit(1)
-
-    logger.info("Writing data...")
-    write_start_time = time.time()
-    df_cleaned.write.mode("overwrite").format("parquet").save(
-        args.trusted_path, compression="snappy"
-    )
-    write_duration_seconds = time.time() - write_start_time
-    write_minutes, write_seconds = divmod(write_duration_seconds, 60)
-    logger.info(
-        f"Data written to {args.trusted_path} in {write_minutes} minutes and {write_seconds:.2f} seconds."
-    )
 
 
 if __name__ == "__main__":

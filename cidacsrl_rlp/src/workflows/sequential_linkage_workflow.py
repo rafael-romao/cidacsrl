@@ -7,45 +7,83 @@ from typing import Optional, Dict, Any
 
 from pyspark.sql import SparkSession, DataFrame
 
-# Project-specific imports
 from cidacsrl_rlp.src.linkage.models import (
     SequentialBlockingWorkflow,
     BlockingPhase
 )
-from cidacsrl_rlp.src.config.loader import load_sequential_blocking_workflow_config, load_service_config
+from cidacsrl_rlp.src.config.loader import load_sequential_blocking_workflow_config, load_service_config, load_linkage_workflow_config
 from cidacsrl_rlp.src.linkage.rdd_processing import process_partition_for_phase
 from cidacsrl_rlp.src.utils.schema_helpers import define_phase_output_schema, define_workflow_output_schema
 from cidacsrl_rlp.src.utils.logging_config import setup_logging
 from cidacsrl_rlp.src.utils.utils import sanitize_string
 from cidacsrl_rlp.src.utils.spark_utils import create_spark_session
+from cidacsrl_rlp.src.utils.io_manager import read_source_data, write_phase_results
 
 # Logger for this module
 logger = logging.getLogger(__name__)
 
 
-def execute_linkage_phase(
+
+def process_phase(
+    spark: SparkSession,
+    df_source: DataFrame,
+    linkage_config: SequentialBlockingWorkflow,
+    phase: BlockingPhase,
+    es_settings: Dict[str, Any],
+) -> DataFrame:
+    """
+    Processa uma fase do workflow de linkage.
+
+    Args:
+        spark (SparkSession): A sessão Spark ativa.
+        df_source (DataFrame): DataFrame contendo os registros da fonte a serem processados.
+        linkage_config (SequentialBlockingWorkflow): Configuração geral do workflow.
+        phase (BlockingPhase): Configuração específica para esta fase de linkage.
+        es_settings (Dict[str, Any]): Configurações de conexão com o Elasticsearch.
+
+    Returns:
+        DataFrame: Um DataFrame contendo todos os pares fonte-candidato encontrados e
+                   pontuados por esta fase. O DataFrame de saída conterá o `id_source_table`
+                   da fonte, dados do candidato (prefixados) e os scores calculados.
+                   Retorna um DataFrame vazio com o schema esperado se não houver dados de entrada
+                   ou se nenhum candidato for encontrado.
+    """
+    phase_name = sanitize_string(phase.phase_name)
+    logger.info(f"Phase '{phase_name}': starting with {df_source.count():,} records")
+
+    phase_execution_start_time = time.time()
+
+    df_matches = execute_linkage(
+        spark, df_source, linkage_config,
+        phase, es_settings, 
+    )
+    
+    phase_execution_duration = time.time() - phase_execution_start_time
+    logger.info(f"Phase '{phase_name}': execution completed in {phase_execution_duration:.2f}s.")
+    logger.info(f"Phase '{phase_name}': {df_matches.count():,} matches found")
+
+    return df_matches
+
+def execute_linkage(
     spark: SparkSession,
     df_source_this_phase: DataFrame,
-    workflow_config: SequentialBlockingWorkflow,
-    phase_config: BlockingPhase,
-    es_settings: Dict[str, Any],
-    runtime_partition_value: Optional[str] = None
+    linkage_config: SequentialBlockingWorkflow,
+    phase: BlockingPhase,
+    es_settings: Dict[str, Any]
 ) -> DataFrame:
     """
     Executa uma única fase de linkage (blocking phase).
 
     Esta função pega o DataFrame da fonte para a fase atual, aplica as regras de blocking
-    e similaridade definidas na `phase_config` para encontrar e pontuar candidatos
+    e similaridade definidas na `phase` para encontrar e pontuar candidatos
     do Elasticsearch.
 
     Args:
         spark (SparkSession): A sessão Spark ativa.
         df_source_this_phase (DataFrame): DataFrame contendo os registros da fonte a serem processados nesta fase.
         workflow_config (SequentialBlockingWorkflow): Configuração geral do workflow.
-        phase_config (BlockingPhase): Configuração específica para esta fase de linkage.
+        phase (BlockingPhase): Configuração específica para esta fase de linkage.
         es_settings (Dict[str, Any]): Configurações de conexão com o Elasticsearch.
-        runtime_partition_value (Optional[str]): Valor da partição de runtime, se aplicável,
-                                                 para filtrar dados no Elasticsearch.
 
     Returns:
         DataFrame: Um DataFrame contendo todos os pares fonte-candidato encontrados e
@@ -57,26 +95,25 @@ def execute_linkage_phase(
     source_df_schema_for_phase = df_source_this_phase.schema
 
     if df_source_this_phase.rdd.isEmpty():
-        logger.warning(f"Source DataFrame for phase '{phase_config.phase_name}' is empty. Returning an empty DataFrame with defined schema.")
+        logger.warning(f"Source DataFrame for phase '{phase.phase_name}' is empty. Returning an empty DataFrame with defined schema.")
         # Define schema based on the (empty) source DataFrame's schema and phase config
-        raw_output_schema = define_phase_output_schema(source_df_schema_for_phase, workflow_config, phase_config)
+        raw_output_schema = define_phase_output_schema(source_df_schema_for_phase, linkage_config, phase)
         return spark.createDataFrame([], schema=raw_output_schema)
 
     # Define the output schema for the results of this phase
-    raw_output_schema = define_phase_output_schema(source_df_schema_for_phase, workflow_config, phase_config)
+    raw_output_schema = define_phase_output_schema(source_df_schema_for_phase, linkage_config, phase)
 
     # Prepare configurations for broadcasting (must be dicts)
-    workflow_config_dict = vars(workflow_config).copy() # Convert dataclass to dict
-    phase_config_dict = vars(phase_config).copy()       # Convert dataclass to dict
+    linkage_config_dict = vars(linkage_config).copy() # Convert dataclass to dict
+    phase_config_dict = vars(phase).copy()       # Convert dataclass to dict
     # Convert nested ComparisonRule objects to dicts as well
-    phase_config_dict['rules'] = [vars(rule) for rule in phase_config.rules]
+    phase_config_dict['rules'] = [vars(rule) for rule in phase.rules]
 
     # Broadcast variables to all Spark executors
-    workflow_config_dict_bcast = spark.sparkContext.broadcast(workflow_config_dict)
+    workflow_config_dict_bcast = spark.sparkContext.broadcast(linkage_config_dict)
     phase_config_dict_bcast = spark.sparkContext.broadcast(phase_config_dict)
     es_config_dict_bcast = spark.sparkContext.broadcast(es_settings)
     source_schema_bcast = spark.sparkContext.broadcast(source_df_schema_for_phase) # Broadcast source schema
-    runtime_partition_value_bcast = spark.sparkContext.broadcast(runtime_partition_value)
 
     # process_partition_for_phase is designed to accept these broadcasted dict configurations
     scored_candidates_rdd = df_source_this_phase.rdd.mapPartitions(
@@ -85,16 +122,15 @@ def execute_linkage_phase(
             workflow_config_dict_bcast,
             phase_config_dict_bcast,
             es_config_dict_bcast,
-            source_schema_bcast,
-            runtime_partition_value_bcast
+            source_schema_bcast
         )
     )
 
     if scored_candidates_rdd.isEmpty():
-        logger.warning(f"Scored candidates RDD for phase '{phase_config.phase_name}' is empty. Returning an empty DataFrame.")
+        logger.warning(f"Scored candidates RDD for phase '{phase.phase_name}' is empty. Returning an empty DataFrame.")
         return spark.createDataFrame([], schema=raw_output_schema)
     else:
-        logger.info(f"RDD with scored candidates for phase '{phase_config.phase_name}' created successfully.")
+        logger.info(f"RDD with scored candidates for phase '{phase.phase_name}' created successfully.")
 
     # Create DataFrame from the RDD of scored candidates
     df_phase_scored_candidates = spark.createDataFrame(scored_candidates_rdd, schema=raw_output_schema)
@@ -127,67 +163,74 @@ def main():
         consultas ao Elasticsearch.
 
     Args:
-        --workflow-config-path (str): Caminho para o arquivo de configuração YAML
-            do fluxo de trabalho de linkage sequencial.
-        --es-config-path (str): Caminho para o arquivo de configuração YAML da
-            conexão com o Elasticsearch.
-        --spark-config-path (str): Caminho para o arquivo de configuração YAML do Spark.
-        --output-data-dir (str): Diretório base para salvar todos os resultados
-            das fases de linkage.
-        --source-data-path (str): Caminho para os dados da fonte (ex: diretório Parquet).
+        --config-path (str): Caminho para o arquivo de configuração YAML principal
+            do fluxo de trabalho que contém todos os parâmetros necessários.
         --log-level (str): Nível de logging (padrão: "INFO").
-        --sample-fraction (float, opcional): Fração dos dados da fonte para
-            amostragem (entre 0.0 e 1.0).
-        --sample-seed (int, opcional): Semente para a amostragem (padrão: 42).
-        --spark-checkpoint-base-dir (str, opcional): Diretório base para os
-            checkpoints do Spark, para otimizar a performance em fluxos longos.
 
     Example:
         Para executar o fluxo de trabalho a partir do terminal:
 
         .. code-block:: bash
 
-            python -m src.workflows.sequential_linkage_workflow \\
-                --workflow-config-path /path/to/your_workflow.yaml \\
-                --es-config-path /path/to/your_es_config.yaml \\
-                --spark-config-path /path/to/your_spark_config.yaml \\
-                --output-data-dir /path/to/output/data \\
-                --source-data-path /path/to/source_data.parquet \\
+            python -m cidacsrl_rlp.src.workflows.sequential_linkage_workflow \\
+                --config-path /path/to/workflow_config.yaml \\
                 --log-level DEBUG
+
+        Exemplo do arquivo de configuração YAML `workflow_config.yaml`:
+
+        .. code-block:: yaml
+
+            linkage_config_path: "/path/to/linkage_workflow.yaml"
+            es_config_path: "/path/to/elasticsearch_config.yaml"
+            spark_config_path: "/path/to/spark_config.yaml"
+            output_base_path: "/path/to/output/data"
+            source_data_path: "/path/to/source_data"
+            sample_fraction: 0.1  # opcional - para teste/debug
+            sample_seed: 42       # opcional
     """
     parser = argparse.ArgumentParser(description="Executes a Sequential Blocking Linkage Workflow using Elasticsearch and Spark.")
-    parser.add_argument("--workflow-config-path", required=True, help="Path to the Sequential Blocking Workflow YAML configuration file.")
-    parser.add_argument("--es-config-path", required=True, help="Path to the Elasticsearch connection configuration YAML file.")
-    parser.add_argument("--spark-config-path", required=True, help="Path to the Spark configuration YAML file.")
-    parser.add_argument("--output-data-dir", required=True, help="Base directory for saving all linkage phase outputs and final results.")
-    parser.add_argument("--source-data-path", required=True, help="Path to the source data (e.g., Parquet directory).")
+    parser.add_argument("--config-path", required=True, 
+                        help="Path to the main workflow configuration YAML file containing all parameters.")
     parser.add_argument("--log-level", default="INFO", choices=["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"],
                         help="Logging level for the application (default: INFO).")
-    parser.add_argument("--sample-fraction", type=float, default=None,
-                        help="Fraction of source data to sample for processing (0.0 to 1.0). For testing/debugging.")
-    parser.add_argument("--sample-seed", type=int, default=42,
-                        help="Seed for sampling if --sample-fraction is used (default: 42).")
-    parser.add_argument("--spark-checkpoint-base-dir", type=str, default=None,
-                        help="Base directory for Spark checkpoints. If provided, some DataFrames might be checkpointed. "
-                             "A subdirectory specific to this job will be created here.")
 
     args = parser.parse_args()
+    
+    # Setup logging
     setup_logging(level=getattr(logging, args.log_level.upper()))
-    logger.info(f"Starting CIDACS-RL Engine Sequential Linkage Workflow with workflow config: {args.workflow_config_path}")
+    
+    # Load main workflow configuration
+    try:
+        logger.info("Loading workflow configuration...")
+        workflow_config = load_linkage_workflow_config(args.config_path)
+        logger.info(f"Workflow configuration loaded successfully for linkage config: {workflow_config.linkage_config_path}")
+    except (FileNotFoundError, ValueError, IOError) as e:
+        logger.error(f"Failed to load workflow configuration: {e}")
+        exit(1)
+    
+    logger.info(f"Starting CIDACS-RL Workflow")
     workflow_start_time = time.time()
 
     # Load configurations
-    workflow_config = load_sequential_blocking_workflow_config(args.workflow_config_path)
-    es_settings = load_service_config(args.es_config_path, service_name="elasticsearch")
-    spark_settings = load_service_config(args.spark_config_path, service_name="spark")
+    try:
+        logger.info("Loading individual configurations...")
+        linkage_config = load_sequential_blocking_workflow_config(workflow_config.linkage_config_path)
+        es_settings = load_service_config(workflow_config.es_config_path, service_name="elasticsearch")
+        spark_settings = load_service_config(workflow_config.spark_config_path, service_name="spark")
+        logger.info("All configurations loaded successfully.")
+    except (FileNotFoundError, ValueError, IOError) as e:
+        logger.error(f"Failed to load configurations: {e}")
+        exit(1)
 
-    safe_source_name = sanitize_string(workflow_config.source_table)
-    safe_target_name = sanitize_string(workflow_config.target_es_index) # Uses target_es_index
+    source_name = sanitize_string(linkage_config.source_table)
+    target_name = sanitize_string(linkage_config.target_es_index) 
 
     # Construct a descriptive application name for Spark UI
-    app_name_parts = [workflow_config.workflow_name or f"linkage-{safe_source_name}_vs_{safe_target_name}"]
-    if args.current_partition_value:
-        app_name_parts.append(f"partition-{sanitize_string(args.current_partition_value)}")
+    app_name_parts = [f"linkage-{source_name}_vs_{target_name}"]
+    if workflow_config.sample_fraction and 0 < workflow_config.sample_fraction < 1.0:
+        app_name_parts.append(f"sample{int(workflow_config.sample_fraction * 100)}pct")
+    if workflow_config.sample_seed is not None:
+        app_name_parts.append(f"seed{workflow_config.sample_seed}")
     app_name = "_".join(app_name_parts)
 
     spark = create_spark_session(
@@ -195,150 +238,100 @@ def main():
         spark_config_path=spark_settings,
     )
 
-    try:
-        output_data_dir_path = Path(args.output_data_dir)
-        workflow_prefix_for_dir = ""
-        if workflow_config.workflow_name:
-            workflow_prefix_for_dir = sanitize_string(workflow_config.workflow_name) + "_"
-        # Base name for directory holding all intermediate phase results for this workflow
-        intermediate_base_dir_name = f"{workflow_prefix_for_dir}{safe_source_name}_vs_{safe_target_name}_intermediate_phases"
-        intermediate_results_base_path = output_data_dir_path / intermediate_base_dir_name
-        intermediate_results_base_path.mkdir(parents=True, exist_ok=True)
-        logger.info(f"Intermediate results from each linkage phase will be saved under: {intermediate_results_base_path}")
-
-        # Load source data
-        source_data_path_obj = Path(args.source_data_path)
-        source_data_path_to_load = source_data_path_obj
-
+    try:        
         
-        if not source_data_path_obj.exists() or not source_data_path_obj.is_dir():
-            logger.error(f"Source data path does not exist or is not a directory: {source_data_path_obj}")
-            raise FileNotFoundError(f"Source data path not found: {source_data_path_obj}")
+        df_source = read_source_data(
+            spark=spark,
+            source_path=workflow_config.source_data_path,
+            sample_fraction=workflow_config.sample_fraction,
+            sample_seed=workflow_config.sample_seed
+        )
+        
+        source_count = df_source.count()
+        logger.info(f"{source_count:,} source records submitted for linkage")
 
-        try:
-            df_source_for_processing = spark.read.parquet(str(source_data_path_to_load))
-            # Remove duplicates from source based on its ID to avoid redundant processing
-            df_source_for_processing = df_source_for_processing.dropDuplicates([workflow_config.id_source_table])
-            logger.info(f"Source DataFrame loaded successfully from '{source_data_path_to_load}'.")
-            logger.info(f"Source DataFrame initially has {df_source_for_processing.rdd.getNumPartitions()} partitions.")
-            # Consider making repartitioning configurable via spark_settings or workflow_config
-            num_shuffle_partitions = 50
-            df_source_for_processing = df_source_for_processing.repartition(num_shuffle_partitions)
-            logger.info(f"Source DataFrame repartitioned to {df_source_for_processing.rdd.getNumPartitions()} partitions.")
-        except Exception as e_read_source:
-            logger.error(f"Failed to read source data from '{source_data_path_to_load}'. "
-                         f"Verify path and format. Error: {e_read_source}", exc_info=True)
-            raise
+        original_source_schema = df_source.schema
+        output_base_path = Path(workflow_config.output_base_path)
+        
+        df_source_for_processing = df_source
+         
 
-        # Apply sampling if configured
-        if args.sample_fraction and 0.0 < args.sample_fraction <= 1.0:
-            df_source_for_processing = df_source_for_processing.sample(
-                withReplacement=False, fraction=args.sample_fraction, seed=args.sample_seed
-            )
-            logger.info(f"Sampled source DataFrame with fraction {args.sample_fraction} and seed {args.sample_seed}.")
+        if source_count == 0:
+            logger.info("No source records found to process. Linkage workflow terminating.")
+            raise ValueError("No source records found")
 
-        initial_source_count = df_source_for_processing.count()
-        logger.info(f"{initial_source_count:,} unique source records submitted for linkage after initial load and deduplication.")
-
-        original_source_schema = df_source_for_processing.schema # Keep original schema for final output construction
-
-        if initial_source_count == 0:
-            logger.info("No source records found to process after loading (and sampling, if any). Linkage workflow terminating.")
-            return
-
-        # Main loop through linkage phases (blocking phases)
-        for phase_config in workflow_config.blocking_phases:
+        # Main loop through blocking phases
+        for phase in linkage_config.blocking_phases:
             phase_loop_start_time = time.time()
-
-            if not phase_config.enabled:
-                logger.info(f"Skipping disabled phase: '{phase_config.phase_name}'")
-                continue
-
-            current_source_count_for_phase = df_source_for_processing.select(workflow_config.id_source_table).count()
-
-            if current_source_count_for_phase == 0:
-                logger.info(f"No source records remaining. Stopping workflow before phase '{phase_config.phase_name}'.")
-                break # No more records to process
-
-            logger.info(f"--- Starting Phase: '{phase_config.phase_name}' ({phase_config.phase_description or 'No description'}) ---")
-            logger.info(f"Source records for this phase: {current_source_count_for_phase:,}")
-
-            phase_execution_start_time = time.time()
-            df_strong_matches_this_phase = execute_linkage_phase(
-                spark,
-                df_source_for_processing, # Current set of source records to link
-                workflow_config,
-                phase_config,
-                es_settings,
-                args.current_partition_value
+            phase_name = phase.phase_name           
+            phase_threshold = phase.strong_match_score_threshold
+            phase_output_path = output_base_path / f"linkage_{source_name}_vs_{target_name}" / f"linkage_phase_name={phase_name}"
+            phase_results_schema = define_workflow_output_schema(
+                original_source_schema,
+                linkage_config,
+                phase,
+                include_phase_name=True
             )
 
+            if not phase.enabled:
+                logger.info(f"Skipping disabled phase: '{phase_name}'")
+                continue           
 
-            strong_matches_count_this_phase = df_strong_matches_this_phase.count()
-            phase_execution_duration = time.time() - phase_execution_start_time
-            logger.info(f"Execution of phase '{phase_config.phase_name}' completed in {phase_execution_duration:.2f}s.")
-            logger.info(f"{strong_matches_count_this_phase:,} strong match candidates (before distinct on source ID) found in the phase '{phase_config.phase_name}'.")
+            if df_source_for_processing.count() == 0:
+                logger.info(f"No source records remaining. Stopping workflow before phase '{phase_name}'.")
+                break
 
-            if strong_matches_count_this_phase > 0:
-                safe_phase_name_for_path_component = sanitize_string(phase_config.phase_name)
-                # Define output path for this phase's results, partitioned by phase name
-                phase_output_path = intermediate_results_base_path / f"linkage_phase_name={safe_phase_name_for_path_component}"
+            df_matches = process_phase(
+                spark=spark,
+                df_source=df_source_for_processing,
+                linkage_config=linkage_config,
+                phase=phase,
+                es_settings=es_settings
+            )
 
-                # Use define_workflow_output_schema for the schema when writing phase results
-                # This schema includes source ID, candidate data (prefixed), all scores, and phase name.
-                schema_for_writing_phase_results = define_workflow_output_schema(
-                    original_source_schema, workflow_config, phase_config, include_phase_name=True
-                )
+            if df_matches.count() == 0:
+                logger.info(f"No matches found in phase '{phase_name}'.")
+                continue
+            else:
+                source_matched = df_matches.select(linkage_config.id_source_table).distinct()                
+                logger.info(f"Phase '{phase_name}': {source_matched.count():,} source found matches above {phase_threshold}.")
 
-                cols_to_select_for_writing = [field.name for field in schema_for_writing_phase_results.fields]
+                phase_result_columns = [field.name for field in phase_results_schema.fields]
+                df_matches = df_matches.select(phase_result_columns)
 
-                # Ensure only necessary columns according to the defined schema are selected before writing
-                df_strong_matches_to_write = df_strong_matches_this_phase.select(cols_to_select_for_writing)
-
-                df_strong_matches_to_write.write.format("parquet").mode("overwrite").save(str(phase_output_path))
-                logger.info(f"Strong match candidates from phase '{phase_config.phase_name}' written successfully to: {phase_output_path}")
-
-                # Identify unique source IDs that found a strong match in this phase
-                ids_matched_in_phase = df_strong_matches_this_phase.select(workflow_config.id_source_table).distinct()
-                num_unique_source_ids_matched = ids_matched_in_phase.count()
-                logger.info(f"{num_unique_source_ids_matched:,} unique source IDs found strong matches in phase '{phase_config.phase_name}'.")
-
+                write_phase_results(spark, df_matches, phase_output_path, mode="overwrite")
+                logger.info(f"Phase '{phase_name}': results written to {phase_output_path}")
 
                 # Remove matched source IDs from the pool for subsequent phases
                 df_source_for_processing = df_source_for_processing.join(
-                    ids_matched_in_phase, # DataFrame with distinct source IDs matched in this phase
-                    on=workflow_config.id_source_table,
-                    how="left_anti" # Keep only records from df_source_for_processing that are NOT in ids_matched_in_phase
+                    source_matched,
+                    on=linkage_config.id_source_table,
+                    how="left_anti"
                 )
 
 
-                count_remaining_source_ids = df_source_for_processing.count() # This count is on the RDD after join
-                if count_remaining_source_ids > 0:
-                    logger.info(f"{count_remaining_source_ids:,} source records remaining for next phase.")
-                else:
-                    logger.info(f"No source records remaining after phase '{phase_config.phase_name}'. Workflow will terminate if no more phases.")
+                count_remaining_source = df_source_for_processing.count()
 
-            else: # No strong matches found in this phase
-                logger.info(f"No strong matches found in phase '{phase_config.phase_name}'.")
+                if count_remaining_source == 0 and phase != linkage_config.blocking_phases[-1]:
+                    logger.info(f"No source records remaining after phase '{phase.phase_name}'.")
+                    logger.info("All source records have been matched. Linkage workflow terminating.")
+                    break
+                else:
+                    logger.info(f"{count_remaining_source:,} source records remaining for next phase.")
+                    
 
             phase_loop_total_duration = time.time() - phase_loop_start_time
-            logger.info(f"--- Phase '{phase_config.phase_name}' completed (total loop time: {phase_loop_total_duration:.2f}s) ---")
-
-            if df_source_for_processing.count() == 0 and phase_config != workflow_config.blocking_phases[-1]:
-                logger.info("All source records have been matched. Terminating linkage phases early.")
-                break
-
+            logger.info(f"Phase '{phase.phase_name}': completed in {phase_loop_total_duration:.2f}s")
 
         logger.info("All linkage phases have been executed.")
 
-
     except Exception as e:
         logger.critical(f"Critical error in linkage workflow: {e}", exc_info=True)
-        exit(1) # Exit with error code
+        exit(1)
     finally:
         workflow_duration_total = time.time() - workflow_start_time
         mins, secs = divmod(workflow_duration_total, 60)
-        logger.info(f"CIDACS-RL Engine Linkage Workflow completed in {workflow_duration_total:.2f} seconds "
+        logger.info(f"linkage_{source_name}_vs_{target_name} workflow completed in {workflow_duration_total:.2f} seconds "
                     f"(approximately {int(mins):02d}m:{int(secs):02d}s).")
 
 
