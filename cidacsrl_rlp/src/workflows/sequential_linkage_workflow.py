@@ -17,7 +17,6 @@ from cidacsrl_rlp.src.linkage.models import (
     BlockingPhase
 )
 from cidacsrl_rlp.src.config.loader import load_sequential_blocking_workflow_config, load_service_config
-from cidacsrl_rlp.src.linkage.rdd_processing import process_partition_for_phase
 from cidacsrl_rlp.src.utils.logging_config import setup_logging
 from cidacsrl_rlp.src.utils.utils import sanitize_string
 from cidacsrl_rlp.src.utils.spark_utils import create_spark_session

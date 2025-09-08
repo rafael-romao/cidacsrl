@@ -79,8 +79,6 @@ def execute_linkage_phase(
             workflow_config_dict_bcast,
             phase_config_dict_bcast,
             es_config_dict_bcast,
-            source_schema_bcast,
-            runtime_partition_value_bcast
         )
     )
 
