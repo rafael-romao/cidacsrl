@@ -197,7 +197,6 @@ def cidacsrl(
                 how="left_anti" # Keep only records from df that are NOT in ids_matched_in_phase
             )
 
-
             count_remaining_source_ids = df.count() # This count is on the RDD after join
             if count_remaining_source_ids > 0:
                 logger.info(f"{count_remaining_source_ids:,} source records remaining for next phase.")

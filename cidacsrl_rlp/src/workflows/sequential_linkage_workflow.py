@@ -218,7 +218,7 @@ def main():
             # Executa o linkage
             cidacsrl(
                 df=df_source_for_processing,
-                linkage_name=f"linkage-{safe_source_name}_vs_{safe_target_name}{'-' + partition if partition != '*' else ''}",
+                linkage_name=f"linkage-{safe_source_name}_vs_{safe_target_name}{'-' + str(partition) if partition != '*' else ''}",
                 workflow_config=workflow_config,
                 spark=spark,
                 es_settings=es_settings,
