@@ -7,6 +7,7 @@ from typing import Optional, Dict, Any
 
 from pyspark.sql import SparkSession, DataFrame
 
+from cidacsrl_rlp.src.linkage.cidacsrl import cidacsrl
 from cidacsrl_rlp.src.linkage.models import (
     SequentialBlockingWorkflow,
     BlockingPhase
@@ -22,121 +23,16 @@ from cidacsrl_rlp.src.utils.io_manager import read_source_data, write_phase_resu
 # Logger for this module
 logger = logging.getLogger(__name__)
 
-
-
-def process_phase(
-    spark: SparkSession,
-    df_source: DataFrame,
-    linkage_config: SequentialBlockingWorkflow,
-    phase: BlockingPhase,
-    es_settings: Dict[str, Any],
-) -> DataFrame:
-    """
-    Processa uma fase do workflow de linkage.
-
-    Args:
-        spark (SparkSession): A sessão Spark ativa.
-        df_source (DataFrame): DataFrame contendo os registros da fonte a serem processados.
-        linkage_config (SequentialBlockingWorkflow): Configuração geral do workflow.
-        phase (BlockingPhase): Configuração específica para esta fase de linkage.
-        es_settings (Dict[str, Any]): Configurações de conexão com o Elasticsearch.
-
-    Returns:
-        DataFrame: Um DataFrame contendo todos os pares fonte-candidato encontrados e
-                   pontuados por esta fase. O DataFrame de saída conterá o `id_source_table`
-                   da fonte, dados do candidato (prefixados) e os scores calculados.
-                   Retorna um DataFrame vazio com o schema esperado se não houver dados de entrada
-                   ou se nenhum candidato for encontrado.
-    """
-    phase_name = sanitize_string(phase.phase_name)
-    logger.info(f"Phase '{phase_name}': starting with {df_source.count():,} records")
-
-    phase_execution_start_time = time.time()
-
-    df_matches = execute_linkage(
-        spark, df_source, linkage_config,
-        phase, es_settings, 
-    )
-    
-    phase_execution_duration = time.time() - phase_execution_start_time
-    logger.info(f"Phase '{phase_name}': execution completed in {phase_execution_duration:.2f}s.")
-    logger.info(f"Phase '{phase_name}': {df_matches.count():,} matches found")
-
-    return df_matches
-
-def execute_linkage(
-    spark: SparkSession,
-    df_source_this_phase: DataFrame,
-    linkage_config: SequentialBlockingWorkflow,
-    phase: BlockingPhase,
-    es_settings: Dict[str, Any]
-) -> DataFrame:
-    """
-    Executa uma única fase de linkage (blocking phase).
-
-    Esta função pega o DataFrame da fonte para a fase atual, aplica as regras de blocking
-    e similaridade definidas na `phase` para encontrar e pontuar candidatos
-    do Elasticsearch.
-
-    Args:
-        spark (SparkSession): A sessão Spark ativa.
-        df_source_this_phase (DataFrame): DataFrame contendo os registros da fonte a serem processados nesta fase.
-        workflow_config (SequentialBlockingWorkflow): Configuração geral do workflow.
-        phase (BlockingPhase): Configuração específica para esta fase de linkage.
-        es_settings (Dict[str, Any]): Configurações de conexão com o Elasticsearch.
-
-    Returns:
-        DataFrame: Um DataFrame contendo todos os pares fonte-candidato encontrados e
-                   pontuados por esta fase. O DataFrame de saída conterá o `id_source_table`
-                   da fonte, dados do candidato (prefixados) e os scores calculados.
-                   Retorna um DataFrame vazio com o schema esperado se não houver dados de entrada
-                   ou se nenhum candidato for encontrado.
-    """
-    source_df_schema_for_phase = df_source_this_phase.schema
-
-    if df_source_this_phase.rdd.isEmpty():
-        logger.warning(f"Source DataFrame for phase '{phase.phase_name}' is empty. Returning an empty DataFrame with defined schema.")
-        # Define schema based on the (empty) source DataFrame's schema and phase config
-        raw_output_schema = define_phase_output_schema(source_df_schema_for_phase, linkage_config, phase)
-        return spark.createDataFrame([], schema=raw_output_schema)
-
-    # Define the output schema for the results of this phase
-    raw_output_schema = define_phase_output_schema(source_df_schema_for_phase, linkage_config, phase)
-
-    # Prepare configurations for broadcasting (must be dicts)
-    linkage_config_dict = vars(linkage_config).copy() # Convert dataclass to dict
-    phase_config_dict = vars(phase).copy()       # Convert dataclass to dict
-    # Convert nested ComparisonRule objects to dicts as well
-    phase_config_dict['rules'] = [vars(rule) for rule in phase.rules]
-
-    # Broadcast variables to all Spark executors
-    workflow_config_dict_bcast = spark.sparkContext.broadcast(linkage_config_dict)
-    phase_config_dict_bcast = spark.sparkContext.broadcast(phase_config_dict)
-    es_config_dict_bcast = spark.sparkContext.broadcast(es_settings)
-    source_schema_bcast = spark.sparkContext.broadcast(source_df_schema_for_phase) # Broadcast source schema
-
-    # process_partition_for_phase is designed to accept these broadcasted dict configurations
-    scored_candidates_rdd = df_source_this_phase.rdd.mapPartitions(
-        lambda partition_iter: process_partition_for_phase(
-            partition_iter,
-            workflow_config_dict_bcast,
-            phase_config_dict_bcast,
-            es_config_dict_bcast,
-            source_schema_bcast
-        )
-    )
-
-    if scored_candidates_rdd.isEmpty():
-        logger.warning(f"Scored candidates RDD for phase '{phase.phase_name}' is empty. Returning an empty DataFrame.")
-        return spark.createDataFrame([], schema=raw_output_schema)
+def get_available_partitions(source_path, partition_by, spark):
+    # Verifica se os dados foram particionados
+    partitions = None
+    if partition_by and partition_by.get('partition'):
+        partitions = [x[0] for x in spark.read(source_path).select(partition_by['partition']).distinct().collect()]
+        if partition_by.get('filter_partitions'):
+            partitions = [x for x in partitions if x in partition_by['filter_partitions']]
     else:
-        logger.info(f"RDD with scored candidates for phase '{phase.phase_name}' created successfully.")
-
-    # Create DataFrame from the RDD of scored candidates
-    df_phase_scored_candidates = spark.createDataFrame(scored_candidates_rdd, schema=raw_output_schema)
-
-    return df_phase_scored_candidates
-
+        partitions = ["*"]
+    return partitions
 
 def main():
     """Ponto de entrada principal para o fluxo de trabalho de linkage sequencial.
@@ -238,94 +134,57 @@ def main():
         spark_config_path=spark_settings,
     )
 
-    try:        
-        
-        df_source = read_source_data(
-            spark=spark,
-            source_path=workflow_config.source_data_path,
-            sample_fraction=workflow_config.sample_fraction,
-            sample_seed=workflow_config.sample_seed
+    try:
+        # Obtém as partições dos dados
+        partitions = get_available_partitions(
+            workflow_config.source_data_path,
+            workflow_config.partition_by,
+            spark
         )
         
-        source_count = df_source.count()
-        logger.info(f"{source_count:,} source records submitted for linkage")
-
-        original_source_schema = df_source.schema
-        output_base_path = Path(workflow_config.output_base_path)
-        
-        df_source_for_processing = df_source
-         
-
-        if source_count == 0:
-            logger.info("No source records found to process. Linkage workflow terminating.")
-            raise ValueError("No source records found")
-
-        # Main loop through blocking phases
-        for phase in linkage_config.blocking_phases:
-            phase_loop_start_time = time.time()
-            phase_name = phase.phase_name           
-            phase_threshold = phase.strong_match_score_threshold
-            phase_output_path = output_base_path / f"linkage_{source_name}_vs_{target_name}" / f"linkage_phase_name={phase_name}"
-            phase_results_schema = define_workflow_output_schema(
-                original_source_schema,
-                linkage_config,
-                phase,
-                include_phase_name=True
-            )
-
-            if not phase.enabled:
-                logger.info(f"Skipping disabled phase: '{phase_name}'")
-                continue           
-
-            if df_source_for_processing.count() == 0:
-                logger.info(f"No source records remaining. Stopping workflow before phase '{phase_name}'.")
-                break
-
-            df_matches = process_phase(
+        # Percorre todas as partições do DataFrame caso os dados estejam particionados ou lê o DataFrame completo caso contrário.
+        for i, partition in enumerate(partitions):
+            # debug
+            logger.info(f"> [#{i + 1}/{len(partitions)}] {workflow_config.partition_by.get('partition', 'ALL')}={partition}")
+            
+            df_source = read_source_data(
                 spark=spark,
-                df_source=df_source_for_processing,
-                linkage_config=linkage_config,
-                phase=phase,
-                es_settings=es_settings
+                source_path=workflow_config.source_data_path,
+                sample_fraction=workflow_config.sample_fraction,
+                sample_seed=workflow_config.sample_seed,
+                partition_info={
+                    'partition_by': workflow_config.partition_by.get('partition'),
+                    'partition': partition
+                },
             )
-
-            if df_matches.count() == 0:
-                logger.info(f"No matches found in phase '{phase_name}'.")
-                continue
+            
+            source_count = df_source.count()
+            if source_count == 0:
+                logger.info("No source records found to process. Linkage workflow terminating.")
+                raise ValueError("No source records found")
             else:
-                source_matched = df_matches.select(linkage_config.id_source_table).distinct()                
-                logger.info(f"Phase '{phase_name}': {source_matched.count():,} source found matches above {phase_threshold}.")
+                logger.info(f"{source_count:,} source records submitted for linkage")
 
-                phase_result_columns = [field.name for field in phase_results_schema.fields]
-                df_matches = df_matches.select(phase_result_columns)
-
-                write_phase_results(spark, df_matches, phase_output_path, mode="overwrite")
-                logger.info(f"Phase '{phase_name}': results written to {phase_output_path}")
-
-                # Remove matched source IDs from the pool for subsequent phases
-                df_source_for_processing = df_source_for_processing.join(
-                    source_matched,
-                    on=linkage_config.id_source_table,
-                    how="left_anti"
-                )
-
-
-                count_remaining_source = df_source_for_processing.count()
-
-                if count_remaining_source == 0 and phase != linkage_config.blocking_phases[-1]:
-                    logger.info(f"No source records remaining after phase '{phase.phase_name}'.")
-                    logger.info("All source records have been matched. Linkage workflow terminating.")
-                    break
-                else:
-                    logger.info(f"{count_remaining_source:,} source records remaining for next phase.")
-                    
-
-            phase_loop_total_duration = time.time() - phase_loop_start_time
-            logger.info(f"Phase '{phase.phase_name}': completed in {phase_loop_total_duration:.2f}s")
+            # Executa o linkage
+            cidacsrl(
+                df=df_source,
+                source_name=source_name,
+                target_name=target_name,
+                linkage_config=linkage_config,
+                spark=spark,
+                es_settings=es_settings,
+                output_base_path=Path(workflow_config.output_base_path),
+                partition_info={
+                    'partition_by': workflow_config.partition_by.get('partition'),
+                    'partition': partition
+                },
+                log_file=f"/tmp/metadata_linkages.csv", # FIXME: criar parâmetro no YAML
+            )
 
         logger.info("All linkage phases have been executed.")
 
     except Exception as e:
+        # TODO: adicionar um evento de erro no log (similar ao evento de END porém indicando ERROR)
         logger.critical(f"Critical error in linkage workflow: {e}", exc_info=True)
         exit(1)
     finally:

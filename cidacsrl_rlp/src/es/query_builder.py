@@ -8,6 +8,7 @@ def create_es_query_for_phase(
     rules_dicts: List[Dict[str, Any]],
     target_es_fields_to_fetch: List[str],
     candidate_limit: int,
+    filter_query: dict = dict(),
 ) -> Optional[Dict[str, Any]]:
     """
     Cria o corpo da consulta Elasticsearch para um único registro da fonte,
@@ -19,6 +20,9 @@ def create_es_query_for_phase(
         rules_dicts (List[Dict[str, Any]]): Lista de dicionários de regras de comparação para a fase.
         target_es_fields_to_fetch (List[str]): Lista de campos do índice alvo no Elasticsearch a serem retornados.
         candidate_limit (int): Número máximo de candidatos a serem retornados pela consulta.
+        filter_query (dict, optional): Dicionário na estruturra, por exemplo:
+            - `{'column': 'uf'}` que permite filtrar no elasticsearch apenas as UFs iguais à UF do registro source.
+            - Ou, exemplo, `{'query': [{'term': {'uf': 29}}, {'range': {'dtnasc': {"lt": "2018-01-01"}}}]`
 
     Returns:
         Optional[Dict[str, Any]]: Um dicionário representando o corpo da consulta Elasticsearch,
@@ -122,10 +126,23 @@ def create_es_query_for_phase(
         if not must_clauses and "minimum_should_match" not in bool_query_conditions:
              bool_query_conditions["minimum_should_match"] = 1
 
-    if filter_clauses:
-        bool_query_conditions["filter"] = filter_clauses
+    # if filter_clauses:
+    #     bool_query_conditions["filter"] = filter_clauses
     if must_not_clauses:
         bool_query_conditions["must_not"] = must_not_clauses
+
+    if filter_query:
+        if filter_query.get('query'):
+            bool_query_conditions['filter'] = filter_query.get('query')
+        elif filter_query.get('column'):
+            col_filter = filter_query.get('column')
+            bool_query_conditions['filter'] = [{
+                'term': {
+                    col_filter: source_row_dict.get(col_filter)
+                }
+            }]
+        else:
+            raise Exception(f"Estrutura do filter inválida: {filter_query}")
 
     if not bool_query_conditions:
         source_id_for_log = source_row_dict.get(next(iter(source_row_dict)), 'N/A_SOURCE_ID') if source_row_dict else 'N/A_SOURCE_ID'
