@@ -1,0 +1,121 @@
+workflow_name: "geolinkage"
+workflow_description: "Workflow sequencial para linkage de endereços (sem número), com campos normalizados."
+
+source_table: "enderecos_ficticios"
+id_source_table: "id"
+
+target_es_index: "enderecos_ficticios"
+id_target_table: "id"
+
+indexed_dataset_filter:
+  # O filter pode ser `column` ou `query`
+  column: uf
+  # query:
+  #   - term:
+  #       uf: 29
+  #   - range:
+  #       dtnasc:
+  #         lt: "2018-01-01"
+  #   - term:
+  #       municipio: 291234
+partition_by:
+  partition: "uf"
+  filter_partitions:
+    - 29
+    - 35
+
+blocking_phases: 
+  - phase_name: "exact_cep"
+    phase_description: "Correspondência com códigos geográficos idênticos e com logradouro por similaridade textual."
+    enabled: true
+    candidate_limit: 50
+    strong_match_score_threshold: 0.95
+
+    rules: 
+      - source_column: "cep"
+        target_column: "cep"
+        es_clause_type: "must"
+        query_type: "term"
+        similarity: "overlap"
+        weight: 3.0 
+        penalty: 0.1 
+      - source_column: "municipio"
+        target_column: "municipio"
+        es_clause_type: "must"
+        query_type: "term"
+        similarity: "exact"
+        weight: 2.0
+        penalty: 0.1 
+      - source_column: "uf"
+        target_column: "uf"
+        es_clause_type: "must"
+        query_type: "term"
+        similarity: "exact"
+        weight: 1.0
+        penalty: 0.1 
+      - source_column: "logradouro"
+        target_column: "logradouro"
+        es_clause_type: "must" 
+        is_fuzzy: true
+        boost: 3.0 
+        query_type: "match"
+        similarity: "jaro_winkler"
+        weight: 4.0 
+        penalty: 0.6
+      - source_column: "bairro"
+        target_column: "bairro"
+        es_clause_type: "should" 
+        is_fuzzy: true
+        boost: 2.0
+        query_type: "match"
+        similarity: "jaro_winkler"
+        weight: 1.0 
+        penalty: 0.05
+
+  
+  - phase_name: "exact_cep_non_exact_logradouro"
+    phase_description: "Caso o CEP não esteja presente, mas municipio e uf sejam idênticos, logradouro é comparado por similaridade textual."
+    enabled: true
+    candidate_limit: 100
+    strong_match_score_threshold: 0.60
+
+    rules: 
+      - source_column: "cep"
+        target_column: "cep"
+        es_clause_type: "should"
+        query_type: "term"
+        similarity: "overlap"
+        weight: 1.0 
+        penalty: 0.1 
+      - source_column: "municipio"
+        target_column: "municipio"
+        es_clause_type: "must"
+        query_type: "term"
+        similarity: "overlap"
+        weight: 2.0
+        penalty: 0.1 
+      - source_column: "uf"
+        target_column: "uf"
+        es_clause_type: "must"
+        query_type: "term"
+        similarity: "overlap"
+        weight: 2.0
+        penalty: 0.1 
+      - source_column: "logradouro"
+        target_column: "logradouro"
+        es_clause_type: "must" 
+        is_fuzzy: true
+        boost: 3.0 
+        query_type: "match"
+        similarity: "jaro_winkler"
+        weight: 4.0 
+        penalty: 0.6
+      - source_column: "bairro"
+        target_column: "bairro"
+        es_clause_type: "should" 
+        is_fuzzy: true
+        boost: 2.0
+        query_type: "match"
+        similarity: "jaro_winkler"
+        weight: 1.0 
+        penalty: 0.05
