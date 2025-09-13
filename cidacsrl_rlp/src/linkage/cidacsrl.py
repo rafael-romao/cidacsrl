@@ -157,11 +157,11 @@ def cidacsrl(
     # Define o nome do linkage
     linkage_name = f"linkage-{source_name}_vs_{target_name}{'-' + str(partition_info['partition']) if partition_info.get('partition', '*') != '*' else ''}"
 
-    # Cria um ID para a execução atual
+    # Cria um ID para a execução atual (pode ser utilizado nos logs)
     execution_id = datetime.now().strftime("%Y%m%d%H%M")
 
     if log_file:
-        # Registra o início do linkage
+        # Registra o início do linkage nos logs
         trace_execution(process_name=linkage_name, operation="START", caminho_csv=log_file, execution_id=execution_id)
 
     try:

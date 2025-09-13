@@ -262,7 +262,7 @@ def process_partition_for_phase(
             rules_dicts=phase_cfg['rules'],
             target_es_fields_to_fetch=target_es_fields_to_fetch,
             candidate_limit=phase_cfg['candidate_limit'],
-            ilter_query=workflow_cfg.get('indexed_dataset_filter'),
+            filter_query=workflow_cfg.get('indexed_dataset_filter'),
         )
 
         if es_query_body:
