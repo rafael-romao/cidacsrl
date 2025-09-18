@@ -164,20 +164,22 @@ def main():
                 raise ValueError("No source records found")
             else:
                 logger.info(f"{source_count:,} source records submitted for linkage")
+            
+            # Define o path onde o linkage será salvo
+            write_path = Path(workflow_config.output_base_path) / f"linkage_{source_name}_vs_{target_name}"
+
+            # Define o path de escrita da partição (caso os dados estejam particionados)
+            if partition != "*":
+                write_path = f"{write_path}/{workflow_config.partition_by.get('partition')}={partition}"
 
             # Executa o linkage
             cidacsrl(
                 df=df_source,
-                source_name=source_name,
-                target_name=target_name,
                 linkage_config=linkage_config,
                 spark=spark,
                 es_settings=es_settings,
-                output_base_path=Path(workflow_config.output_base_path),
-                partition_info={
-                    'partition_by': workflow_config.partition_by.get('partition'),
-                    'partition': partition
-                },
+                write_path=write_path,
+                partition_column=workflow_config.partition_by.get('partition'),
                 log_file=f"/tmp/metadata_linkages.csv", # FIXME: criar parâmetro no YAML
             )
 

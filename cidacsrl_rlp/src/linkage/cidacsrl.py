@@ -136,13 +136,11 @@ def execute_linkage(
 
 def cidacsrl(
     df,
-    source_name,
-    target_name,
     linkage_config,
     spark,
     es_settings,
-    output_base_path,
-    partition_info: dict = dict(),
+    write_path,
+    partition_column: str = None,
     log_file: str = None,
     logger=None,
     debug: bool = True
@@ -154,11 +152,10 @@ def cidacsrl(
     # Backup do schema original das colunas
     original_source_schema = df.schema
 
-    # Define o nome do linkage
-    linkage_name = f"linkage-{source_name}_vs_{target_name}{'-' + str(partition_info['partition']) if partition_info.get('partition', '*') != '*' else ''}"
-
     # Cria um ID para a execução atual (pode ser utilizado nos logs)
     execution_id = datetime.now().strftime("%Y%m%d%H%M")
+    # Cria um nome para o linkage para ser salvo nos logs
+    linkage_name = f"linkage{write_path.split("linkage")[1:]}" if "linkage" in write_path else write_path
 
     if log_file:
         # Registra o início do linkage nos logs
@@ -170,7 +167,7 @@ def cidacsrl(
             phase_loop_start_time = time.time()
             phase_name = phase.phase_name           
             phase_threshold = phase.strong_match_score_threshold
-            phase_output_path = output_base_path / f"linkage_{source_name}_vs_{target_name}" / f"linkage_phase_name={phase_name}"
+            phase_output_path = f"{write_path}/linkage_phase_name={phase_name}"
             
             phase_results_schema = define_workflow_output_schema(
                 original_source_schema,
@@ -209,22 +206,16 @@ def cidacsrl(
                     "_DT_LINKAGE": F.from_utc_timestamp(F.current_timestamp(), "America/Sao_Paulo"),
                 })
 
-                ## Escrita dos dados
-                # Define o path de escrita do resultado do linkage. Particiona a escrita caso o argumento seja informado nas configurações.
-                if partition_info.get('partition', '*') == "*":
-                    write_path = str(phase_output_path)
-                else:
-                    # Dropa a coluna de partição dos dados caso ela tenha sido mantida pois no linkage partitionado ela terá apenas o valor da partição em questão.
-                    df_matches = df_matches.drop(partition_info.get('partition_by'))
-                    write_path = f"{re.sub("\/$", "", str(phase_output_path))}/{partition_info.get('partition_by')}={partition_info.get('partition')}"
+                if partition_column:
+                    df_matches = df_matches.drop(partition_column)
 
-                logger.info(f"[Phase '{phase_name}']: Escrevendo dados em `{write_path}`...")
+                logger.info(f"[Phase '{phase_name}']: Escrevendo dados em `{phase_output_path}`...")
                 # write_phase_results(spark, df_matches, phase_output_path, mode="overwrite")
-                df_matches.write.format("parquet").mode("overwrite").save(write_path)
-                logger.info(f"Candidates from phase '{phase_name}' written successfully to: {write_path}")
+                df_matches.write.format("parquet").mode("overwrite").save(phase_output_path)
+                logger.info(f"Candidates from phase '{phase_name}' written successfully to: {phase_output_path}")
 
                 # Identify unique source IDs that found a strong match in this phase
-                source_matched = spark.read.parquet(write_path).select(linkage_config.id_source_table).distinct()
+                source_matched = spark.read.parquet(phase_output_path).select(linkage_config.id_source_table).distinct()
 
                 if debug:
                     logger.info(f"[Phase '{phase_name}']: {source_matched.count()} source found matches above {phase_threshold} and writed in `{phase_output_path}`")
