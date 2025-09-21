@@ -141,10 +141,23 @@ def cidacsrl(
     es_settings,
     write_path,
     partition_column: str = None,
-    log_file: str = None,
+    log_linkage_file: str = None,
     logger=None,
     debug: bool = True
 ):
+    """Função para consolidar as chamadas e execuções do fluxo do Cidacs-RL
+
+    Args:
+        * `df` (DataFrame): PySpark DataFrame que será submetido ao Linkage.
+        * `linkage_config` (SequentialBlockingWorkflow): Configurações do linkage.
+        * `spark`: Instância do Spark.
+        * `es_settings`: Configurações do ElasticSearch
+        * `write_path` (str): Path onde será salvo o linkage.
+        * `partition_column` (str, Optional): Nome da coluna de referência para particionar os dados. Caso não informado ou caso seja igual a `'*'` então os dados não serão particionados.
+        * `log_linkage_file` (str, Optional): Path onde serão salvos os logs de eventos, no estilo CDC, do linkage. Caso não informado não será salvo.
+        * `logger` (logging, Optional): Objeto logger para exibição dos logs do linkage. Caso não informado será feita uma instância nova.
+        * `debug`: (bool, Optional): Flag booleana para indicar se devem ser exibidos prints de debug ou não.
+    """
     if not logger:
         import logging
         logger = logging.getLogger(__name__)
@@ -157,9 +170,9 @@ def cidacsrl(
     # Cria um nome para o linkage para ser salvo nos logs
     linkage_name = f"linkage{write_path.split("linkage")[1:]}" if "linkage" in write_path else write_path
 
-    if log_file:
+    if log_linkage_file:
         # Registra o início do linkage nos logs
-        trace_execution(process_name=linkage_name, operation="START", caminho_csv=log_file, execution_id=execution_id)
+        trace_execution(process_name=linkage_name, operation="START", caminho_csv=log_linkage_file, execution_id=execution_id)
 
     try:
         # Main loop through blocking phases
@@ -243,13 +256,13 @@ def cidacsrl(
             phase_loop_total_duration = time.time() - phase_loop_start_time
             logger.info(f"Phase '{phase.phase_name}': completed in {phase_loop_total_duration:.2f}s")
 
-        logger.info(f"Registrando o término do Linkage em `{log_file}`")
-        if log_file:
+        logger.info(f"Registrando o término do Linkage em `{log_linkage_file}`")
+        if log_linkage_file:
             # Registra o término do linkage
-            trace_execution(process_name=linkage_name, operation="END", caminho_csv=log_file, execution_id=execution_id)
+            trace_execution(process_name=linkage_name, operation="END", caminho_csv=log_linkage_file, execution_id=execution_id)
     except Exception as exc:
         # Registra o evento de erro do processo de linkage nos logs desse linkage
-        trace_execution(process_name=linkage_name, operation="ERROR", caminho_csv=log_file, execution_id=execution_id)
+        trace_execution(process_name=linkage_name, operation="ERROR", caminho_csv=log_linkage_file, execution_id=execution_id)
         # Lança a exceção para o fluxo que chamou essa função 
         raise Exception(exc)
 

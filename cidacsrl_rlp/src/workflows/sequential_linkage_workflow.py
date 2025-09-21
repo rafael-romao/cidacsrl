@@ -180,7 +180,7 @@ def main():
                 es_settings=es_settings,
                 write_path=write_path,
                 partition_column=workflow_config.partition_by.get('partition'),
-                log_file=f"/tmp/metadata_linkages.csv", # FIXME: criar parâmetro no YAML
+                log_linkage_file=linkage_config.log_linkage_file, # f"/tmp/metadata_linkages.csv",
             )
 
         logger.info("All linkage phases have been executed.")

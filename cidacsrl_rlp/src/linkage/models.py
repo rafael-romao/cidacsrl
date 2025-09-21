@@ -111,6 +111,7 @@ class SequentialBlockingWorkflow:
     id_target_table: str  # Name of the unique ID field in the target Elasticsearch documents
     indexed_dataset_filter : str # Estrutura de filter usado na query do elasticsearch
     partition_by: dict # Dicionario com a estrutura das partições dos dados. Exemplo em dict: {partition_by: {partition: "uf"}, filter_partitions: ["BA", "SP"]}
+    log_linkage_file: str # Path onde serão salvos os logs de eventos, no estilo CDC, do linkage.
 
     workflow_description: Optional[str] = None
     source_es_index_name: Optional[str] = None # Optional: if source is also an ES index for some operations
