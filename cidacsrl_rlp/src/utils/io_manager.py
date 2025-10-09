@@ -53,7 +53,7 @@ def ler_particao(path, partition_by, partition, io_manager):
         logger.info(f"> Lendo dados em: {path}")
         return io_manager.read(read_path)
     else:
-        read_path = f"{re.sub("\/$", "", str(path))}/{partition_by}={partition}"
+        read_path = re.sub(r"\/$", "", str(path)) + "/{partition_by}={partition}"
         # Verifica se os dados de origem foram particionados na escrita
         if os.path.exists(read_path):
             logger.info(f"> Lendo dados em: {read_path}")
