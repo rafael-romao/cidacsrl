@@ -3,22 +3,12 @@ import logging
 import time
 from pathlib import Path
 
-from typing import Optional, Dict, Any
-
-from pyspark.sql import SparkSession, DataFrame
-
-from cidacsrl_rlp.src.linkage.cidacsrl import cidacsrl
-from cidacsrl_rlp.src.linkage.models import (
-    SequentialBlockingWorkflow,
-    BlockingPhase
-)
+from cidacsrl_rlp.src.linkage.cidacsrl import CidacsRL
 from cidacsrl_rlp.src.config.loader import load_sequential_blocking_workflow_config, load_service_config, load_linkage_workflow_config
-from cidacsrl_rlp.src.linkage.rdd_processing import process_partition_for_phase
-from cidacsrl_rlp.src.utils.schema_helpers import define_phase_output_schema, define_workflow_output_schema
 from cidacsrl_rlp.src.utils.logging_config import setup_logging
 from cidacsrl_rlp.src.utils.utils import sanitize_string
 from cidacsrl_rlp.src.utils.spark_utils import create_spark_session
-from cidacsrl_rlp.src.utils.io_manager import read_source_data, write_phase_results
+from cidacsrl_rlp.src.utils.io_manager import read_source_data
 
 # Logger for this module
 logger = logging.getLogger(__name__)
@@ -171,30 +161,32 @@ def main():
             # Define o path de escrita da partição (caso os dados estejam particionados)
             if partition != "*":
                 write_path = f"{write_path}/{workflow_config.partition_by.get('partition')}={partition}"
+            
+            # Instancia o objeto da classe de linkage
+            cidacsrl = CidacsRL()
 
             # Executa o linkage
             cidacsrl(
+                spark=spark,
                 df=df_source,
                 linkage_config=linkage_config,
-                spark=spark,
                 es_settings=es_settings,
-                write_path=write_path,
+                write_path=workflow_config.output_data_path,
                 partition_column=workflow_config.partition_by.get('partition'),
-                log_linkage_file=linkage_config.log_linkage_file, # f"/tmp/metadata_linkages.csv",
             )
 
         logger.info("All linkage phases have been executed.")
 
     except Exception as e:
-        # TODO: adicionar um evento de erro no log (similar ao evento de END porém indicando ERROR)
         logger.critical(f"Critical error in linkage workflow: {e}", exc_info=True)
         exit(1)
     finally:
         workflow_duration_total = time.time() - workflow_start_time
         mins, secs = divmod(workflow_duration_total, 60)
-        logger.info(f"linkage_{source_name}_vs_{target_name} workflow completed in {workflow_duration_total:.2f} seconds "
-                    f"(approximately {int(mins):02d}m:{int(secs):02d}s).")
-
+        logger.info(
+            f"linkage_{source_name}_vs_{target_name} workflow completed in {workflow_duration_total:.2f} seconds "
+                    f"(approximately {int(mins):02d}m:{int(secs):02d}s)."
+        )
 
 if __name__ == "__main__":
     main()
