@@ -199,7 +199,7 @@ class CidacsRL:
                     continue
                 self.__logger.info(f"[#{i + 1}/{len(self.linkage_config.blocking_phases)}] Executing phase: '{phase.phase_name}'")
 
-                if self.df.isEmpty():
+                if df_source.isEmpty():
                     self.__logger.info(f"No source records remaining. Stopping workflow before phase '{phase_name}'.")
                     break
 
