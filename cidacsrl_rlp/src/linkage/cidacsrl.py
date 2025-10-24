@@ -8,7 +8,8 @@ from typing import Dict, Any
 # Project-specific imports
 from cidacsrl_rlp.src.linkage.models import (
     SequentialBlockingWorkflow,
-    BlockingPhase
+    BlockingPhase,
+    LinkageWorkflowConfig
 )
 
 import pyspark.sql.functions as F
@@ -24,16 +25,18 @@ class CidacsRL:
             df: DataFrame,
             linkage_config: SequentialBlockingWorkflow,
             es_settings: Dict[str, Any],
-            write_path: str, # TODO: esse parametro vai estar no YAML e deverá ser removido daqui
-            partition_column: str = None,
-            log_linkage_file: str = None,
+            workflow_config: LinkageWorkflowConfig,
             logger = None,
             debug: bool = True
         ):
         """Args:
-            - `spark` (SparkSession): ...
-            - `linkage_config` (SequentialBlockingWorkflow): Configuração geral do workflow.
-            - `es_settings` (Dict[str, Any]): Configurações de conexão com o Elasticsearch.
+            * `spark` (SparkSession): Instância do Spark.
+            * `df` (DataFrame): PySpark DataFrame que será submetido ao Linkage.
+            * `linkage_config` (SequentialBlockingWorkflow): Configurações gerais do linkage.
+            * `es_settings` (Dict[str, Any]): Configurações de conexão com o Elasticsearch.
+            * `workflow_config` (LinkageWorkflowConfig): Configurações gerais do Workflow.
+            * `logger` (logging, Optional): Objeto logger para exibição dos logs do linkage. Caso não informado será feita uma instância nova.
+            * `debug`: (bool, Optional): Flag booleana para indicar se devem ser exibidos prints de debug ou não.
         """
         # Cria um ID para a execução atual (pode ser utilizado nos logs)
         self.execution_id = datetime.now().strftime("%Y%m%d%H%M")
@@ -41,9 +44,9 @@ class CidacsRL:
         self.df = df
         self.linkage_config = linkage_config
         self.es_settings = es_settings
-        self.write_path = write_path
-        self.partition_column = partition_column
-        self.log_linkage_file = log_linkage_file
+        self.write_path = workflow_config.output_data_path
+        self.partition_column = workflow_config.partition_by.get('partition')
+        self.log_linkage_file = workflow_config.log_linkage_file
         self.__logger = logging.getLogger(__name__) if not logger else logger
         self.__debug = debug
 
@@ -153,17 +156,6 @@ class CidacsRL:
 
     def execute_linkage(self):
         """Função para consolidar as chamadas e execuções do fluxo do Cidacs-RL e executar o linkage.
-
-        Args:
-            * `df` (DataFrame): PySpark DataFrame que será submetido ao Linkage.
-            * `linkage_config` (SequentialBlockingWorkflow): Configurações do linkage.
-            * `spark`: Instância do Spark.
-            * `es_settings`: Configurações do ElasticSearch
-            * `write_path` (str): Path onde será salvo o linkage.
-            * `partition_column` (str, Optional): Nome da coluna de referência para particionar os dados. Caso não informado ou caso seja igual a `'*'` então os dados não serão particionados.
-            * `log_linkage_file` (str, Optional): Path onde serão salvos os logs de eventos, no estilo CDC, do linkage. Caso não informado não será salvo.
-            * `logger` (logging, Optional): Objeto logger para exibição dos logs do linkage. Caso não informado será feita uma instância nova.
-            * `debug`: (bool, Optional): Flag booleana para indicar se devem ser exibidos prints de debug ou não.
         """
         # Backup do schema original das colunas
         original_source_schema = self.df.schema

@@ -171,8 +171,7 @@ def main():
                 df=df_source,
                 linkage_config=linkage_config,
                 es_settings=es_settings,
-                write_path=workflow_config.output_data_path,
-                partition_column=workflow_config.partition_by.get('partition'),
+                workflow_config=workflow_config,
             )
 
         logger.info("All linkage phases have been executed.")
