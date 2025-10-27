@@ -97,7 +97,7 @@ class CidacsRL:
         workflow_config_dict_bcast = self.__spark.sparkContext.broadcast(linkage_config_dict)
         phase_config_dict_bcast = self.__spark.sparkContext.broadcast(phase_config_dict)
         es_config_dict_bcast = self.__spark.sparkContext.broadcast(self.es_settings)
-        source_schema_bcast = self.__spark.sparkContext.broadcast(source_df_schema_for_phase) # Broadcast source schema
+        # source_schema_bcast = self.__spark.sparkContext.broadcast(source_df_schema_for_phase) # Broadcast source schema
 
         # process_partition_for_phase is designed to accept these broadcasted dict configurations
         scored_candidates_rdd = df_source_this_phase.rdd.mapPartitions(
@@ -106,7 +106,7 @@ class CidacsRL:
                 workflow_config_dict_bcast,
                 phase_config_dict_bcast,
                 es_config_dict_bcast,
-                source_schema_bcast
+                # source_schema_bcast
             )
         )
 
@@ -146,7 +146,7 @@ class CidacsRL:
 
         phase_execution_start_time = time.time()
 
-        df_matches = self.__execute_linkage_phase(self, df_phase, phase)
+        df_matches = self.__execute_linkage_phase(df_phase, phase)
         
         phase_execution_duration = time.time() - phase_execution_start_time
         self.__logger.info(f"Phase '{phase_name}': execution completed in {phase_execution_duration:.2f}s.")

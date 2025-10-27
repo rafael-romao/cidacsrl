@@ -17,7 +17,7 @@ def get_available_partitions(source_path, partition_by, spark):
     # Verifica se os dados foram particionados
     partitions = None
     if partition_by and partition_by.get('partition'):
-        partitions = [x[0] for x in spark.read(source_path).select(partition_by['partition']).distinct().collect()]
+        partitions = [x[0] for x in spark.read.parquet(source_path).select(partition_by['partition']).distinct().collect()]
         if partition_by.get('filter_partitions'):
             partitions = [x for x in partitions if x in partition_by['filter_partitions']]
     else:
@@ -69,7 +69,7 @@ def main():
             linkage_config_path: "/path/to/linkage_workflow.yaml"
             es_config_path: "/path/to/elasticsearch_config.yaml"
             spark_config_path: "/path/to/spark_config.yaml"
-            output_base_path: "/path/to/output/data"
+            output_data_path: "/path/to/output/data"
             source_data_path: "/path/to/source_data"
             sample_fraction: 0.1  # opcional - para teste/debug
             sample_seed: 42       # opcional
@@ -102,7 +102,7 @@ def main():
         logger.info("Loading individual configurations...")
         linkage_config = load_sequential_blocking_workflow_config(workflow_config.linkage_config_path)
         es_settings = load_service_config(workflow_config.es_config_path, service_name="elasticsearch")
-        spark_settings = load_service_config(workflow_config.spark_config_path, service_name="spark")
+        # spark_settings = load_service_config(workflow_config.spark_config_path, service_name="spark")
         logger.info("All configurations loaded successfully.")
     except (FileNotFoundError, ValueError, IOError) as e:
         logger.error(f"Failed to load configurations: {e}")
@@ -121,7 +121,7 @@ def main():
 
     spark = create_spark_session(
         app_name=app_name,
-        spark_config_path=spark_settings,
+        spark_config_path=workflow_config.spark_config_path, # spark_config_path=spark_settings,
     )
 
     try:
@@ -156,23 +156,23 @@ def main():
                 logger.info(f"{source_count:,} source records submitted for linkage")
             
             # Define o path onde o linkage será salvo
-            write_path = Path(workflow_config.output_base_path) / f"linkage_{source_name}_vs_{target_name}"
+            write_path = Path(workflow_config.output_data_path) / f"linkage_{source_name}_vs_{target_name}"
 
             # Define o path de escrita da partição (caso os dados estejam particionados)
             if partition != "*":
                 write_path = f"{write_path}/{workflow_config.partition_by.get('partition')}={partition}"
             
             # Instancia o objeto da classe de linkage
-            cidacsrl = CidacsRL()
-
-            # Executa o linkage
-            cidacsrl(
+            cidacsrl = CidacsRL(
                 spark=spark,
                 df=df_source,
                 linkage_config=linkage_config,
                 es_settings=es_settings,
                 workflow_config=workflow_config,
             )
+
+            # Executa o linkage
+            cidacsrl.execute_linkage()
 
         logger.info("All linkage phases have been executed.")
 
