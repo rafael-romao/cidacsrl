@@ -17,6 +17,7 @@ from pyspark.sql import SparkSession, DataFrame
 from datetime import datetime
 import logging
 import time
+import re
 
 class CidacsRL:
     def __init__(
@@ -26,6 +27,7 @@ class CidacsRL:
             linkage_config: SequentialBlockingWorkflow,
             es_settings: Dict[str, Any],
             workflow_config: LinkageWorkflowConfig,
+            write_path: str,
             logger = None,
             debug: bool = True
         ):
@@ -35,6 +37,7 @@ class CidacsRL:
             * `linkage_config` (SequentialBlockingWorkflow): Configurações gerais do linkage.
             * `es_settings` (Dict[str, Any]): Configurações de conexão com o Elasticsearch.
             * `workflow_config` (LinkageWorkflowConfig): Configurações gerais do Workflow.
+            * `write_path` (str): Caminho onde o linkage será salvo.
             * `logger` (logging, Optional): Objeto logger para exibição dos logs do linkage. Caso não informado será feita uma instância nova.
             * `debug`: (bool, Optional): Flag booleana para indicar se devem ser exibidos prints de debug ou não.
         """
@@ -44,7 +47,7 @@ class CidacsRL:
         self.df = df
         self.linkage_config = linkage_config
         self.es_settings = es_settings
-        self.write_path = workflow_config.output_data_path
+        self.write_path = write_path
         self.partition_column = workflow_config.partition_by.get('partition')
         self.log_linkage_file = workflow_config.log_linkage_file
         self.__logger = logging.getLogger(__name__) if not logger else logger
@@ -177,7 +180,7 @@ class CidacsRL:
                 phase_loop_start_time = time.time()
                 phase_name = phase.phase_name           
                 phase_threshold = phase.strong_match_score_threshold
-                phase_output_path = f"{self.write_path}/linkage_phase_name={phase_name}"
+                phase_output_path = f"{re.sub('/$', '', self.write_path)}/linkage_phase_name={phase_name}"
                 
                 phase_results_schema = define_workflow_output_schema(
                     original_source_schema,
@@ -247,8 +250,8 @@ class CidacsRL:
                 phase_loop_total_duration = time.time() - phase_loop_start_time
                 self.__logger.info(f"Phase '{phase.phase_name}': completed in {phase_loop_total_duration:.2f}s")
 
-            self.__logger.info(f"Registrando o término do Linkage em `{self.log_linkage_file}`")
             if self.log_linkage_file:
+                self.__logger.info(f"Registrando o término do Linkage em `{self.log_linkage_file}`")
                 # Registra o término do linkage
                 trace_execution(process_name=linkage_name, operation="END", caminho_csv=self.log_linkage_file, execution_id=self.execution_id)
         except Exception as exc:

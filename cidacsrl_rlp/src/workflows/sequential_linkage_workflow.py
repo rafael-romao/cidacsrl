@@ -136,7 +136,7 @@ def main():
         for i, partition in enumerate(partitions):
             # debug
             logger.info(f"> [#{i + 1}/{len(partitions)}] {workflow_config.partition_by.get('partition', 'ALL')}={partition}")
-            
+
             df_source = read_source_data(
                 spark=spark,
                 source_path=workflow_config.source_data_path,
@@ -169,6 +169,7 @@ def main():
                 linkage_config=linkage_config,
                 es_settings=es_settings,
                 workflow_config=workflow_config,
+                write_path=write_path,
             )
 
             # Executa o linkage

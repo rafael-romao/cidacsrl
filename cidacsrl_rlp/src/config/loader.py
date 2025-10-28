@@ -41,7 +41,6 @@ def load_yaml(file_path: Union[str, Path]) -> Dict[str, Any]:
         IOError: Se ocorrer um erro ao ler o arquivo.
         yaml.YAMLError: Se ocorrer um erro durante o parsing do YAML.
     """
-    print(file_path)
     path_obj = Path(file_path).resolve()
     file_name = path_obj.name
 

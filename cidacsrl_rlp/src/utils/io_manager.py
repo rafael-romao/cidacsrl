@@ -30,12 +30,9 @@ class DataIOManager:
         **kwargs
     ) -> None:
         path_str = str(path)
-        
         try:
-            
             df.write.mode(mode).parquet(path_str, **kwargs)            
             logger.info(f"Dados salvos em {path_str}")
-            
         except Exception as e:
             logger.error(f"Erro ao escrever {path_str}: {e}")
             raise
