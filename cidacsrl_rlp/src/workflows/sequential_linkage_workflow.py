@@ -135,7 +135,7 @@ def main():
         # Percorre todas as partições do DataFrame caso os dados estejam particionados ou lê o DataFrame completo caso contrário.
         for i, partition in enumerate(partitions):
             # debug
-            logger.info(f"> [#{i + 1}/{len(partitions)}] {workflow_config.partition_by.get('partition', 'ALL')}={partition}")
+            logger.info(f"> Executando partição [#{i + 1}/{len(partitions)}]: {workflow_config.partition_by.get('partition', 'ALL')}={partition}")
 
             df_source = read_source_data(
                 spark=spark,
