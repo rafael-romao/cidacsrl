@@ -13,8 +13,8 @@ class LinkageWorkflowConfig:
     output_data_path: str
     source_data_path: str
     source_data_format: str
-    partition_by: dict # Dicionario com a estrutura das partições dos dados. Exemplo em dict: {partition_by: {partition: "uf"}, filter_partitions: ["BA", "SP"]}
-    log_linkage_file: str # Path onde serão salvos os logs de eventos, no estilo CDC, do linkage.
+    partition_by: dict = field(default_factory=dict) # Dicionario com a estrutura das partições dos dados. Exemplo em dict: {partition_by: {partition: "uf"}, filter_partitions: ["BA", "SP"]}
+    log_linkage_file: str = None # Path onde serão salvos os logs de eventos, no estilo CDC, do linkage.
     sample_fraction: Optional[float] = None
     sample_seed: int = 42
 
@@ -112,7 +112,7 @@ class SequentialBlockingWorkflow:
     id_source_table: str  # Name of the unique ID column in the source table
     target_es_index: str  # Name of the target Elasticsearch index
     id_target_table: str  # Name of the unique ID field in the target Elasticsearch documents
-    indexed_dataset_filter : str # Estrutura de filter usado na query do elasticsearch
+    indexed_dataset_filter : str = None # Estrutura de filter usado na query do elasticsearch
 
     workflow_name: Optional[str] = None
     workflow_description: Optional[str] = None

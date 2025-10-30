@@ -156,7 +156,7 @@ def main():
                 logger.info(f"{source_count:,} source records submitted for linkage")
             
             # Define o path onde o linkage será salvo
-            write_path = Path(workflow_config.output_data_path) / f"linkage_{source_name}_vs_{target_name}"
+            write_path = str(Path(workflow_config.output_data_path) / f"linkage_{source_name}_vs_{target_name}")
 
             # Define o path de escrita da partição (caso os dados estejam particionados)
             if partition != "*":
