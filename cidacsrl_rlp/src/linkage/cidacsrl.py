@@ -66,11 +66,8 @@ class CidacsRL:
         do Elasticsearch.
 
         Args:
-            spark (SparkSession): A sessão Spark ativa.
             df_source_this_phase (DataFrame): DataFrame contendo os registros da fonte a serem processados nesta fase.
-            workflow_config (SequentialBlockingWorkflow): Configuração geral do workflow.
             phase (BlockingPhase): Configuração específica para esta fase de linkage.
-            es_settings (Dict[str, Any]): Configurações de conexão com o Elasticsearch.
 
         Returns:
             DataFrame: Um DataFrame contendo todos os pares fonte-candidato encontrados e
@@ -133,7 +130,6 @@ class CidacsRL:
         Processa uma fase do workflow de linkage.
 
         Args:
-            spark (SparkSession): A sessão Spark ativa.
             phase (BlockingPhase): Configuração específica para esta fase de linkage.
             df_phase (DataFrame): DataFrame contendo os registros da fonte a serem processados.
 
