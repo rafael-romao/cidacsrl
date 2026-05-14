@@ -1,0 +1,4 @@
+es_config_path: "/app/configs/elasticsearch_config.yml"
+spark_config_path: "/app/configs/spark_config.yml"
+index_config_path: "/app/configs/workflows/index_config.yml"
+source_data_path: "/app/data/sample/nascimentos_example/"
