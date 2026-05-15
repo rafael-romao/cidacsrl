@@ -235,7 +235,7 @@ def main():
 
     spark = create_spark_session(
         app_name=app_name,
-        spark_config_path=spark_settings,
+        spark_config=spark_settings,
     )
 
     try:        
