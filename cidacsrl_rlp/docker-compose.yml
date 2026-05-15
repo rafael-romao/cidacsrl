@@ -1,0 +1,120 @@
+services:
+  elasticsearch:
+    profiles: ["elasticsearch", "es-indexing", "linkage"]
+    image: docker.elastic.co/elasticsearch/elasticsearch:9.2.8
+    environment:
+      - discovery.type=single-node
+      - xpack.security.enabled=false      
+      - ES_JAVA_OPTS=-Xms512m -Xmx512m
+    ports:
+      - "9200:9200"
+    healthcheck:
+      test: curl -f http://localhost:9200 || exit 1
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    volumes:
+      - es_data:/usr/share/elasticsearch/data
+
+  cidacsrl-cleaning:
+    profiles: ["cleaning"]
+    build:
+      context: ..
+      dockerfile: cidacsrl_rlp/docker/Dockerfile
+      target: runtime-spark
+    volumes:
+      - ../cidacsrl_rlp/configs/local/cleaning:/app/configs
+      - ../cidacsrl_rlp/data:/app/data
+      - ../cidacsrl_rlp/logs:/app/logs
+    command:
+      - bash
+      - -c
+      - >-
+        /opt/spark/bin/spark-submit
+        --master local[*]
+        /app/cidacsrl_rlp/src/workflows/cleaning_workflow.py
+        --config-path /app/configs/workflows/cleaning_workflow.yml
+        >> /app/logs/cleaning.stdout.log 2>> /app/logs/cleaning.stderr.log
+  
+  cidacsrl-es-indexing:
+    profiles: ["es-indexing"]
+    depends_on:
+      elasticsearch:
+        condition: service_healthy
+    build:
+      context: ..
+      dockerfile: cidacsrl_rlp/docker/Dockerfile
+      target: runtime-spark-es
+    volumes:
+      - ../cidacsrl_rlp/configs/local/es_indexing:/app/configs
+      - ../cidacsrl_rlp/data:/app/data
+      - ../cidacsrl_rlp/logs:/app/logs
+    command:
+      - bash
+      - -c
+      - >-
+        /opt/spark/bin/spark-submit
+        --master local[*]
+        /app/cidacsrl_rlp/src/workflows/es_indexing_workflow.py
+        --config-path /app/configs/workflow/es_indexing_workflow.yml
+        >> /app/logs/es-indexing.stdout.log 2>> /app/logs/es-indexing.stderr.log
+  
+  cidacsrl-linkage:
+    profiles: ["linkage"]
+    depends_on:
+      elasticsearch:
+        condition: service_healthy
+    build:
+      context: ..
+      dockerfile: cidacsrl_rlp/docker/Dockerfile
+      target: runtime-spark-es
+    volumes:
+      - ../cidacsrl_rlp/configs/local/linkage:/app/configs
+      - ../cidacsrl_rlp/data:/app/data
+      - ../cidacsrl_rlp/logs:/app/logs
+    command:
+      - bash
+      - -c
+      - >-
+        /opt/spark/bin/spark-submit
+        --master local[*]
+        /app/cidacsrl_rlp/src/workflows/sequential_linkage_workflow.py
+        --config-path /app/configs/workflow/sequential_linkage_workflow.yml
+        >> /app/logs/linkage.stdout.log 2>> /app/logs/linkage.stderr.log 
+  
+  cidacsrl-deduplication:
+    profiles: ["deduplication"]
+    build:
+      context: ..
+      dockerfile: cidacsrl_rlp/docker/Dockerfile
+      target: runtime-spark-graphframes
+    volumes:
+      - ../cidacsrl_rlp/configs/local/deduplication:/app/configs
+      - ../cidacsrl_rlp/data:/app/data
+      - ../cidacsrl_rlp/logs:/app/logs
+    command:
+      - bash
+      - -c
+      - >-
+        /opt/spark/bin/spark-submit
+        --master local[*]
+        /app/cidacsrl_rlp/src/workflows/deduplication_workflow.py
+        --config-path /app/configs/workflow/deduplication_workflow.yml
+        >> /app/logs/deduplication.stdout.log 2>> /app/logs/deduplication.stderr.log
+    
+  jupyter:
+    profiles: ["jupyter"]
+    build:
+      context: ..
+      dockerfile: cidacsrl_rlp/docker/Dockerfile
+      target: jupyter-dev
+    ports:
+      - "8888:8888"
+    volumes:
+      - ../notebooks:/app/notebooks
+      - ../cidacsrl_rlp:/app/cidacsrl_rlp
+      - ../cidacsrl_rlp/configs/dev:/app/configs
+      - ../cidacsrl_rlp/data:/app/data
+      
+volumes:
+  es_data:
