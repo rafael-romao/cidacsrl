@@ -8,20 +8,20 @@ blocking_phases:
   - phase_name: "exact"
     phase_description: "Uma execução rápida e exata"
     enabled: true
-    candidate_limit: 20
+    candidate_limit: 2
     strong_match_score_threshold: 0.85
 
     rules:
-      - source_column: "municipio_nascimento"
-        target_column: "municipio_internacao"
+      - source_column: "municipio_internacao"
+        target_column: "municipio_nascimento"
         es_clause_type: "must"
         query_type: "term"
         similarity: "exact"
         weight: 1.0
         penalty: 0.1
 
-      - source_column: "uf_nascimento"
-        target_column: "uf_internacao"
+      - source_column: "uf_internacao"
+        target_column: "uf_nascimento"
         es_clause_type: "must"
         query_type: "term"
         similarity: "exact"

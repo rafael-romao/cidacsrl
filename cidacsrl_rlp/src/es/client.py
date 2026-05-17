@@ -102,7 +102,7 @@ def get_es_client(config: Dict[str, Any], use_cache: bool = True) -> Optional[El
     logger.debug(f"Creating new Elasticsearch client for config (cache key: {cache_key}).")
     try:
         client_params: Dict[str, Any] = {
-            "timeout": config.get("request_timeout", 60), # Default request timeout
+            "request_timeout": config.get("request_timeout", 60), # Default request timeout
             "verify_certs": config.get("verify_certs", True), # Default to verify SSL certs
             "http_compress": config.get("http_compress", True), # Default to use HTTP compression
             "retry_on_timeout": config.get("retry_on_timeout", True), # Enable retries on timeout by default

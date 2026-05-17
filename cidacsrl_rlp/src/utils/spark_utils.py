@@ -10,7 +10,7 @@ logger = logging.getLogger(__name__)
 
 def create_spark_session(
     app_name: str,
-    spark_config_path: str,
+    spark_config: Dict[str, Any],
     checkpoint_dir: Optional[str] = None,
 ) -> SparkSession:
     """
@@ -18,18 +18,15 @@ def create_spark_session(
 
     Args:
         app_name (str): O nome da aplicação Spark.
-        spark_config_path (str): Caminho para o arquivo YAML de configuração do Spark.
+        spark_config (Dict[str, Any]): Configurações do Spark.
         checkpoint_dir (Optional[str]): Caminho para o diretório de checkpoint do Spark.
 
     Returns:
         SparkSession: A instância da SparkSession configurada.
     """
-    logger.info(f"Carregando configurações do Spark de: {spark_config_path}")
-    spark_settings = load_service_config(spark_config_path, service_name="spark")
-
     spark_builder = SparkSession.builder.appName(app_name)
 
-    loaded_spark_configs = spark_settings.get("spark_configs", {})
+    loaded_spark_configs = spark_config.get("spark_configs", {})
     if isinstance(loaded_spark_configs, dict):
         for key, value in loaded_spark_configs.items():
             spark_builder = spark_builder.config(key, value)

@@ -113,7 +113,10 @@ def execute_linkage(
     workflow_config_dict_bcast = spark.sparkContext.broadcast(linkage_config_dict)
     phase_config_dict_bcast = spark.sparkContext.broadcast(phase_config_dict)
     es_config_dict_bcast = spark.sparkContext.broadcast(es_settings)
-    source_schema_bcast = spark.sparkContext.broadcast(source_df_schema_for_phase) # Broadcast source schema
+
+    logger.info(f"Broadcasted workflow config for phase '{phase.phase_name}': {linkage_config_dict}")
+    logger.info(f"Broadcasted phase config for phase '{phase.phase_name}': {phase_config_dict}")
+    logger.info(f"Broadcasted Elasticsearch config for phase '{phase.phase_name}': {es_settings}")
 
     # process_partition_for_phase is designed to accept these broadcasted dict configurations
     scored_candidates_rdd = df_source_this_phase.rdd.mapPartitions(
@@ -122,7 +125,6 @@ def execute_linkage(
             workflow_config_dict_bcast,
             phase_config_dict_bcast,
             es_config_dict_bcast,
-            source_schema_bcast
         )
     )
 
@@ -235,7 +237,7 @@ def main():
 
     spark = create_spark_session(
         app_name=app_name,
-        spark_config_path=spark_settings,
+        spark_config=spark_settings,
     )
 
     try:        

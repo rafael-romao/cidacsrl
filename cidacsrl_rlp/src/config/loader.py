@@ -112,7 +112,6 @@ def load_sequential_blocking_workflow_config(config_file_path: Union[str, Path])
 
         .. code-block:: yaml
 
-            workflow_name: "linkage_pacientes_basico"
             source_id_column: "id_paciente_source"
             candidate_id_column: "id_paciente_candidate"
             candidate_data_prefix: "cand_"
@@ -161,7 +160,7 @@ def load_sequential_blocking_workflow_config(config_file_path: Union[str, Path])
         logger.error(error_msg, exc_info=True)
         raise ValueError(error_msg) from e
 
-    logger.info(f"SequentialBlockingWorkflow configuration '{workflow_config_object.workflow_name}' loaded and validated successfully from '{file_name}'.")
+    logger.info(f"SequentialBlockingWorkflow configuration '{workflow_config_object.source_table}_{workflow_config_object.target_es_index}' loaded and validated successfully from '{file_name}'.")
     return workflow_config_object
 
 def load_column_config(config_file: Union[str, Path]) -> List[Union[ColumnConfig, ConcatenateColumnConfig]]:
