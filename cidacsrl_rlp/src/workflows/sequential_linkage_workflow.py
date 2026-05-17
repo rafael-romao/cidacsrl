@@ -302,7 +302,7 @@ def main():
 
             if df_matches.count() == 0:
                 logger.info(f"No matches found in phase '{phase_name}'.")
-                continue
+                exit(1)
             else:
                 source_matched = df_matches.select(linkage_config.id_source_table).distinct()                
                 logger.info(f"Phase '{phase_name}': {source_matched.count():,} source found matches above {phase_threshold}.")
