@@ -114,14 +114,14 @@ def main():
     # Construct a descriptive application name for Spark UI
     app_name_parts = [f"linkage-{source_name}_vs_{target_name}"]
     if workflow_config.sample_fraction and 0 < workflow_config.sample_fraction < 1.0:
-        app_name_parts.append(f"sample{int(workflow_config.sample_fraction * 100)}pct")
-    if workflow_config.sample_seed is not None:
-        app_name_parts.append(f"seed{workflow_config.sample_seed}")
+        app_name_parts.append(f"sample_{int(workflow_config.sample_fraction * 100)}pct")
+    if isinstance(workflow_config.sample_seed, int) and workflow_config.sample_seed >= 0:
+        app_name_parts.append(f"seed_{workflow_config.sample_seed}")
     app_name = "_".join(app_name_parts)
 
     spark = create_spark_session(
         app_name=app_name,
-        spark_config_path=workflow_config.spark_config_path, # spark_config_path=spark_settings,
+        spark_config_path=spark_settings,
     )
 
     try:

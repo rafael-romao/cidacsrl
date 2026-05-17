@@ -14,8 +14,10 @@ from cidacsrl_rlp.src.es.response_parser import extract_hits_from_es_response
 from cidacsrl_rlp.src.linkage.scoring_engine import calculate_pair_scores_and_similarities
 # Constants for field names, imported from schema_helpers
 from cidacsrl_rlp.src.utils.schema_helpers import CANDIDATE_ES_DOC_ID_FIELD, ES_HIT_SCORE_FIELD, LINKAGE_PHASE_NAME_FIELD
+from cidacsrl_rlp.src.utils.logging_config import setup_worker_logging
 
 logger = logging.getLogger(__name__)
+setup_worker_logging()
 
 
 def _prepare_candidate_data_for_scoring(
@@ -103,6 +105,7 @@ def _process_msearch_batch_responses(
                                    se o score atingir o limiar da fase.
     """
     num_expected_responses = len(source_rows_in_batch)
+    logger.info(f"Processing msearch batch responses. Expected number of responses: {num_expected_responses}. Actual responses received: {len(es_msearch_responses)}.")
     if len(es_msearch_responses) != num_expected_responses:
         logger.warning(
             f"Mismatch in the number of msearch responses. Expected: {num_expected_responses}, "
@@ -115,6 +118,7 @@ def _process_msearch_batch_responses(
     current_phase_name = phase_config_dict.get('phase_name', 'UNKNOWN_PHASE')
 
     strong_match_score_threshold_config = phase_config_dict.get('strong_match_score_threshold')
+    logger.info(f"Strong match score threshold for phase '{current_phase_name}': {strong_match_score_threshold_config}")
 
     valid_threshold_present = False
     parsed_threshold = 0.0 # Default threshold if not valid or not present
@@ -143,17 +147,21 @@ def _process_msearch_batch_responses(
 
         source_row_dict = source_rows_in_batch[i]
         source_id_for_log = source_row_dict.get(id_source_table_field_name, 'UNKNOWN_SOURCE_ID')
+        logger.info(f"Processing msearch response for source_id '{source_id_for_log}' in phase '{current_phase_name}'.")
 
         candidate_hits_from_es = extract_hits_from_es_response(single_es_response, source_id_for_log)
 
         if not candidate_hits_from_es:
-            logger.debug(f"No Elasticsearch candidates found for source_id '{source_id_for_log}' in phase '{current_phase_name}'.")
+            logger.info(f"No Elasticsearch candidates found for source_id '{source_id_for_log}' in phase '{current_phase_name}'.")
             continue
 
         for es_hit_dict in candidate_hits_from_es:
             es_hit_id = es_hit_dict['id']
             es_hit_elasticsearch_score = es_hit_dict['score'] # Raw ES score
             candidate_es_source_fields = es_hit_dict['source']
+
+            logger.info(f"Processing Elasticsearch hit '{es_hit_id}' for source_id '{source_id_for_log}' in phase '{current_phase_name}' with es score {es_hit_elasticsearch_score}.")
+            logger.info(f"Elasticsearch hit source fields for hit '{es_hit_id}': {candidate_es_source_fields}")
 
             candidate_data_dict_prefixed = _prepare_candidate_data_for_scoring(
                 es_hit_id,
@@ -162,6 +170,8 @@ def _process_msearch_batch_responses(
                 phase_rules_dicts
             )
 
+            logger.info(f"Candidate data prepared for scoring for hit '{es_hit_id}' and source_id '{source_id_for_log}' in phase '{current_phase_name}': {candidate_data_dict_prefixed}")
+
             scores_and_sim_dict = calculate_pair_scores_and_similarities(
                 source_row_dict=source_row_dict,
                 candidate_data_dict_prefixed=candidate_data_dict_prefixed,
@@ -169,8 +179,12 @@ def _process_msearch_batch_responses(
                 workflow_config_dict=workflow_config_dict,
             )
 
+            logger.info(f"Scores and similarities calculated for source_id '{source_id_for_log}' and candidate hit '{es_hit_id}' in phase '{current_phase_name}': {scores_and_sim_dict}")
+
             # The key for composite score from calculate_pair_scores_and_similarities is 'match_score'
             current_composite_score = scores_and_sim_dict.get("match_score", -1.0) # Default to a low score if missing
+
+            logger.info(f"Composite match score for source_id '{source_id_for_log}' and candidate hit '{es_hit_id}' in phase '{current_phase_name}': {current_composite_score}")
 
             # This function constructs the final dictionary to be yielded
             def build_result_dict():
@@ -186,11 +200,16 @@ def _process_msearch_batch_responses(
                 result[LINKAGE_PHASE_NAME_FIELD] = current_phase_name
                 return result
 
+        
             # Yield the result if it meets the threshold or if no valid threshold is applied
             if valid_threshold_present:
                 if current_composite_score >= parsed_threshold:
+                    logger.info(f"Yielding result for source_id '{source_id_for_log}' and candidate hit '{es_hit_id}' in phase '{current_phase_name}' as it meets the threshold {parsed_threshold}.")
                     yield build_result_dict()
+                else:
+                    logger.info(f"Skipping result for source_id '{source_id_for_log}' and candidate hit '{es_hit_id}' in phase '{current_phase_name}' as it does not meet the threshold {parsed_threshold}.")
             else: # No valid threshold, so yield all scored pairs
+                logger.info(f"Yielding result for source_id '{source_id_for_log}' and candidate hit '{es_hit_id}' in phase '{current_phase_name}' as no valid threshold is applied.")
                 yield build_result_dict()
 
 
@@ -216,6 +235,7 @@ def process_partition_for_phase(
         Iterator[Dict[str, Any]]: Dicionários representando os pares fonte-candidato pontuados que
                                    atendem aos critérios da fase.
     """
+    
     workflow_cfg = workflow_config_dict_bcast.value
     phase_cfg = phase_config_dict_bcast.value
     es_cfg = es_config_dict_bcast.value
@@ -251,6 +271,7 @@ def process_partition_for_phase(
     # Iterate over source rows in the partition
     for source_row_spark_obj in partition_iter:
         source_row_dict = source_row_spark_obj.asDict()
+        logger.debug(f"Processing source row with ID '{source_row_dict.get(workflow_cfg['id_source_table'], 'UNKNOWN_SOURCE_ID')}' in {partition_id_for_log}.")
         source_id_val = source_row_dict.get(workflow_cfg['id_source_table'])
 
         if source_id_val is None: # Should not happen with clean data
@@ -271,11 +292,15 @@ def process_partition_for_phase(
             # Add msearch query body
             msearch_operations_body.append(es_query_body)
             source_rows_in_batch.append(source_row_dict)
+        
+        logger.debug(f"Added msearch operation for source_id '{source_id_val}' in {partition_id_for_log}. Current batch size: {len(source_rows_in_batch)}.")
+        logger.debug(f"Current msearch_operations_body for {partition_id_for_log}: {msearch_operations_body}")
 
         # If batch is full, execute msearch and process results
         if len(source_rows_in_batch) >= msearch_batch_size:
             try:
                 msearch_result = es_client.msearch(body=msearch_operations_body, index=workflow_cfg['target_es_index'])
+                logger.info(f"Executed msearch for batch of {len(source_rows_in_batch)} source rows in {partition_id_for_log}.")
                 yield from _process_msearch_batch_responses(
                     msearch_result.get('responses', []),
                     source_rows_in_batch,

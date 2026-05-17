@@ -1,0 +1,19 @@
+# Development overrides: mounts source code as a volume so changes are
+# reflected immediately without rebuilding the image.
+# Usage: make run-cleaning-dev  (or any other *-dev target)
+services:
+  cidacsrl-cleaning:
+    volumes:
+      - ../cidacsrl_rlp:/app/cidacsrl_rlp
+
+  cidacsrl-deduplication:
+    volumes:
+      - ../cidacsrl_rlp:/app/cidacsrl_rlp
+
+  cidacsrl-es-indexing:
+    volumes:
+      - ../cidacsrl_rlp:/app/cidacsrl_rlp
+
+  cidacsrl-linkage:
+    volumes:
+      - ../cidacsrl_rlp:/app/cidacsrl_rlp
