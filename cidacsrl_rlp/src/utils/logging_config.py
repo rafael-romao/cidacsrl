@@ -80,3 +80,13 @@ def setup_logging(level=logging.INFO):
 
     logging.info(f"Root logger level set to {logging.getLevelName(root_logger.getEffectiveLevel())}")
     logging.debug("Logging setup complete. Elasticsearch, Py4J, and PySpark loggers are set to higher severity levels.")
+
+def setup_worker_logging(level=logging.INFO):
+    root = logging.getLogger()
+    if not root.handlers:
+        logging.basicConfig(
+            level=level,
+            format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+            datefmt='%Y-%m-%d %H:%M:%S',
+            stream=sys.stdout
+        )
