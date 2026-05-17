@@ -52,6 +52,7 @@ def process_phase(
     logger.info(f"Phase '{phase_name}': starting with {df_source.count():,} records")
 
     phase_execution_start_time = time.time()
+    logger.info(f"Phase '{phase_name}': execution started at {time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(phase_execution_start_time))}")
 
     df_matches = execute_linkage(
         spark, df_source, linkage_config,
@@ -93,6 +94,8 @@ def execute_linkage(
                    ou se nenhum candidato for encontrado.
     """
     source_df_schema_for_phase = df_source_this_phase.schema
+    logger.debug(f"Phase '{phase.phase_name}': source DataFrame schema for this phase: {source_df_schema_for_phase}")
+    logger.info(f"Phase '{phase.phase_name}': number of records to process: {df_source_this_phase.count():,}")
 
     if df_source_this_phase.rdd.isEmpty():
         logger.warning(f"Source DataFrame for phase '{phase.phase_name}' is empty. Returning an empty DataFrame with defined schema.")
@@ -102,6 +105,8 @@ def execute_linkage(
 
     # Define the output schema for the results of this phase
     raw_output_schema = define_phase_output_schema(source_df_schema_for_phase, linkage_config, phase)
+
+    logger.debug(f"Phase '{phase.phase_name}': output schema for this phase defined as: {raw_output_schema}")
 
     # Prepare configurations for broadcasting (must be dicts)
     linkage_config_dict = vars(linkage_config).copy() # Convert dataclass to dict
@@ -114,9 +119,9 @@ def execute_linkage(
     phase_config_dict_bcast = spark.sparkContext.broadcast(phase_config_dict)
     es_config_dict_bcast = spark.sparkContext.broadcast(es_settings)
 
-    logger.info(f"Broadcasted workflow config for phase '{phase.phase_name}': {linkage_config_dict}")
-    logger.info(f"Broadcasted phase config for phase '{phase.phase_name}': {phase_config_dict}")
-    logger.info(f"Broadcasted Elasticsearch config for phase '{phase.phase_name}': {es_settings}")
+    logger.debug(f"Broadcasted workflow config for phase '{phase.phase_name}': {linkage_config_dict}")
+    logger.debug(f"Broadcasted phase config for phase '{phase.phase_name}': {phase_config_dict}")
+    logger.debug(f"Broadcasted Elasticsearch config for phase '{phase.phase_name}': {es_settings}")
 
     # process_partition_for_phase is designed to accept these broadcasted dict configurations
     scored_candidates_rdd = df_source_this_phase.rdd.mapPartitions(
@@ -254,6 +259,7 @@ def main():
 
         original_source_schema = df_source.schema
         output_base_path = Path(workflow_config.output_base_path)
+        logger.info(f"Output base path for linkage results: {output_base_path}")
         
         df_source_for_processing = df_source
          
@@ -274,6 +280,9 @@ def main():
                 phase,
                 include_phase_name=True
             )
+
+            logger.info(f"Starting phase '{phase_name}' with strong match score threshold: {phase_threshold}")
+            logger.debug(f"phase_loop_start_time: {time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(phase_loop_start_time))}")
 
             if not phase.enabled:
                 logger.info(f"Skipping disabled phase: '{phase_name}'")
