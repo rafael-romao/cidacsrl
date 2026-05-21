@@ -8,9 +8,9 @@ import pyspark.sql.functions as F
 from pyspark.sql import DataFrame
 from graphframes import GraphFrame
 
-from cidacsrl_rlp.src.config.loader import load_deduplicate_workflow_config
+from cidacsrl_rlp.shared.infra.config_loader import load_deduplicate_workflow_config
 from cidacsrl_rlp.src.utils.logging_config import setup_logging
-from cidacsrl_rlp.src.utils.spark_utils import create_spark_session
+from cidacsrl_rlp.cidacsrl.infra.spark.utils import create_spark_session
 
 logger = logging.getLogger(__name__)
 

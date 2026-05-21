@@ -1,5 +1,3 @@
-# src/es/mapping_models.py
-
 import logging
 from dataclasses import dataclass, field
 from typing import List, Dict, Any, Optional, Literal

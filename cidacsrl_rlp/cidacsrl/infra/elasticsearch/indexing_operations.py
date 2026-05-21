@@ -6,8 +6,8 @@ from elasticsearch import Elasticsearch, ConnectionError as ESConnectionError, C
 from pyspark.sql import DataFrame
 
 
-from cidacsrl_rlp.src.es.client import get_es_client
-from cidacsrl_rlp.src.es.mapping_models import ESIndexDefinition
+from cidacsrl_rlp.cidacsrl.infra.elasticsearch.client import get_es_client
+from cidacsrl_rlp.cidacsrl.infra.elasticsearch.models.mapping_models import ESIndexDefinition
 
 logger = logging.getLogger(__name__)
 

@@ -4,8 +4,8 @@ import time
 
 from pyspark.sql import SparkSession
 
-from cidacsrl_rlp.src.cleaning.column_cleaner import ColumnCleanerPipeline
-from cidacsrl_rlp.src.config.loader import (load_column_config,
+from cidacsrl_rlp.cidacsrl_cleaning.infra.adapters.inbound.column_cleaner import ColumnCleanerPipeline
+from cidacsrl_rlp.shared.infra.config_loader import (load_column_config,
                                             load_service_config,
                                             load_cleaning_workflow_config)
 from cidacsrl_rlp.src.utils.logging_config import setup_logging

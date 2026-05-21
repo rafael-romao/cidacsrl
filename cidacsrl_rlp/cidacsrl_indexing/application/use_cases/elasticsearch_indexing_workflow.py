@@ -4,10 +4,10 @@ from pathlib import Path
 
 from pyspark.sql import SparkSession
 
-from cidacsrl_rlp.src.config.loader import load_index_config, load_service_config, load_elasticsearch_indexing_workflow_config
-from cidacsrl_rlp.src.es.indexing_operations import create_es_index_and_ingest_data
+from cidacsrl_rlp.shared.infra.config_loader import load_index_config, load_service_config, load_elasticsearch_indexing_workflow_config
+from cidacsrl_rlp.cidacsrl.infra.elasticsearch.indexing_operations import create_es_index_and_ingest_data
 from cidacsrl_rlp.src.utils.logging_config import setup_logging
-from cidacsrl_rlp.src.utils.spark_utils import create_spark_session
+from cidacsrl_rlp.cidacsrl.infra.spark.utils import create_spark_session
 
 # Configure logging
 logger = logging.getLogger(__name__)

@@ -160,7 +160,7 @@ class CidacsRL:
         original_source_schema = self.df.schema
 
         # Cria um nome para o linkage para ser salvo nos logs
-        linkage_name = f"linkage{self.write_path.split("linkage")[1:]}" if "linkage" in self.write_path else self.write_path
+        linkage_name = self.write_path
 
         # Verifica se é para registrar logs do processo de linkage
         if self.log_linkage_file:
