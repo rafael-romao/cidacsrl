@@ -1,0 +1,47 @@
+source_table: "internacao_example"
+id_source_table: "codigo_internacao"
+
+target_es_index: "nascimentos_example"
+id_target_table: "codigo_nascimento"
+
+blocking_phases:
+  - phase_name: "exact"
+    phase_description: "Uma execução rápida e exata"
+    enabled: true
+    candidate_limit: 2
+    strong_match_score_threshold: 0.85
+
+    rules:
+      - source_column: "municipio_internacao"
+        target_column: "municipio_nascimento"
+        es_clause_type: "must"
+        query_type: "term"
+        similarity: "exact"
+        weight: 1.0
+        penalty: 0.1
+
+      - source_column: "uf_internacao"
+        target_column: "uf_nascimento"
+        es_clause_type: "must"
+        query_type: "term"
+        similarity: "exact"
+        weight: 1.0
+        penalty: 0.1
+
+      - source_column: "nome_completo"
+        target_column: "nome_completo"
+        es_clause_type: "should"
+        query_type: "match"
+        is_fuzzy: true
+        similarity: "jaro_winkler"
+        weight: 3.0
+        penalty: 0.1
+
+      - source_column: "nome_mae"
+        target_column: "nome_mae"
+        es_clause_type: "should"
+        query_type: "match"
+        is_fuzzy: true
+        similarity: "jaro_winkler"
+        weight: 3.0
+        penalty: 0.1
