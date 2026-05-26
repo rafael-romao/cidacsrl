@@ -8,9 +8,9 @@ from pyspark.sql.types import StructType  # For typing the broadcasted schema
 from pyspark.broadcast import Broadcast  # For typing broadcast variables
 
 # --- Project Module Imports ---
-from cidacsrl_rlp.cidacsrl.infra.elasticsearch.client import get_es_client
-from cidacsrl_rlp.cidacsrl.infra.elasticsearch.query_builder import create_es_query_for_phase
-from cidacsrl_rlp.cidacsrl.infra.elasticsearch.response_parser import extract_hits_from_es_response
+from cidacsrl_rlp.cidacsrl.infra.adapters.outbound.elasticsearch.client import get_es_client
+from cidacsrl_rlp.cidacsrl.infra.adapters.outbound.elasticsearch.query_builder import create_es_query_for_phase
+from cidacsrl_rlp.cidacsrl.infra.adapters.outbound.elasticsearch.response_parser import extract_hits_from_es_response
 from cidacsrl_rlp.cidacsrl.domain.services.scoring_engine import calculate_pair_scores_and_similarities
 # Constants for field names, imported from schema_helpers
 from cidacsrl_rlp.src.utils.schema_helpers import CANDIDATE_ES_DOC_ID_FIELD, ES_HIT_SCORE_FIELD, LINKAGE_PHASE_NAME_FIELD
