@@ -1,3 +1,0 @@
-spark_configs:
-  spark.master: "local[*]"
-  spark.driver.extraJavaOptions: "-Dlog4j.logger.org.apache.spark=WARN"

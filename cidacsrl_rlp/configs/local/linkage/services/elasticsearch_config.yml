@@ -1,4 +1,0 @@
-es_connection_url: "http://elasticsearch:9200"
-verify_certs: false
-request_timeout: 60
-msearch_batch_size: 100
