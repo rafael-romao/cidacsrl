@@ -14,11 +14,11 @@ class LinkageSparkReaderAdapter(DataReaderPort):
 
     def read_data(self) -> Any:        
         if self.source_data_format == "csv":
-            logger.debug(f"Reading CSV data from source: {self.source_data_path} with options: {self.source_data_format}")
-            return self.spark_io.read_csv(self.source_data_path, self.source_data_format)
+            logger.debug(f"Reading CSV data from source: {self.source_data_path}")
+            return self.spark_io.read_csv(self.source_data_path)
         elif self.source_data_format == "parquet":
-            logger.debug(f"Reading Parquet data from source: {self.source_data_path} with options: {self.source_data_format}")
-            return self.spark_io.read_parquet(self.source_data_path, self.source_data_format)
+            logger.debug(f"Reading Parquet data from source: {self.source_data_path}")
+            return self.spark_io.read_parquet(self.source_data_path)
         else:
             logger.error(f"Unsupported data format: {self.source_data_format}")
             raise ValueError(f"Unsupported data format: {self.source_data_format}")
