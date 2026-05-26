@@ -1,4 +1,5 @@
 import logging
+from cidacsrl_rlp.cidacsrl.domain.models.rules import BlockingPhase
 from dataclasses import dataclass, field
 from typing import List, Optional, Dict, Any
 
@@ -14,7 +15,7 @@ class SequentialBlockingWorkflow:
     id_source_table: str
     target_es_index: str
     id_target_table: str
-    indexed_dataset_filter : str = None
+    indexed_dataset_filter: Optional[List[Dict[str, Any]]] = None
     workflow_name: Optional[str] = None
     workflow_description: Optional[str] = None
     source_es_index_name: Optional[str] = None
@@ -54,3 +55,19 @@ class SequentialBlockingWorkflow:
             raise ValueError("'blocking_phases' is required in workflow configuration.")
         if not isinstance(blocking_phases_data, list):
             raise ValueError("'blocking_phases' must be a list of phase configurations.")
+
+        blocking_phases: List[BlockingPhase] = []
+        for i, phase_data in enumerate(blocking_phases_data):
+            if not isinstance(phase_data, dict):
+                raise ValueError(
+                    f"Each item in 'blocking_phases' must be a dictionary. "
+                    f"Invalid item at index {i}: {type(phase_data).__name__}."
+                )
+            try:
+                blocking_phases.append(BlockingPhase.from_dict(phase_data))
+            except (TypeError, ValueError) as e:
+                raise ValueError(
+                    f"Invalid blocking phase at index {i}: {e}"
+                ) from e
+
+        return cls(blocking_phases=blocking_phases, **config_dict)
