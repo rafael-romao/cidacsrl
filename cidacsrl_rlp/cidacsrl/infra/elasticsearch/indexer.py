@@ -5,7 +5,7 @@ from typing import Dict, Any
 from elasticsearch import Elasticsearch
 
 # Importar a função do client.py
-from cidacsrl_rlp.cidacsrl.infra.elasticsearch.client import get_es_client
+from cidacsrl_rlp.cidacsrl.infra.adapters.outbound.elasticsearch.client import get_es_client
 
 logger = logging.getLogger(__name__)
 
