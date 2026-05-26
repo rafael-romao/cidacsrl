@@ -4,6 +4,7 @@ from typing import Dict, Any, Union
 
 from cidacsrl_rlp.shared.infra.config_loader import load_yaml, validate_required_keys
 from cidacsrl_rlp.cidacsrl.infra.configs.models.linkage_workflow_config import LinkageWorkflowConfig
+from cidacsrl_rlp.cidacsrl.infra.configs.models.indexed_dataset_filter import parse_indexed_dataset_filter
 from cidacsrl_rlp.cidacsrl.domain.models.workflow import SequentialBlockingWorkflow
 from cidacsrl_rlp.cidacsrl.infra.elasticsearch.models.service_config import ElasticsearchServiceConfig
 
@@ -60,7 +61,11 @@ def parse_sequential_blocking_workflow_config(data: Dict[str, Any]) -> Sequentia
     logger.debug("Parsing SequentialBlockingWorkflow.")
 
     try:
-        return SequentialBlockingWorkflow.from_dict(data)
+        parsed_data = data.copy()
+        parsed_data["indexed_dataset_filter"] = parse_indexed_dataset_filter(
+            parsed_data.get("indexed_dataset_filter")
+        )
+        return SequentialBlockingWorkflow.from_dict(parsed_data)
     except (TypeError, ValueError) as e:
         raise ValueError(
             f"Invalid structure for SequentialBlockingWorkflow: {e}"
