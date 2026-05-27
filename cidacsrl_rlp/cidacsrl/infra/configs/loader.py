@@ -12,12 +12,6 @@ logger = logging.getLogger(__name__)
 
 
 def parse_linkage_workflow_config(data: Dict[str, Any]) -> LinkageWorkflowConfig:
-    """
-    Valida e deserializa um dicionário em um LinkageWorkflowConfig tipado.
-
-    Raises:
-        ValueError: Se chaves obrigatórias estiverem ausentes ou a estrutura for inválida.
-    """
     validate_required_keys(
         data,
         required_keys=[
@@ -30,22 +24,10 @@ def parse_linkage_workflow_config(data: Dict[str, Any]) -> LinkageWorkflowConfig
         ],
         file_name="LinkageWorkflowConfig",
     )
-
-    logger.debug("Parsing LinkageWorkflowConfig.")
-
-    try:
-        return LinkageWorkflowConfig(**data)
-    except TypeError as e:
-        raise ValueError(f"Invalid structure for LinkageWorkflowConfig: {e}") from e
+    return LinkageWorkflowConfig(**data)
 
 
 def parse_sequential_blocking_workflow_config(data: Dict[str, Any]) -> SequentialBlockingWorkflow:
-    """
-    Valida e deserializa um dicionário em um SequentialBlockingWorkflow tipado.
-
-    Raises:
-        ValueError: Se chaves obrigatórias estiverem ausentes ou a estrutura for inválida.
-    """
     validate_required_keys(
         data,
         required_keys=[
@@ -57,35 +39,32 @@ def parse_sequential_blocking_workflow_config(data: Dict[str, Any]) -> Sequentia
         ],
         file_name="SequentialBlockingWorkflow",
     )
+    parsed_data = data.copy()
+    parsed_data["indexed_dataset_filter"] = parse_indexed_dataset_filter(
+        parsed_data.get("indexed_dataset_filter")
+    )
+    return SequentialBlockingWorkflow.from_dict(parsed_data)
 
-    logger.debug("Parsing SequentialBlockingWorkflow.")
-
-    try:
-        parsed_data = data.copy()
-        parsed_data["indexed_dataset_filter"] = parse_indexed_dataset_filter(
-            parsed_data.get("indexed_dataset_filter")
-        )
-        return SequentialBlockingWorkflow.from_dict(parsed_data)
-    except (TypeError, ValueError) as e:
-        raise ValueError(
-            f"Invalid structure for SequentialBlockingWorkflow: {e}"
-        ) from e
 
 def parse_es_config(data: Dict[str, Any]) -> ElasticsearchServiceConfig:
-    """
-    Valida e deserializa um dicionário em um ElasticsearchServiceConfig tipado.
+    # 1. Validação de presença obrigatória básica
+    if "es_connection_url" not in data and "cloud_id" not in data:
+        raise ValueError("A configuração do Elasticsearch deve conter 'es_connection_url' ou 'cloud_id'.")
 
-    Raises:
-        ValueError: Se chaves obrigatórias estiverem ausentes ou a estrutura for inválida.
-    """
-    validate_required_keys(data, required_keys=["es_connection_url"], file_name="ElasticsearchServiceConfig")
+    # 2. Validações de Regra de Negócio (Sanity Checks)
+    if "es_connection_url" in data:
+        url = data["es_connection_url"]
+        if not url or not url.startswith(("http://", "https://")):
+            raise ValueError(f"'es_connection_url' inválida: '{url}'. Deve começar com 'http://' ou 'https://'.")
 
-    logger.debug("Parsing ElasticsearchServiceConfig.")
+    if data.get("request_timeout", 60) <= 0:
+        raise ValueError("'request_timeout' deve ser um valor positivo.")
 
-    try:
-        return ElasticsearchServiceConfig(**data)
-    except (TypeError, ValueError) as e:
-        raise ValueError(f"Invalid structure for ElasticsearchServiceConfig: {e}") from e
+    if data.get("msearch_batch_size", 100) <= 0:
+        raise ValueError("'msearch_batch_size' deve ser um valor positivo.")
+
+    # 3. Cast seguro para o TypedDict
+    return ElasticsearchServiceConfig(**data)
 
 
 def load_linkage_workflow_config(path: Union[str, Path]) -> LinkageWorkflowConfig:
