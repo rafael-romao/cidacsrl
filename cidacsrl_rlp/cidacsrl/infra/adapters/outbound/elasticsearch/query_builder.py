@@ -15,12 +15,12 @@ class ElasticsearchQueryBuilder:
 
     def __init__(self,
                  phase_rules: List[ComparisonRule],
-                 target_fields: List[str],
+                 fetch_fields: List[str],
                  candidate_limit: int,
                  static_filter: Optional[List[IndexedDatasetFilterItem]] = None):
         
         self.phase_rules = phase_rules
-        self.target_fields = target_fields
+        self.fetch_fields = list(dict.fromkeys(fetch_fields))
         self.candidate_limit = candidate_limit
         self.static_filter = static_filter
 
@@ -100,7 +100,7 @@ class ElasticsearchQueryBuilder:
     
     
     
-    def build_bool_query(self, source_record: Dict[str, Any]) -> Dict[str, Any]:
+    def _build_bool_query(self, source_record: Dict[str, Any]) -> Dict[str, Any]:
         """
         Builds an Elasticsearch query body for a given record based on the phase rules.
 
@@ -146,9 +146,12 @@ class ElasticsearchQueryBuilder:
 
     def build_search_body_for_record(self, source_record: Dict[str, Any]) -> Dict[str, Any]:
         """Builds the full Elasticsearch search request body for one source record."""
-        bool_query_clauses = self.build_bool_query(source_record)
+        bool_query_clauses = self._build_bool_query(source_record)
+
+        bool_query_clauses = {k: v for k, v in bool_query_clauses.items() if v}
+
         return {
             "query": {"bool": bool_query_clauses},
-            "_source": self.target_fields,
+            "_source": self.fetch_fields,
             "size": self.candidate_limit,
         }

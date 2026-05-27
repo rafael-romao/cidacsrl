@@ -1,42 +1,82 @@
+from typing import Any, Dict
+
+from pyspark.sql import Row
+import logging
+
 from cidacsrl_rlp.cidacsrl.application.ports.outbound.get_candidates_port import GetCandidatesPort
-from cidacsrl_rlp.cidacsrl.domain.models.rules import BlockingPhase
+from cidacsrl_rlp.cidacsrl.domain.models.workflow import BlockingPhaseContext
+
+from pyspark.sql.types import StructType, StructField, StringType
+
 from .client import get_es_client
 from .query_builder import ElasticsearchQueryBuilder
 from .response_parser import extract_hits_from_es_response
-from typing import Any
+
+logger = logging.getLogger(__name__)
 
 
 
 class SparkESSearchAdapter(GetCandidatesPort):
-    def __init__(self, index_name: str, es_url: str):        
-        self.es_url = es_url
+    def __init__(self, index_name: str, es_config: Dict[str, Any]):        
+        self.es_config = es_config
         self.index_name = index_name 
 
-    def get_candidates(self, df_source: Any, phase_config: BlockingPhase) -> Any:
-        rules = phase_config.rules
-        limit = phase_config.candidate_limit
-        fields = phase_config.target_fields
-        url = self.es_url
+    @staticmethod
+    def _normalize_candidate_record(
+        hit_source: Dict[str, Any],
+        phase_context: BlockingPhaseContext,
+    ) -> Dict[str, Any]:
+        hit_source = hit_source or {}
+        return {
+            field_name: hit_source.get(field_name)
+            for field_name in phase_context.target_fields.fetch_fields
+        }
+
+    def get_candidates(self, df_source: Any, phase_context: BlockingPhaseContext) -> Any:
+        rules = phase_context.rules
+        limit = phase_context.candidate_limit
+        fetch_fields = phase_context.target_fields.fetch_fields
+        config = self.es_config
         index = self.index_name
 
-        def partition_search(partition):
-            es_client = get_es_client(url)
+        def partition_search(partition):            
+            es_client = get_es_client(config)
             query_builder = ElasticsearchQueryBuilder(
                 phase_rules=rules,
-                target_fields=fields,
+                fetch_fields=fetch_fields,
                 candidate_limit=limit
             )
             for record in partition:
-                record_dict = record.asDict()
+                record_dict = record.asDict(recursive=True)
                 query_body = query_builder.build_search_body_for_record(record_dict)
                 response = es_client.search(index=index, body=query_body)
+                response_data = response.body if hasattr(response, "body") else response # Na versão 8.x, o resultado do elasticsearch-python é um dict direto; na 9.x, é um objeto com atributo `body`
+                response_dict = dict(response_data) if not isinstance(response_data, dict) else response_data
                 hits = extract_hits_from_es_response(
-                    response,
+                    single_es_response=response_dict,
                     source_record_id_for_log=record_dict.get("id"),
                 )
             
                 for hit in hits:
-                    yield {"source_record": record_dict, "candidate_record": hit["source"]}
+                    candidate_record = SparkESSearchAdapter._normalize_candidate_record(
+                        hit.get("source"),
+                        phase_context,
+                    )
+                    yield Row(
+                        source_record=Row(**record_dict),
+                        candidate_record=Row(**candidate_record),
+                    )
             
         rdd_candidates = df_source.rdd.mapPartitions(partition_search)
-        return rdd_candidates.toDF()
+
+        candidate_schema = StructType([
+            StructField(field, StringType(), True) 
+            for field in fetch_fields
+        ])
+
+        final_schema = StructType([
+            StructField("source_record", df_source.schema, True),
+            StructField("candidate_record", candidate_schema, True)
+        ])
+
+        return df_source.sparkSession.createDataFrame(rdd_candidates, schema=final_schema)

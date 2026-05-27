@@ -1,56 +1,56 @@
-from dataclasses import asdict
 from typing import Dict, Any
-from cidacsrl_rlp.cidacsrl.application.ports.outbound.scoring_port import ScoringPort
-from cidacsrl_rlp.cidacsrl.domain.models.rules import BlockingPhase
-from cidacsrl_rlp.cidacsrl.domain.services.scoring_engine import calculate_pair_scores_and_similarities
-from pyspark.sql.types import StructType, StructField, FloatType
 import pyspark.sql.functions as F
+from pyspark.sql.types import FloatType, StructField, StructType
+
+from cidacsrl_rlp.cidacsrl.application.ports.outbound.scoring_port import ScoringPort
+from cidacsrl_rlp.cidacsrl.domain.models.workflow import BlockingPhaseContext
+from cidacsrl_rlp.cidacsrl.domain.services.scoring_engine import calculate_pair_scores_and_similarities
 
 
 class SparkScoringAdapter(ScoringPort):
 
-    def _build_score_schema(self, phase: BlockingPhase) -> StructType:
+    def _build_score_schema(self, phase_context: BlockingPhaseContext) -> StructType:
         fields = [StructField("match_score", FloatType(), nullable=True)]
-        rules = phase.rules
-        for rule in rules:
-            sim_col_name = f"sim_{rule.source_column}"
-            fields.append(StructField(sim_col_name, FloatType(), nullable=True))
+        for rule in phase_context.rules:
+            fields.append(StructField(f"sim_{rule.source_column}", FloatType(), nullable=True))
         return StructType(fields)
 
-    def calculate_score(self, df_candidates: Any, phase: BlockingPhase) -> Any:
-        score_schema = self._build_score_schema(phase)
-        rules = [asdict(rule) for rule in phase.rules]
-        threshold = phase.strong_match_score_threshold
+    def calculate_score(self, df_candidates: Any, phase_context: BlockingPhaseContext) -> Any:
+        score_schema = self._build_score_schema(phase_context)
+        rules = phase_context.rules
+        threshold = phase_context.strong_match_score_threshold
+
+        source_field_names = [
+            field.name for field in df_candidates.schema["source_record"].dataType.fields
+        ]
 
         @F.udf(returnType=score_schema)
         def compute_scores_udf(source_row: Any, candidate_row: Any) -> Dict[str, Any]:
             return calculate_pair_scores_and_similarities(
-                source_row.asDict(recursive=True), 
-                candidate_row.asDict(recursive=True), 
+                source_row.asDict(recursive=True),
+                candidate_row.asDict(recursive=True),
                 rules,
-                {"_candidate_prefix": ""}
             )
     
         df_scored = df_candidates.withColumn(
             "score_struct", 
-            compute_scores_udf(F.col("source_record"), F.col("candidate_record")))
+            compute_scores_udf(F.col("source_record"), F.col("candidate_record"))
+        )
 
         df_filtered = df_scored.filter(F.col("score_struct.match_score") >= threshold)
 
         source_fields = [
-            F.col(f"source_record.{f.name}").alias(f"source_{f.name}") 
-            for f in df_filtered.schema["source_record"].dataType.fields
+            F.col(f"source_record.{field_name}").alias(f"source_{field_name}") 
+            for field_name in source_field_names
         ]
 
         candidate_fields = [
-            F.col(f"candidate_record.{f.name}").alias(f"candidate_{f.name}") 
-            for f in df_filtered.schema["candidate_record"].dataType.fields
+            F.col(f"candidate_record.{field_name}").alias(f"candidate_{field_name}") 
+            for field_name in phase_context.target_fields.result_fields
         ]
 
-        df_final = df_filtered.select(
+        return df_filtered.select(
             *source_fields,
             *candidate_fields,
             "score_struct.*"
         )
-
-        return df_final      

@@ -19,17 +19,17 @@ class ComparisonRule:
         weight (float): Peso desta regra no cálculo do score composto.
         penalty (float): Penalidade a ser aplicada se uma das colunas for nula (default: 0.0).
         is_fuzzy (bool): Indica se a query `match` deve usar `fuzziness` (default: False).
-        boost (Optional[float]): Fator de boost para a cláusula na query Elasticsearch (default: 1.0).
+        boost (Optional[float]): Fator de boost para a cláusula na query Elasticsearch (default: None).
     """
     source_column: str
     target_column: str
-    es_clause_type: Literal["must", "should", "filter", "must_not"] = "must"
-    query_type: Literal["match", "term", "match_phrase", "prefix"] = "match"
     similarity: str
     weight: float
+    es_clause_type: Literal["must", "should", "filter", "must_not"] = "must"
+    query_type: Literal["match", "term", "match_phrase", "prefix"] = "match"
     penalty: float = 0.0
     is_fuzzy: bool = False
-    boost: Optional[float] = 1.0
+    boost: Optional[float] = None
 
     def __post_init__(self):
         if self.weight < 0:
@@ -69,19 +69,20 @@ class BlockingPhase:
     enabled: bool = True
     candidate_limit: int = 10
     strong_match_score_threshold: float = 0.9
-    target_fields: Optional[List[str]] = None
     rules: List[ComparisonRule] = field(default_factory=list)
 
     def __post_init__(self):
         if not self.rules:
             logger.warning(f"BlockingPhase '{self.phase_name}' has no ComparisonRules defined.")
-        if self.target_fields is None:
-            self.target_fields = list(dict.fromkeys(rule.target_column for rule in self.rules))
         if self.candidate_limit <= 0:
             raise ValueError("candidate_limit must be greater than 0.")
         if not 0 <= self.strong_match_score_threshold <= 1:
             # This validation ensures the threshold is a valid probability/score.
             raise ValueError("strong_match_score_threshold must be between 0 and 1.")
+
+    @property
+    def comparison_target_fields(self) -> List[str]:
+        return list(dict.fromkeys(rule.target_column for rule in self.rules))
     
     @classmethod
     def from_dict(cls, phase_dict: Dict[str, Any]) -> 'BlockingPhase':

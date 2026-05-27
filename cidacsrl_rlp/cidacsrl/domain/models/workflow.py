@@ -1,9 +1,61 @@
 import logging
-from cidacsrl_rlp.cidacsrl.domain.models.rules import BlockingPhase
 from dataclasses import dataclass, field
-from typing import List, Optional, Dict, Any
+from typing import Any, Dict, Iterable, List, Optional
+
+from cidacsrl_rlp.cidacsrl.domain.models.rules import BlockingPhase, ComparisonRule
 
 logger = logging.getLogger(__name__)
+
+
+def _dedupe_fields(fields: Iterable[str]) -> List[str]:
+    return list(dict.fromkeys(field_name for field_name in fields if field_name))
+
+
+@dataclass
+class BlockingPhaseTargetFields:
+    comparison_fields: List[str] = field(default_factory=list)
+    required_fields: List[str] = field(default_factory=list)
+    extra_fields: List[str] = field(default_factory=list)
+
+    def __post_init__(self):
+        self.comparison_fields = _dedupe_fields(self.comparison_fields)
+        self.required_fields = _dedupe_fields(self.required_fields)
+        self.extra_fields = _dedupe_fields(self.extra_fields)
+
+    @property
+    def fetch_fields(self) -> List[str]:
+        return _dedupe_fields(
+            [
+                *self.required_fields,
+                *self.comparison_fields,
+                *self.extra_fields,
+            ]
+        )
+
+    @property
+    def result_fields(self) -> List[str]:
+        return _dedupe_fields([
+            *self.required_fields, 
+            *self.comparison_fields,
+            *self.extra_fields       
+        ])
+
+
+@dataclass
+class BlockingPhaseContext:
+    phase_name: str
+    phase_description: Optional[str] = None
+    enabled: bool = True
+    candidate_limit: int = 10
+    strong_match_score_threshold: float = 0.9
+    rules: List[ComparisonRule] = field(default_factory=list)
+    target_fields: BlockingPhaseTargetFields = field(
+        default_factory=BlockingPhaseTargetFields
+    )
+    source_output_fields: List[str] = field(default_factory=list)
+
+    def __post_init__(self):
+        self.source_output_fields = _dedupe_fields(self.source_output_fields)
 
 @dataclass
 class SequentialBlockingWorkflow:
@@ -24,28 +76,37 @@ class SequentialBlockingWorkflow:
     blocking_phases: List[BlockingPhase] = field(default_factory=list)
     output_base_path: Optional[str] = None
     final_output_filename: Optional[str] = "final_linked_pairs.parquet" 
-    intermediate_results_enabled: bool = True    
-    final_output_columns_source: Optional[List[str]] = field(default_factory=list)
-    final_output_columns_target: Optional[List[str]] = field(default_factory=list)    
-    _candidate_prefix: str = field(default="candidate_", init=False, repr=False)    
-    prefixed_id_target_table: str = field(init=False)
+    intermediate_results_enabled: bool = True
+    extra_target_fields: Optional[List[str]] = field(default_factory=list)
 
 
     def __post_init__(self):
         if not self.blocking_phases:
             raise ValueError("At least one BlockingPhase must be defined in the workflow.")
-
-        self.prefixed_id_target_table = f"{self._candidate_prefix}{self.id_target_table}"
-
-        if self.id_source_table == self.prefixed_id_target_table:
-            raise ValueError(f"id_source_table ('{self.id_source_table}') cannot be the same as "
-                             f"prefixed_id_target_table ('{self.prefixed_id_target_table}'). "
-                             f"Consider changing id_target_table or _candidate_prefix.")
-
         
-        logger.debug(f"Prefixed ID target table: {self.prefixed_id_target_table}")
         logger.debug(f"Source table name: {self.source_table}")
         logger.debug(f"Target ES Index: {self.target_es_index}")
+
+    def build_blocking_phase_context(self, phase: BlockingPhase) -> BlockingPhaseContext:
+        return BlockingPhaseContext(
+            phase_name=phase.phase_name,
+            phase_description=phase.phase_description,
+            enabled=phase.enabled,
+            candidate_limit=phase.candidate_limit,
+            strong_match_score_threshold=phase.strong_match_score_threshold,
+            rules=phase.rules,
+            target_fields=BlockingPhaseTargetFields(
+                comparison_fields=phase.comparison_target_fields,
+                required_fields=[self.id_target_table],
+                extra_fields=list(self.extra_target_fields or []),
+            )
+        )
+
+    def build_blocking_phase_contexts(self) -> List[BlockingPhaseContext]:
+        return [
+            self.build_blocking_phase_context(phase)
+            for phase in self.blocking_phases
+        ]
     
     @classmethod
     def from_dict(cls, config_dict: Dict[str, Any]) -> 'SequentialBlockingWorkflow':
