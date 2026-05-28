@@ -1,4 +1,4 @@
-from cidacsrl_rlp.cidacsrl.domain.models.rules import ComparisonRule
+from cidacsrl_rlp.cidacsrl.domain.models.matching_rules import ComparisonRule
 from cidacsrl_rlp.cidacsrl.infra.configs.models.indexed_dataset_filter import IndexedDatasetFilterItem
 from cidacsrl_rlp.cidacsrl.infra.adapters.outbound.elasticsearch.query_builder import ElasticsearchQueryBuilder
 

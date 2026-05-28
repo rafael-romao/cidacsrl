@@ -3,8 +3,8 @@ from pyspark.sql import SparkSession, Row
 from pyspark.sql.types import StructType, StructField, StringType, IntegerType, FloatType
 
 from cidacsrl_rlp.cidacsrl.infra.adapters.outbound.spark_scoring_adapter import SparkScoringAdapter
-from cidacsrl_rlp.cidacsrl.domain.models.rules import ComparisonRule
-from cidacsrl_rlp.cidacsrl.domain.models.workflow import BlockingPhaseContext, BlockingPhaseTargetFields
+from cidacsrl_rlp.cidacsrl.domain.models.matching_rules import ComparisonRule
+from cidacsrl_rlp.cidacsrl.domain.models.linkage_specification import BlockingPhaseContext, BlockingPhaseTargetFields
 
 
 @pytest.fixture(scope="module")

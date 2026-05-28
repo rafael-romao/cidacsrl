@@ -2,7 +2,7 @@ import pytest
 from unittest.mock import patch
 
 from cidacsrl_rlp.cidacsrl.domain.services.scoring_engine import calculate_pair_scores_and_similarities
-from cidacsrl_rlp.cidacsrl.domain.models.rules import ComparisonRule
+from cidacsrl_rlp.cidacsrl.domain.models.matching_rules import ComparisonRule
 
 pytestmark = pytest.mark.unit
 

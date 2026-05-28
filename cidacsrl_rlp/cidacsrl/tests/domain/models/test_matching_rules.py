@@ -1,7 +1,7 @@
 import pytest
 
-from cidacsrl_rlp.cidacsrl.domain.models.rules import BlockingPhase, ComparisonRule
-from cidacsrl_rlp.cidacsrl.domain.models.workflow import SequentialBlockingWorkflow
+from cidacsrl_rlp.cidacsrl.domain.models.matching_rules import BlockingPhase, ComparisonRule
+from cidacsrl_rlp.cidacsrl.domain.models.linkage_specification import SequentialLinkageSpecification
 
 pytestmark = pytest.mark.unit
 
@@ -35,31 +35,21 @@ def test_workflow_builds_blocking_phase_context_with_required_and_output_fields(
 		phase_name="exact",
 		rules=[_build_rule("nome", "nome_completo")],
 	)
-	workflow = SequentialBlockingWorkflow(
+	workflow = SequentialLinkageSpecification(
 		source_table="source_table",
 		id_source_table="source_id",
 		target_es_index="target_index",
 		id_target_table="target_id",
 		blocking_phases=[phase],
-		final_output_columns_source=["source_id"],
-		final_output_columns_target=["data_nascimento"],
 	)
 
 	context = workflow.build_blocking_phase_context(phase)
 
-	assert context.source_output_fields == ["source_id"]
 	assert context.target_fields.comparison_fields == ["nome_completo"]
 	assert context.target_fields.required_fields == ["target_id"]
-	assert context.target_fields.output_fields == ["data_nascimento"]
-	assert context.target_fields.fetch_fields == [
-		"target_id",
-		"nome_completo",
-		"data_nascimento",
-	]
-	assert context.target_fields.result_fields == [
-		"target_id",
-		"data_nascimento",
-	]
+	assert context.target_fields.extra_fields == []
+	assert context.target_fields.fetch_fields == ["target_id", "nome_completo"]
+	assert context.target_fields.result_fields == ["target_id", "nome_completo"]
 
 
 def test_workflow_uses_comparison_fields_as_default_target_output():
@@ -67,7 +57,7 @@ def test_workflow_uses_comparison_fields_as_default_target_output():
 		phase_name="exact",
 		rules=[_build_rule("nome", "nome_completo")],
 	)
-	workflow = SequentialBlockingWorkflow(
+	workflow = SequentialLinkageSpecification(
 		source_table="source_table",
 		id_source_table="source_id",
 		target_es_index="target_index",
@@ -77,8 +67,5 @@ def test_workflow_uses_comparison_fields_as_default_target_output():
 
 	context = workflow.build_blocking_phase_context(phase)
 
-	assert context.target_fields.output_fields == ["nome_completo"]
-	assert context.target_fields.result_fields == [
-		"target_id",
-		"nome_completo",
-	]
+	assert context.target_fields.comparison_fields == ["nome_completo"]
+	assert context.target_fields.result_fields == ["target_id", "nome_completo"]

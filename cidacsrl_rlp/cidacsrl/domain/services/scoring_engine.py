@@ -6,7 +6,7 @@ from cidacsrl_rlp.cidacsrl.domain.services.similarity_functions import (
     hamming_score_func,
     exact_score_func
 )
-from cidacsrl_rlp.cidacsrl.domain.models.rules import ComparisonRule
+from cidacsrl_rlp.cidacsrl.domain.models.matching_rules import ComparisonRule
 
 logger = logging.getLogger(__name__)
 
