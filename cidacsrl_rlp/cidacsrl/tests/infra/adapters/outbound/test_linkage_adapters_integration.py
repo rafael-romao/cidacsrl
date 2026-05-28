@@ -5,8 +5,8 @@ from pyspark.sql import SparkSession, Row
 
 from cidacsrl_rlp.cidacsrl.infra.adapters.outbound.elasticsearch.spark_es_search_adapter import SparkESSearchAdapter
 from cidacsrl_rlp.cidacsrl.infra.adapters.outbound.spark_scoring_adapter import SparkScoringAdapter
-from cidacsrl_rlp.cidacsrl.domain.models.rules import ComparisonRule
-from cidacsrl_rlp.cidacsrl.domain.models.workflow import BlockingPhaseContext, BlockingPhaseTargetFields
+from cidacsrl_rlp.cidacsrl.domain.models.matching_rules import ComparisonRule
+from cidacsrl_rlp.cidacsrl.domain.models.linkage_specification import BlockingPhaseContext, BlockingPhaseTargetFields
 
 pytestmark = pytest.mark.integration
 
