@@ -1,1 +1,0 @@
-pytestmark = pytest.mark.integration
