@@ -10,35 +10,32 @@ logger = logging.getLogger(__name__)
 
 class SparkDataRepositoryAdapter(DataIngestionPort, DataPersistencePort, DataTransformationPort):
     def __init__(self, spark_session: SparkSession, env_config: Any):
-        self.spark = spark_session        
-        self.source_base_path = env_config.source_data_path
-        self.output_base_path = env_config.output_base_path
-        self.source_format = env_config.source_format
-        self.output_format = env_config.output_format
+        self.spark = spark_session
+        self.env_config = env_config
 
     def _resolve_source_path(self, table_name: str) -> str:
-        return os.path.join(self.source_base_path, table_name)
+        return os.path.join(self.env_config.source_data_path, table_name)
     
     def _resolve_output_path(self, table_name: str) -> str:
-        return os.path.join(self.output_base_path, table_name)
+        return os.path.join(self.env_config.output_data_path, table_name)
 
     def check_health(self, source_table: str, target_index: str) -> list[str]:
         errors = []
         
         # Input
         try:            
-            logger.debug(f"Verificando acesso ao caminho de origem para a tabela '{source_table}' usando formato '{self.source_format}'.")
+            logger.debug(f"Verificando acesso ao caminho de origem para a tabela '{source_table}' usando formato '{self.env_config.source_data_format}'.")
             physical_input_path = self._resolve_source_path(source_table)
-            self.spark.read.format(self.source_format).load(physical_input_path).limit(0).schema
+            self.spark.read.format(self.env_config.source_data_format).load(physical_input_path).limit(0).schema
         except Exception as e:
             errors.append(f"Falha ao acessar o caminho {physical_input_path}: {str(e)}")
             
         # Output
         try:
-            logger.debug(f"Verificando acesso ao caminho de destino para o índice '{target_index}' usando formato '{self.output_format}'.")
-            physical_output_path = os.path.join(self.output_base_path, target_index)
+            logger.debug(f"Verificando acesso ao caminho de destino'{target_index}' usando formato '{self.env_config.output_data_format}'.")
+            physical_output_path = os.path.join(self.env_config.output_data_path, target_index)
             test_df = self.spark.createDataFrame([("test",)], ["check"])
-            test_df.write.mode("overwrite").format(self.output_format).save(f"{physical_output_path}/.write_test")
+            test_df.write.mode("overwrite").format(self.env_config.output_data_format).save(f"{physical_output_path}/.write_test")
         except Exception as e:
             errors.append(f"Falha ao acessar o caminho {physical_output_path} para ESCRITA: {str(e)}")
             
@@ -54,7 +51,7 @@ class SparkDataRepositoryAdapter(DataIngestionPort, DataPersistencePort, DataTra
         physical_path = self._resolve_source_path(index_name)
         logger.debug(f"Mapeando índice ES '{index_name}' para caminho: {physical_path}")        
         
-        return self.spark.read.format(self.source_format).load(physical_path)
+        return self.spark.read.format(self.env_config.source_data_format).load(physical_path)
     
     def read_specific_partition(self, table_name: str, partition_expr: str, **kwargs) -> DataFrame:        
         return self.read_source_data(table_name).filter(partition_expr)
@@ -63,9 +60,9 @@ class SparkDataRepositoryAdapter(DataIngestionPort, DataPersistencePort, DataTra
         """Gera uma amostragem estatística controlada da tabela especificada."""
         return self.read_source_data(table_name).sample(withReplacement=False, fraction=fraction, seed=seed)   
 
-    def write_data(self, data: DataFrame, table_name: str, **kwargs) -> None:        
-        physical_path = self._resolve_output_path(table_name)
-        data.write.mode("overwrite").format(self.output_format).save(physical_path)
+    def write_data(self, data: DataFrame, output_folder: str, **kwargs) -> None:        
+        physical_path = self._resolve_output_path(output_folder)
+        data.write.mode("overwrite").format(self.env_config.output_data_format).save(physical_path)
 
     def exclude_records(self, primary_dataset: DataFrame, records_to_exclude: DataFrame, join_key: str) -> DataFrame:
         return primary_dataset.join(
