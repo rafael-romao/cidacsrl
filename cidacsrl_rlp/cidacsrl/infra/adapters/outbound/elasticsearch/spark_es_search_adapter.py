@@ -4,7 +4,7 @@ from pyspark.sql import Row
 import logging
 
 from cidacsrl_rlp.cidacsrl.application.ports.outbound.get_candidates_port import GetCandidatesPort
-from cidacsrl_rlp.cidacsrl.domain.models.workflow import BlockingPhaseContext
+from cidacsrl_rlp.cidacsrl.domain.models.linkage_specification import BlockingPhaseContext
 
 from pyspark.sql.types import StructType, StructField, StringType
 

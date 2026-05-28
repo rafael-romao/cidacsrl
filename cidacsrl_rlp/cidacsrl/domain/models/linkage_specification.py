@@ -2,7 +2,7 @@ import logging
 from dataclasses import dataclass, field
 from typing import Any, Dict, Iterable, List, Optional
 
-from cidacsrl_rlp.cidacsrl.domain.models.rules import BlockingPhase, ComparisonRule
+from cidacsrl_rlp.cidacsrl.domain.models.matching_rules import BlockingPhase, ComparisonRule
 
 logger = logging.getLogger(__name__)
 
@@ -58,7 +58,7 @@ class BlockingPhaseContext:
         self.source_output_fields = _dedupe_fields(self.source_output_fields)
 
 @dataclass
-class SequentialBlockingWorkflow:
+class SequentialLinkageSpecification:
     """
     Configuração de nível superior para um workflow de linkage sequencial,
     baseado em múltiplas fases de blocking.
@@ -109,7 +109,7 @@ class SequentialBlockingWorkflow:
         ]
     
     @classmethod
-    def from_dict(cls, config_dict: Dict[str, Any]) -> 'SequentialBlockingWorkflow':
+    def from_dict(cls, config_dict: Dict[str, Any]) -> 'SequentialLinkageSpecification':
         config_dict = config_dict.copy()
         blocking_phases_data = config_dict.pop("blocking_phases", None)
         if blocking_phases_data is None:

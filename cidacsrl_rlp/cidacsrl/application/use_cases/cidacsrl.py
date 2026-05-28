@@ -7,9 +7,9 @@ from typing import Dict, Any
 
 # Project-specific imports
 from cidacsrl_rlp.src.linkage.models import (
-    SequentialBlockingWorkflow,
+    SequentialLinkageSpecification,
     BlockingPhase,
-    LinkageWorkflowConfig
+    LinkageEnvironmentConfig
 )
 
 import pyspark.sql.functions as F
@@ -24,9 +24,9 @@ class CidacsRL:
             self,
             spark: SparkSession,
             df: DataFrame,
-            linkage_config: SequentialBlockingWorkflow,
+            linkage_config: SequentialLinkageSpecification,
             es_settings: Dict[str, Any],
-            workflow_config: LinkageWorkflowConfig,
+            workflow_config: LinkageEnvironmentConfig,
             write_path: str,
             logger = None,
             debug: bool = True
@@ -34,9 +34,9 @@ class CidacsRL:
         """Args:
             * `spark` (SparkSession): Instância do Spark.
             * `df` (DataFrame): PySpark DataFrame que será submetido ao Linkage.
-            * `linkage_config` (SequentialBlockingWorkflow): Configurações gerais do linkage.
+            * `linkage_config` (SequentialLinkageSpecification): Configurações gerais do linkage.
             * `es_settings` (Dict[str, Any]): Configurações de conexão com o Elasticsearch.
-            * `workflow_config` (LinkageWorkflowConfig): Configurações gerais do Workflow.
+            * `workflow_config` (LinkageEnvironmentConfig): Configurações gerais do Workflow.
             * `write_path` (str): Caminho onde o linkage será salvo.
             * `logger` (logging, Optional): Objeto logger para exibição dos logs do linkage. Caso não informado será feita uma instância nova.
             * `debug`: (bool, Optional): Flag booleana para indicar se devem ser exibidos prints de debug ou não.

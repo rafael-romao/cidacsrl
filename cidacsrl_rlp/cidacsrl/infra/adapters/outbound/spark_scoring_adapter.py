@@ -3,7 +3,7 @@ import pyspark.sql.functions as F
 from pyspark.sql.types import FloatType, StructField, StructType
 
 from cidacsrl_rlp.cidacsrl.application.ports.outbound.scoring_port import ScoringPort
-from cidacsrl_rlp.cidacsrl.domain.models.workflow import BlockingPhaseContext
+from cidacsrl_rlp.cidacsrl.domain.models.linkage_specification import BlockingPhaseContext
 from cidacsrl_rlp.cidacsrl.domain.services.scoring_engine import calculate_pair_scores_and_similarities
 
 

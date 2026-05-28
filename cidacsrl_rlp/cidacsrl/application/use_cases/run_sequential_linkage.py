@@ -3,14 +3,14 @@ from cidacsrl_rlp.cidacsrl.application.ports.outbound.data_persistence_port impo
 from cidacsrl_rlp.cidacsrl.application.ports.outbound.data_transformation_port import DataTransformationPort
 from cidacsrl_rlp.cidacsrl.application.ports.outbound.get_candidates_port import GetCandidatesPort
 from cidacsrl_rlp.cidacsrl.application.ports.outbound.scoring_port import ScoringPort
-from cidacsrl_rlp.cidacsrl.domain.models.workflow import SequentialBlockingWorkflow
+from cidacsrl_rlp.cidacsrl.domain.models.linkage_specification import SequentialLinkageSpecification
 from pyspark.sql import DataFrame
 import logging
 
 logger = logging.getLogger(__name__)
 
 
-class RunSequentialLinkageWorkflowUseCase:
+class RunSequentialLinkageUseCase:
     def __init__(self, 
                  ingestion_port: DataIngestionPort,
                  persistence_port: DataPersistencePort,
@@ -27,11 +27,11 @@ class RunSequentialLinkageWorkflowUseCase:
         self.get_candidates = get_candidates_port
         self.scoring = scoring_port
     
-    def execute(self, config: SequentialBlockingWorkflow) -> DataFrame:
+    def execute(self, config: SequentialLinkageSpecification) -> DataFrame:
         logger.info("Iniciando a execução do fluxo sequencial de Record Linkage.")
         
         
-        df_source = self.ingestion_port.read_data(table_name=config.source_table)
+        df_source = self.ingestion_port.read_source_data(table_name=config.source_table)
         
         df_remaining = df_source
         df_remaining.cache()
@@ -68,7 +68,7 @@ class RunSequentialLinkageWorkflowUseCase:
             phase_output_folder = f"phase_{phase_index}_{phase_context.phase_name}"
             self.persistence_port.write_data(
                 data=df_scored_pairs,
-                path=phase_output_folder,
+                output_folder=phase_output_folder,
                 
             )
             

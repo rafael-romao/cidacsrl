@@ -4,9 +4,9 @@ from typing import Dict, Any, Union, List
 from pathlib import Path
 
 
-from cidacsrl_rlp.cidacsrl.infra.configs.models.linkage_workflow_config import LinkageWorkflowConfig
+from cidacsrl_rlp.cidacsrl.infra.configs.models.linkage_env_config import LinkageEnvironmentConfig
 from cidacsrl_rlp.cidacsrl.infra.configs.models.indexed_dataset_filter import parse_indexed_dataset_filter
-from cidacsrl_rlp.cidacsrl.domain.models.workflow import SequentialBlockingWorkflow
+from cidacsrl_rlp.cidacsrl.domain.models.linkage_specification import SequentialLinkageSpecification
 from cidacsrl_rlp.cidacsrl.infra.elasticsearch.models.service_config import ElasticsearchConfig
 
 logger = logging.getLogger(__name__)
@@ -65,23 +65,24 @@ def _validate_required_keys(
         raise ValueError(f"Missing required keys in '{file_name}': {missing}")
 
 
-def parse_linkage_workflow_config(data: Dict[str, Any]) -> LinkageWorkflowConfig:
+def parse_linkage_env_config(data: Dict[str, Any]) -> LinkageEnvironmentConfig:
     _validate_required_keys(
         data,
         required_keys=[
-            "linkage_config_path",
+            "linkage_specification_path",
             "es_config_path",
             "spark_config_path",
             "source_data_path",
             "output_data_path",
             "source_data_format",
+            "output_data_format",
         ],
-        file_name="LinkageWorkflowConfig",
+        file_name="LinkageEnvironmentConfig",
     )
-    return LinkageWorkflowConfig(**data)
+    return LinkageEnvironmentConfig(**data)
 
 
-def parse_sequential_blocking_workflow_config(data: Dict[str, Any]) -> SequentialBlockingWorkflow:
+def parse_sequential_linkage_specification(data: Dict[str, Any]) -> SequentialLinkageSpecification:
     _validate_required_keys(
         data,
         required_keys=[
@@ -91,13 +92,13 @@ def parse_sequential_blocking_workflow_config(data: Dict[str, Any]) -> Sequentia
             "id_target_table",
             "blocking_phases",
         ],
-        file_name="SequentialBlockingWorkflow",
+        file_name="SequentialLinkageSpecification",
     )
     parsed_data = data.copy()
     parsed_data["indexed_dataset_filter"] = parse_indexed_dataset_filter(
         parsed_data.get("indexed_dataset_filter")
     )
-    return SequentialBlockingWorkflow.from_dict(parsed_data)
+    return SequentialLinkageSpecification.from_dict(parsed_data)
 
 
 def parse_es_config(data: Dict[str, Any]) -> ElasticsearchConfig:
@@ -121,12 +122,12 @@ def parse_es_config(data: Dict[str, Any]) -> ElasticsearchConfig:
     return ElasticsearchConfig(**data)
 
 
-def load_linkage_workflow_config(path: Union[str, Path]) -> LinkageWorkflowConfig:
-    return parse_linkage_workflow_config(_load_yaml(path))
+def load_linkage_env_config(path: Union[str, Path]) -> LinkageEnvironmentConfig:
+    return parse_linkage_env_config(_load_yaml(path))
 
 
-def load_sequential_blocking_workflow_config(path: Union[str, Path]) -> SequentialBlockingWorkflow:
-    return parse_sequential_blocking_workflow_config(_load_yaml(path))
+def load_sequential_linkage_specification(path: Union[str, Path]) -> SequentialLinkageSpecification:
+    return parse_sequential_linkage_specification(_load_yaml(path))
 
 
 def load_es_config(path: Union[str, Path]) -> ElasticsearchConfig:
