@@ -12,13 +12,16 @@ class LinkageSparkReaderAdapter(DataReaderPort):
         self.source_data_path = workflow_config.source_data_path
         self.source_data_format = workflow_config.source_data_format
 
-    def read_data(self) -> Any:        
-        if self.source_data_format == "csv":
-            logger.debug(f"Reading CSV data from source: {self.source_data_path}")
-            return self.spark_io.read_csv(self.source_data_path)
-        elif self.source_data_format == "parquet":
-            logger.debug(f"Reading Parquet data from source: {self.source_data_path}")
-            return self.spark_io.read_parquet(self.source_data_path)
+    def read_data(self) -> Any:
+
+        format_factory = {
+            "csv": self.spark_io.read_csv,
+            "parquet": self.spark_io.read_parquet
+        }
+
+        if self.source_data_format in format_factory:
+            logger.debug(f"Reading {self.source_data_format.upper()} data from source: {self.source_data_path}")
+            return format_factory[self.source_data_format](self.source_data_path)
         else:
             logger.error(f"Unsupported data format: {self.source_data_format}")
             raise ValueError(f"Unsupported data format: {self.source_data_format}")
