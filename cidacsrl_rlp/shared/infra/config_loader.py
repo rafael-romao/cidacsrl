@@ -2,19 +2,25 @@ import yaml
 import logging
 from typing import Union, Dict, Any, List
 from pathlib import Path
+from cidacsrl_rlp.cidacsrl_cleaning.domain.models.column import ColumnConfig, ConcatenateColumnConfig
+from cidacsrl_rlp.cidacsrl.infra.configs.models import ElasticsearchIndexingWorkflowConfig
+from cidacsrl_rlp.cidacsrl.infra.configs.models import ESIndexDefinition, ESIndexSettings
+
 
 logger = logging.getLogger(__name__)
 
 
-def validate_required_keys(
+
+
+
+# ─── Base ─────────────────────────────────────────────────────────────────────
+def _validate_required_keys(
     config_data: Dict[str, Any], required_keys: List[str], file_name: str
 ) -> None:
     missing = [k for k in required_keys if k not in config_data]
     if missing:
         raise ValueError(f"Missing required keys in '{file_name}': {missing}")
 
-
-# ─── Base ─────────────────────────────────────────────────────────────────────
 
 def load_yaml(file_path: Union[str, Path]) -> Dict[str, Any]:
     """
@@ -110,7 +116,7 @@ def load_index_config(config_file_path: Union[str, Path]) -> ESIndexDefinition:
     file_name = Path(config_file_path).name
     logger.info(f"Loading Elasticsearch index definition from: {file_name}")
 
-    validate_required_keys(config_dict, ["columns", "index_config"], file_name)
+    _validate_required_keys(config_dict, ["columns", "index_config"], file_name)
 
     columns_data = config_dict["columns"]
     if not isinstance(columns_data, list) or not columns_data:
@@ -151,7 +157,7 @@ def load_elasticsearch_indexing_workflow_config(
     config_data = load_yaml(config_path)
     file_name = Path(config_path).name
 
-    validate_required_keys(
+    _validate_required_keys(
         config_data,
         ["es_config_path", "spark_config_path", "index_config_path", "source_data_path"],
         file_name,
@@ -169,7 +175,7 @@ def load_deduplicate_workflow_config(
     config_data = load_yaml(config_path)
     file_name = Path(config_path).name
 
-    validate_required_keys(
+    _validate_required_keys(
         config_data,
         ["spark_config_path", "source_data_path", "output_data_path"],
         file_name,
