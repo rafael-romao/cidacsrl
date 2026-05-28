@@ -40,12 +40,34 @@ class SparkDataRepositoryAdapter(DataIngestionPort, DataPersistencePort, DataTra
             errors.append(f"Falha ao acessar o caminho {physical_output_path} para ESCRITA: {str(e)}")
             
         return errors
-
+    
     def read_source_data(self, table_name: str, **kwargs) -> DataFrame:
+        # 1. Resolve o caminho base físico usando a config de ambiente
         physical_path = self._resolve_source_path(table_name)
-        logger.debug(f"Mapeando tabela lógica '{table_name}' para caminho: {physical_path}")        
         
-        return self.spark.read.format(self.source_format).load(physical_path)
+        # 2. Executa a leitura nativa usando o formato vindo da infraestrutura
+        df = self.spark.read.format(self.env_config.source_data_format).load(physical_path)
+        
+        # 3. Aplica o particionamento físico (Ex: ler apenas UF='BA') de forma transparente
+        if self.env_config.partitioning:
+            part = self.env_config.partitioning
+            if part.has_filters:
+                # Exemplo de conversão: uf IN ('BA', 'SP')
+                partitions_str = ", ".join(f"'{p}'" for p in part.filter_partitions)
+                expr = f"{part.partition_column} IN ({partitions_str})"
+                df = df.filter(expr)
+                logger.debug(f"Aplicando filtro de partição: {expr}")
+
+        # 4. Aplica amostragem se estiver configurada no ambiente        
+        if self.env_config.sample_fraction:
+            df = df.sample(
+                withReplacement=False, 
+                fraction=self.env_config.sample_fraction, 
+                seed=self.env_config.sample_seed
+            )
+            logger.debug(f"Aplicando amostragem: fraction={self.env_config.sample_fraction}, seed={self.env_config.sample_seed}")
+        
+        return df
 
     def read_target_data(self, index_name: str, **kwargs) -> DataFrame:
         physical_path = self._resolve_source_path(index_name)

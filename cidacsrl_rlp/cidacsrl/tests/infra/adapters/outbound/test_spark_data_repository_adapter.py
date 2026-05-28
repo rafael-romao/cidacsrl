@@ -21,14 +21,20 @@ def spark_session():
 @pytest.fixture
 def mock_env_config(tmp_path):
     """Gera caminhos temporários reais e seguros no disco usando a fixture tmp_path do pytest."""
-    config = MagicMock()
-    config.source_data_path = str(tmp_path / "source")
-    config.output_base_path = str(tmp_path / "output")
+    env_config = MagicMock()
+    env_config.linkage_specification_path = str(tmp_path / "linkage_specification.yml")
+    env_config.es_config_path = str(tmp_path / "elasticsearch_config.yml")
+    env_config.source_data_path = str(tmp_path / "source_data")
+    env_config.output_data_path = str(tmp_path / "output_data")
+    env_config.source_data_format = "parquet"
+    env_config.output_data_format = "parquet"
+    env_config.partitioning = None
+    env_config.sample_fraction = None
     
     # Cria os diretórios físicos para evitar erros de FileSystem iniciais
-    os.makedirs(config.source_data_path, exist_ok=True)
-    os.makedirs(config.output_base_path, exist_ok=True)
-    return config
+    os.makedirs(env_config.source_data_path, exist_ok=True)
+    os.makedirs(env_config.output_data_path, exist_ok=True)
+    return env_config
 
 @pytest.fixture
 def adapter(spark_session, mock_env_config):
@@ -52,7 +58,7 @@ class TestSparkDataRepositoryAdapter:
         original_df.write.mode("overwrite").format("parquet").save(table_path)
 
         # Executa a leitura através do adaptador
-        result_df = adapter.read_data(table_name=table_name, data_format="parquet")
+        result_df = adapter.read_source_data(table_name=table_name)
 
         # Asserts de validação estrutural e de contagem
         assert result_df is not None
@@ -62,20 +68,20 @@ class TestSparkDataRepositoryAdapter:
     def test_read_data_file_not_found_raises_exception(self, adapter):
         """Valida se o Spark lança uma exceção esperada ao tentar ler uma tabela inexistente."""
         with pytest.raises(Exception):
-            adapter.read_data(table_name="tabela_fantasma", data_format="parquet")
+            adapter.read_source_data(table_name="tabela_fantasma")
 
 
     # ─── 2. TESTES DE REQUISITO: WRITE_DATA (PERSISTÊNCIA) ───
 
     def test_write_data_success(self, spark_session, mock_env_config, adapter):
         """Garante que os dados passados pelo Use Case são gravados corretamente no diretório de output."""
-        table_name = "output_matches_fase_1"
-        expected_output_path = os.path.join(mock_env_config.output_base_path, table_name)
+        output_folder = "output_matches_fase_1"
+        expected_output_path = os.path.join(mock_env_config.output_data_path, output_folder)
         
         df_to_save = spark_session.createDataFrame([("1092", 0.95)], ["codigo_internacao", "score"])
 
         # Executa a escrita
-        adapter.write_data(data=df_to_save, table_name=table_name, data_format="parquet")
+        adapter.write_data(data=df_to_save, output_folder=output_folder)
 
         # Verifica se os arquivos físicos foram criados pelo Spark no local esperado
         assert os.path.exists(expected_output_path)
@@ -140,7 +146,7 @@ class TestSparkDataRepositoryAdapter:
         errors = adapter.check_health(source_table="tabela_inexistente", target_index="any_output")
 
         assert len(errors) == 1
-        assert "Falha ao acessar o filesystem para LEITURA" in errors[0]
+        assert "Falha ao acessar o caminho" in errors[0]
 
     def test_check_health_output_unwritable_returns_error(self, spark_session, mock_env_config, adapter):
         """Caminho de falha: Verifica se o erro de permissão ou caminho inválido na escrita é capturado na lista."""
@@ -153,9 +159,9 @@ class TestSparkDataRepositoryAdapter:
 
         # Modifica o caminho de output para um local protegido ou impossível (ex: string vazia ou nula em ambiente controlado)
         # Para forçar um erro de I/O de escrita legítimo do Spark:
-        adapter.output_base_path = "/root/diretorio_proibido_do_sistema"
+        adapter.env_config.output_data_path = "/root/diretorio_proibido_do_sistema"
 
         errors = adapter.check_health(source_table=source_table, target_index="target_failed")
 
         assert len(errors) == 1
-        assert "Falha ao acessar o filesystem para ESCRITA" in errors[0]
+        assert "Falha ao acessar o caminho" in errors[0]
