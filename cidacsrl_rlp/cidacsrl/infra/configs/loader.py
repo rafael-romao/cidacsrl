@@ -8,6 +8,7 @@ from cidacsrl_rlp.cidacsrl.infra.configs.models.linkage_env_config import Linkag
 from cidacsrl_rlp.cidacsrl.infra.configs.models.indexed_dataset_filter import parse_indexed_dataset_filter
 from cidacsrl_rlp.cidacsrl.domain.models.linkage_specification import SequentialLinkageSpecification
 from cidacsrl_rlp.cidacsrl.infra.elasticsearch.models.service_config import ElasticsearchConfig
+from cidacsrl_rlp.cidacsrl.domain.models.indexing_specification import DatasetIndexingSpecification
 
 logger = logging.getLogger(__name__)
 
@@ -122,6 +123,26 @@ def parse_es_config(data: Dict[str, Any]) -> ElasticsearchConfig:
     return ElasticsearchConfig(**data)
 
 
+def parse_dataset_indexing_specification(data: Dict[str, Any]) -> DatasetIndexingSpecification:
+    if "index_config" not in data:
+        raise ValueError("A configuracao de indexacao deve conter o no 'index_config'.")
+    if "name" not in data["index_config"] or not data["index_config"]["name"]:
+        raise ValueError("O no 'index_config' deve especificar um 'name' valido para o indice.")
+    if "columns" not in data or not isinstance(data["columns"], list) or len(data["columns"]) == 0:
+        raise ValueError("A especificacao deve conter ao menos uma coluna mapeada em 'columns'.")
+
+    idx_cfg = data["index_config"]
+    if idx_cfg.get("number_of_shards", 1) <= 0:
+        raise ValueError("'number_of_shards' deve ser um numero inteiro positivo.")
+    if idx_cfg.get("number_of_replicas", 0) < 0:
+        raise ValueError("'number_of_replicas' nao pode ser um valor negativo.")
+
+    for col in data["columns"]:
+        if "name" not in col or "type" not in col:
+            raise ValueError(f"Toda coluna deve conter obrigatoriamente 'name' e 'type'. Mapeamento incorreto: {col}")
+
+    return DatasetIndexingSpecification.from_dict(data)
+
 def load_linkage_env_config(path: Union[str, Path]) -> LinkageEnvironmentConfig:
     return parse_linkage_env_config(_load_yaml(path))
 
@@ -132,3 +153,6 @@ def load_sequential_linkage_specification(path: Union[str, Path]) -> SequentialL
 
 def load_es_config(path: Union[str, Path]) -> ElasticsearchConfig:
     return parse_es_config(_load_yaml(path))
+
+def load_dataset_indexing_specification(path: Union[str, Path]) -> DatasetIndexingSpecification:
+    return parse_dataset_indexing_specification(_load_yaml(path))
