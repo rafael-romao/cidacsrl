@@ -1,44 +1,55 @@
+# cidacsrl_rlp/cidacsrl/infra/bootstrappers/indexing_bootstrapper.py
 import logging
-from typing import Any
+from typing import Any, Dict
 
-from cidacsrl_rlp.cidacsrl.infra.configs.loader import (
-    load_linkage_env_config,
-    load_es_config,
-    load_dataset_indexing_specification,
-)
-from cidacsrl_rlp.cidacsrl.infra.adapters.outbound.spark_data_repository_adapter import SparkDataRepositoryAdapter
+from cidacsrl_rlp.shared.infra.spark.spark_factory import create_spark_session
+from cidacsrl_rlp.cidacsrl.infra.configs.models.storage_config import SourceStorageConfig
+from cidacsrl_rlp.cidacsrl.infra.configs.loader import parse_dataset_indexing_specification, parse_es_config
+
+from cidacsrl_rlp.cidacsrl.infra.adapters.outbound.spark_data_ingestion_adapter import SparkDataIngestionAdapter
 from cidacsrl_rlp.cidacsrl.infra.adapters.outbound.elasticsearch.spark_es_indexing_adapter import SparkESIndexingAdapter
 from cidacsrl_rlp.cidacsrl.application.use_cases.index_dataset_use_case import IndexDatasetUseCase
 
 logger = logging.getLogger(__name__)
 
-def bootstrap_elasticsearch_indexing(config_path: str, indexing_spec_path: str, spark_session: Any) -> None:
-    """
-    Ponto de entrada isolado para orquestrar a fiação de dependências
-    e disparar o Caso de Uso de indexação em massa (Bulk) no Elasticsearch.
-    """
-    logger.info("Initializing Hexagonal Indexing Bootstrapper...")
-    
-    # 1. Carrega as configurações utilizando os loaders resolvidos do loader.py
-    env_config = load_linkage_env_config(config_path)
-    es_config = load_es_config(env_config.es_config_path)
-    indexing_spec = load_dataset_indexing_specification(indexing_spec_path)
+def bootstrap_elasticsearch_indexing(
+    storage_config_data: Dict[str, Any],
+    indexing_spec_data: Dict[str, Any],
+    es_config_data: Dict[str, Any],
+    spark_config_data: Dict[str, Any]
+) -> None:
+    logger.info("Initializing Indexing Bootstrapper...")
 
-    # 2. Instancia os adaptadores de infraestrutura outbound
-    spark_adapter = SparkDataRepositoryAdapter(spark_session=spark_session, env_config=env_config)
-    indexing_adapter = SparkESIndexingAdapter(es_config=es_config)
+    source_config = SourceStorageConfig(
+        source_data_path=storage_config_data["source_data_path"],
+        source_data_format=storage_config_data.get("source_data_format", "parquet")
+    )
+    es_config = parse_es_config(es_config_data)
+    indexing_spec = parse_dataset_indexing_specification(indexing_spec_data)
 
-    # 3. Injeta as portas no Caso de Uso de Domínio
-    use_case = IndexDatasetUseCase(
-        ingestion_port=spark_adapter, 
-        indexing_port=indexing_adapter
+    id_field = indexing_spec.id_field
+    if not id_field:
+        raise ValueError("A chave 'id_field' é obrigatória no YAML/Payload de especificação de indexação.")
+
+    spark_session = create_spark_session(
+        app_name="CIDACS-RL Indexing", 
+        spark_config=spark_config_data
     )
-    
-    # 4. Executa o pipeline delegando os parâmetros da especificação abstrata
-    use_case.execute(
-        source_table=indexing_spec.index_config.name,
-        spec=indexing_spec,
-        id_field="codigo_nascimento"
-    )
-    
-    logger.info("Elasticsearch indexing pipeline completed successfully.")
+
+    try:        
+        ingestion_adapter = SparkDataIngestionAdapter(spark_session=spark_session, config=source_config)
+        indexing_adapter = SparkESIndexingAdapter(es_config=es_config)
+
+        use_case = IndexDatasetUseCase(
+            ingestion_port=ingestion_adapter, 
+            indexing_port=indexing_adapter
+        )
+        
+        use_case.execute(
+            source_table=indexing_spec.index_config.name,
+            spec=indexing_spec,
+            id_field=id_field
+        )
+        logger.info("Indexing Use Case executed successfully.")
+    finally:
+        spark_session.stop()
