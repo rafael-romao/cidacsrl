@@ -3,6 +3,7 @@ from typing import Dict, Any, Optional
 import logging
 
 logger = logging.getLogger(__name__)
+
 def log_spark_configs(spark: SparkSession):
     """
     Registra as configurações da SparkSession ativa.
@@ -19,15 +20,16 @@ def log_spark_configs(spark: SparkSession):
 
 def create_spark_session(
     app_name: str,
-    spark_config: Dict[str, Any],
+    spark_config: Optional[Dict[str, Any]] = None,
     checkpoint_dir: Optional[str] = None,
 ) -> SparkSession:
     """
     Cria e configura uma SparkSession a partir de um arquivo de configuração.
+    Agnóstico à estrutura: suporta dicionários planos ou com a chave 'spark_configs'.
 
     Args:
         app_name (str): O nome da aplicação Spark.
-        spark_config (Dict[str, Any]): Configurações do Spark.
+        spark_config (Optional[Dict[str, Any]]): Configurações do Spark.
         checkpoint_dir (Optional[str]): Caminho para o diretório de checkpoint do Spark.
 
     Returns:
@@ -35,18 +37,22 @@ def create_spark_session(
     """
     spark_builder = SparkSession.builder.appName(app_name)
 
-    loaded_spark_configs = spark_config.get("spark_configs", {})
-    if isinstance(loaded_spark_configs, dict):
-        for key, value in loaded_spark_configs.items():
-            spark_builder = spark_builder.config(key, value)
-    else:
-        logger.warning(
-            "Nenhuma configuração 'spark_configs' encontrada ou não é um dicionário. "
-            "Usando padrões do Spark."
-        )
+    if spark_config:
+        loaded_spark_configs = spark_config.get("spark_configs", spark_config)
+        
+        if isinstance(loaded_spark_configs, dict):
+            for key, value in loaded_spark_configs.items():                
+                if isinstance(key, str) and key.startswith("spark."):
+                    spark_builder = spark_builder.config(key, str(value))
+        else:
+            logger.warning(
+                "Nenhuma configuração válida encontrada ou não é um dicionário. "
+                "Usando padrões do Spark."
+            )
 
     spark = spark_builder.getOrCreate()
     logger.info(f"SparkSession '{app_name}' criada com sucesso.")
+    
     master_config = spark.conf.get("spark.master", "local[*]")
     logger.info(f"Spark executando no modo: {master_config}")
 
@@ -60,4 +66,5 @@ def create_spark_session(
             )
 
     log_spark_configs(spark)
+
     return spark

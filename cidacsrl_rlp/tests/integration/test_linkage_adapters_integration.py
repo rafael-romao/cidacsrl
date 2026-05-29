@@ -2,6 +2,7 @@ import pytest
 from testcontainers.elasticsearch import ElasticSearchContainer
 from elasticsearch import Elasticsearch
 from pyspark.sql import SparkSession, Row
+from pyspark import SparkContext
 
 from cidacsrl_rlp.cidacsrl.infra.adapters.outbound.elasticsearch.spark_es_search_adapter import SparkESSearchAdapter
 from cidacsrl_rlp.cidacsrl.infra.adapters.outbound.spark_scoring_adapter import SparkScoringAdapter
@@ -15,7 +16,7 @@ pytestmark = pytest.mark.integration
 # FIXTURES (Infraestrutura Combinada)
 # ==========================================
 
-@pytest.fixture(scope="module")
+@pytest.fixture
 def es_container():
     with ElasticSearchContainer("elasticsearch:9.1.8") as es:
         host = es.get_container_host_ip()
@@ -23,7 +24,7 @@ def es_container():
         yield f"http://{host}:{port}"
 
 
-@pytest.fixture(scope="module")
+@pytest.fixture
 def es_client(es_container):
     client = Elasticsearch(es_container)
     index_name = "pacientes_integracao"
@@ -42,20 +43,23 @@ def es_client(es_container):
     client.indices.refresh(index=index_name)
     return {"url": es_container, "index": index_name}
 
-
 @pytest.fixture(scope="module")
-def spark():
-    spark = (
-        SparkSession.builder
-        .master("local[2]")
-        .appName("AdaptersIntegrationTests")
-        .config("spark.driver.host", "127.0.0.1")
-        .config("spark.sql.shuffle.partitions", "2")
-        .config("spark.ui.enabled", "false")
+def spark_session_local():
+    """Garante uma sessão Spark limpa e destrói o contexto Java agressivamente no final."""
+    if SparkContext._active_spark_context is not None:
+        SparkContext._active_spark_context.stop()
+
+    session = SparkSession.builder \
+        .appName("pytest-pyspark-testing-linkage") \
+        .master("local[2]") \
+        .config("spark.sql.shuffle.partitions", "1") \
+        .config("spark.ui.enabled", "false") \
         .getOrCreate()
-    )
-    yield spark
-    spark.stop()
+        
+    yield session
+    session.stop()
+    if SparkContext._active_spark_context is not None:
+        SparkContext._active_spark_context.stop()
 
 
 @pytest.fixture
@@ -85,7 +89,11 @@ def integration_phase_context():
 # TESTE DE INTEGRAÇÃO DE FLUXO
 # ==========================================
 
-def test_pipeline_flow_from_es_search_to_spark_scoring(spark, es_client, integration_phase_context):
+from pyspark.sql import SparkSession
+
+def test_pipeline_flow_from_es_search_to_spark_scoring(spark_session_local, es_client, integration_phase_context):
+    
+    spark = spark_session_local
     
     search_adapter = SparkESSearchAdapter(
         index_name=es_client["index"],
@@ -93,43 +101,38 @@ def test_pipeline_flow_from_es_search_to_spark_scoring(spark, es_client, integra
     )
     scoring_adapter = SparkScoringAdapter()
 
-    
-    df_source = spark.createDataFrame([
-        Row(id_origem="A_REG", nome="Carlos Rocha", idade=45, cidade="Salvador")
-    ])
+    try:
+        df_source = spark.createDataFrame([
+            Row(id_origem="A_REG", nome="Carlos Rocha", idade=45, cidade="Salvador")
+        ])
 
-    
-    df_candidates = search_adapter.get_candidates(df_source, integration_phase_context)
-    
-    
-    assert "source_record" in df_candidates.columns
-    assert "candidate_record" in df_candidates.columns
+        df_candidates = search_adapter.get_candidates(df_source, integration_phase_context)
 
-    
-    df_final_scored = scoring_adapter.calculate_score(df_candidates, integration_phase_context)
-    results = df_final_scored.collect()
+        assert "source_record" in df_candidates.columns
+        assert "candidate_record" in df_candidates.columns
 
-    # ==========================================
-    # VALIDAÇÕES DO SUCESSO DA INTEGRAÇÃO
-    # ==========================================
-    
-    
-    assert len(results) == 1
-    pair = results[0]
+        df_final_scored = scoring_adapter.calculate_score(df_candidates, integration_phase_context)
+        results = df_final_scored.collect()
 
-    
-    assert pair.source_id_origem == "A_REG"
-    assert pair.source_nome == "Carlos Rocha"
-    assert pair.source_idade == 45
-    assert pair.source_cidade == "Salvador" 
+        # ==========================================
+        # VALIDAÇÕES DO SUCESSO DA INTEGRAÇÃO
+        # ==========================================
+        assert len(results) == 1
+        pair = results[0]
 
-    
-    assert pair.candidate_id_nacional == "100"
-    assert pair.candidate_nome_completo == "Carlos Rocha"
-    assert pair.candidate_idade == "45"
-        
+        assert pair.source_id_origem == "A_REG"
+        assert pair.source_nome == "Carlos Rocha"
+        assert pair.source_idade == 45
+        assert pair.source_cidade == "Salvador" 
 
-    
-    assert pair.match_score == 1.0
-    assert pair.sim_nome == 1.0
-    assert pair.sim_idade == 1.0
+        assert pair.candidate_id_nacional == "100"
+        assert pair.candidate_nome_completo == "Carlos Rocha"
+        assert pair.candidate_idade == "45"
+
+        assert pair.match_score == 1.0
+        assert pair.sim_nome == 1.0
+        assert pair.sim_idade == 1.0
+    finally:
+        spark.stop()
+        if SparkContext._active_spark_context is not None:
+            SparkContext._active_spark_context.stop()

@@ -169,5 +169,7 @@ pyrightconfig.json
 
 # Local Dev  files
 data/
+.es_data/
+MagicMock/
 notebooks/
 logs/

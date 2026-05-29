@@ -1,0 +1,9 @@
+source_data_path: "tests/data/input"
+output_data_path: "tests/data/output"
+es_config_path: "tests/configs/elasticsearch.yml"
+spark_config_path: "tests/configs/spark_config.yml"
+source_data_format: "parquet"
+output_data_format: "parquet"
+
+indexing_specification_path: "tests/configs/specifications/nascimentos/indexing/indexing_nascimentos.yml"
+linkage_specification_path: "tests/configs/specifications/nascimentos/linkage/linkage_sequential.yml"
