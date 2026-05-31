@@ -1,4 +1,4 @@
-linkage_config_path: "/app/configs/job/linkage_config.yml"
+linkage_specification_path: "/app/configs/job/linkage_specification.yml"
 es_config_path: "/app/configs/services/elasticsearch_config.yml"
 spark_config_path: "/app/configs/services/spark_config.yml"
 output_base_path: "/app/data/output"
