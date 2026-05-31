@@ -7,18 +7,17 @@ class IndexDatasetUseCase:
         self.ingestion_port = ingestion_port
         self.indexing_port = indexing_port
 
-    def execute(self, source_table: str, spec: DatasetIndexingSpecification, id_field: str) -> None:
-        index_name = spec.index_config.name
+    def execute(self, spec: DatasetIndexingSpecification) -> None:        
+        source_table = spec.source_config.source_table
         
-        self.indexing_port.ensure_index_with_mapping(index_name, spec)
+        self.indexing_port.ensure_index_with_mapping(spec)
         
         df_source = self.ingestion_port.read_source_data(table_name=source_table)
         
-        colunas_para_indexar = [col.name for col in spec.columns]
-        df_filtrado = df_source.select(*colunas_para_indexar)
+        index_columns = [col.name for col in spec.index_columns]
+        df_index = df_source.select(*index_columns)
         
         self.indexing_port.index_dataframe(
-            df=df_filtrado,
-            index_name=index_name,
-            id_field=id_field
+            df=df_index,
+            spec=spec
         )
