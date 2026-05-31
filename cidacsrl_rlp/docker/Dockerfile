@@ -68,6 +68,31 @@ USER root
 COPY --from=es-jar-downloader /elasticsearch-spark-30_2.12-9.2.8.jar /opt/spark/jars/
 USER spark
 
+
+# Runner para Lab
+# Runner para desenvolvimento (com Poetry e dependências de dev)
+FROM python:3.12-slim AS runner-dev
+
+WORKDIR /app
+
+RUN apt-get update && apt-get install -y default-jdk procps curl
+
+COPY pyproject.toml poetry.lock* ./
+
+
+RUN pip install --no-cache-dir poetry
+
+
+RUN poetry install --no-root
+
+
+COPY . .
+
+ENV PYTHONPATH=/app
+
+CMD ["tail", "-f", "/dev/null"]
+
+
 # Jupyter
 FROM python:3.10-slim AS jupyter-dev
 
