@@ -124,20 +124,31 @@ def parse_es_config(data: Dict[str, Any]) -> ElasticsearchConfig:
 
 
 def parse_dataset_indexing_specification(data: Dict[str, Any]) -> DatasetIndexingSpecification:
+    if "source_config" not in data:
+        raise ValueError("O campo 'source_config' com as configurações dos dados de origem é obrigatório.")
+    
     if "index_config" not in data:
-        raise ValueError("A configuracao de indexacao deve conter o no 'index_config'.")
-    if "name" not in data["index_config"] or not data["index_config"]["name"]:
-        raise ValueError("O no 'index_config' deve especificar um 'name' valido para o indice.")
-    if "columns" not in data or not isinstance(data["columns"], list) or len(data["columns"]) == 0:
-        raise ValueError("A especificacao deve conter ao menos uma coluna mapeada em 'columns'.")
+        raise ValueError("O campo 'index_config' com as configurações do índice é obrigatório.")
+    
+    if "index_columns" not in data:
+        raise ValueError("O campo 'index_columns' com as definições das colunas a serem indexadas é obrigatório.")
 
+    src_cfg = data["source_config"]
+    if "source_table" not in src_cfg or not src_cfg["source_table"]:
+        raise ValueError("O 'source_config' deve ter o campo 'source_table', o 'relative path' para definir a tabela de origem.")
+    if "id_field" not in src_cfg or not src_cfg["id_field"]:
+        raise ValueError("O 'source_config' deve ter 'id_field' definido para indicar qual campo da fonte deve ser usado como ID no Elasticsearch.")    
+    
     idx_cfg = data["index_config"]
     if idx_cfg.get("number_of_shards", 1) <= 0:
-        raise ValueError("'number_of_shards' deve ser um numero inteiro positivo.")
+        raise ValueError("O 'number_of_shards' deve ser um numero inteiro positivo.")
     if idx_cfg.get("number_of_replicas", 0) < 0:
-        raise ValueError("'number_of_replicas' nao pode ser um valor negativo.")
+        raise ValueError("O 'number_of_replicas' nao pode ser um valor negativo.")
 
-    for col in data["columns"]:
+    col_cfgs = data["index_columns"]
+    if not isinstance(col_cfgs, list) or len(col_cfgs) == 0:
+        raise ValueError("O 'index_columns' deve ser uma lista com as definições das colunas a serem indexadas.")
+    for col in col_cfgs:
         if "name" not in col or "type" not in col:
             raise ValueError(f"Toda coluna deve conter obrigatoriamente 'name' e 'type'. Mapeamento incorreto: {col}")
 

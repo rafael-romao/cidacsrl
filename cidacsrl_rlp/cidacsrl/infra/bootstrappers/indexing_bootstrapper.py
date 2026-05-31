@@ -27,12 +27,9 @@ def bootstrap_elasticsearch_indexing(
     es_config = parse_es_config(es_config_data)
     indexing_spec = parse_dataset_indexing_specification(indexing_spec_data)
 
-    id_field = indexing_spec.id_field
-    if not id_field:
-        raise ValueError("A chave 'id_field' é obrigatória no YAML/Payload de especificação de indexação.")
-
+    
     spark_session = create_spark_session(
-        app_name="CIDACS-RL Indexing", 
+        app_name=f"CIDACS-RL Indexing Table {indexing_spec.source_config.source_table} as {indexing_spec.index_config.name}", 
         spark_config=spark_config_data
     )
 
@@ -46,9 +43,7 @@ def bootstrap_elasticsearch_indexing(
         )
         
         use_case.execute(
-            source_table=indexing_spec.index_config.name,
             spec=indexing_spec,
-            id_field=id_field
         )
         logger.info("Indexing Use Case executed successfully.")
     finally:
