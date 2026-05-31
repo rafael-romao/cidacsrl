@@ -2,6 +2,7 @@ from typing import Any, Dict
 
 from pyspark.sql import Row
 import logging
+import socket
 
 from cidacsrl_rlp.cidacsrl.application.ports.outbound.get_candidates_port import GetCandidatesPort
 from cidacsrl_rlp.cidacsrl.domain.models.linkage_specification import BlockingPhaseContext
@@ -39,7 +40,13 @@ class SparkESSearchAdapter(GetCandidatesPort):
         config = self.es_config
         index = self.index_name
 
-        def partition_search(partition):            
+        def partition_search(partition):
+            print(f"Partition running on host: {socket.gethostname()}")
+            print(f"ES config: {config}")
+            es_client = get_es_client(config)
+            if es_client is None:
+                print("Failed to create ES client in partition.")
+                raise RuntimeError("Elasticsearch client could not be initialized. Check connection and configuration.")       
             es_client = get_es_client(config)
             query_builder = ElasticsearchQueryBuilder(
                 phase_rules=rules,
@@ -47,10 +54,12 @@ class SparkESSearchAdapter(GetCandidatesPort):
                 candidate_limit=limit
             )
             for record in partition:
+                if es_client is None:
+                    raise RuntimeError("Elasticsearch client could not be initialized. Check connection and configuration.")
                 record_dict = record.asDict(recursive=True)
                 query_body = query_builder.build_search_body_for_record(record_dict)
                 response = es_client.search(index=index, body=query_body)
-                response_data = response.body if hasattr(response, "body") else response # Na versão 8.x, o resultado do elasticsearch-python é um dict direto; na 9.x, é um objeto com atributo `body`
+                response_data = response.body if hasattr(response, "body") else response 
                 response_dict = dict(response_data) if not isinstance(response_data, dict) else response_data
                 hits = extract_hits_from_es_response(
                     single_es_response=response_dict,
