@@ -41,7 +41,7 @@ def bootstrap_sequential_linkage(
         raise ConnectionError("Falha crítica de conectividade com o Elasticsearch.")
 
     spark_session = create_spark_session(
-        app_name="CIDACS-RL Record Linkage", 
+        app_name=f"CIDACS-RL Record Linkage - {linkage_spec.source_table}_{linkage_spec.target_es_index}", 
         spark_config=spark_config_data
     )
 

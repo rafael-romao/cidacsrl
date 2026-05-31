@@ -14,10 +14,6 @@ from cidacsrl_rlp.cidacsrl.domain.models.linkage_specification import BlockingPh
 
 @pytest.fixture(scope="module")
 def es_container():
-    """
-    Sobe um Elasticsearch 9.x real dentro de um contentor Docker.
-    Garante que o ES está pronto antes de libertar a execução e o destrói no fim.
-    """
     with ElasticSearchContainer("elasticsearch:9.1.8") as es:
         host = es.get_container_host_ip()
         port = es.get_exposed_port(9200)
