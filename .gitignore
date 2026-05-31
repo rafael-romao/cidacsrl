@@ -173,3 +173,4 @@ data/
 MagicMock/
 notebooks/
 logs/
+.vscode/
