@@ -12,11 +12,14 @@ maintainers = [
 keywords = ["record linkage", "cidacsrl", "pyspark", "elasticsearch"]
 
 readme = "README.md"
-requires-python = ">=3.12"
+requires-python = ">=3.9"
 dependencies = [
     "elasticsearch>=9.1.0",
     "pyyaml>=6.0.2",
     "jellyfish>=1.1.03",
+    "pandas>=1.3.0",
+    "pyspark>=3.4.0",
+    "graphframes"
 ]
 
 classifiers = [
@@ -45,6 +48,15 @@ pyspark = "^3.4.0"
 jellyfish = "^1.2.0"
 blue = "^0.9.1"
 isort = "^6.0.1"
+testcontainers = "^4.0.0"
+ipykernel = "^6.29.4"
+
+[tool.pytest.ini_options]
+markers = [
+    "unit: Testes unitarios de logica pura e dominio.",
+    "integration: Testes de integracao que dependem de Spark ou ES(Docker).",
+    "e2e: Testes ponta a ponta do pipeline completo de linkage."
+]
 
 
 [tool.poetry.group.doc.dependencies]
