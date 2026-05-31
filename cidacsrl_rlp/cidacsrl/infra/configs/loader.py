@@ -12,7 +12,7 @@ from cidacsrl_rlp.cidacsrl.domain.models.indexing_specification import DatasetIn
 
 logger = logging.getLogger(__name__)
 
-def _load_yaml(file_path: Union[str, Path]) -> Dict[str, Any]:
+def load_yaml(file_path: Union[str, Path]) -> Dict[str, Any]:
     """
     Carrega e valida um arquivo de configuração YAML base.
 
@@ -155,15 +155,15 @@ def parse_dataset_indexing_specification(data: Dict[str, Any]) -> DatasetIndexin
     return DatasetIndexingSpecification.from_dict(data)
 
 def load_linkage_env_config(path: Union[str, Path]) -> LinkageEnvironmentConfig:
-    return parse_linkage_env_config(_load_yaml(path))
+    return parse_linkage_env_config(load_yaml(path))
 
 
 def load_sequential_linkage_specification(path: Union[str, Path]) -> SequentialLinkageSpecification:
-    return parse_sequential_linkage_specification(_load_yaml(path))
+    return parse_sequential_linkage_specification(load_yaml(path))
 
 
 def load_es_config(path: Union[str, Path]) -> ElasticsearchConfig:
-    return parse_es_config(_load_yaml(path))
+    return parse_es_config(load_yaml(path))
 
 def load_dataset_indexing_specification(path: Union[str, Path]) -> DatasetIndexingSpecification:
-    return parse_dataset_indexing_specification(_load_yaml(path))
+    return parse_dataset_indexing_specification(load_yaml(path))

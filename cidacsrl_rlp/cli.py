@@ -3,7 +3,7 @@ import argparse
 import logging
 import sys
 
-from cidacsrl_rlp.shared.infra.config_loader import load_yaml
+from cidacsrl_rlp.cidacsrl.infra.configs.loader import load_yaml
 from cidacsrl_rlp.cidacsrl.infra.bootstrappers.indexing_bootstrapper import bootstrap_elasticsearch_indexing
 from cidacsrl_rlp.cidacsrl.infra.bootstrappers.linkage_bootstrapper import bootstrap_sequential_linkage
 
@@ -22,7 +22,7 @@ def main():
     
     env_data = load_yaml(args.env_config)    
     es_data = load_yaml(env_data.get("es_config_path"))
-    spark_data = load_yaml(env_data.get("spark_config_path"), {})
+    spark_data = load_yaml(env_data.get("spark_config_path"))
 
     if args.use_case == "indexing":
         indexing_spec_data = load_yaml(args.spec_config)        
