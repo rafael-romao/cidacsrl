@@ -155,3 +155,38 @@ def test_missing_similarity_key_raises_error():
             candidate_data_dict={"nome": "A"},
             rules=rules
         )
+
+
+@patch("cidacsrl_rlp.cidacsrl.domain.services.scoring_engine.SIMILARITY_FUNCTION_MAP", MOCK_SIMILARITY_MAP)
+def test_debug_payload_includes_rule_breakdown(base_rules):
+    result = calculate_pair_scores_and_similarities(
+        source_row_dict={"nome": "João", "idade": 30},
+        candidate_data_dict={"nome": "João", "idade": 30},
+        rules=base_rules,
+        debug=True,
+    )
+
+    assert result["match_score"] == 1.0
+    assert "_debug" in result
+    assert result["_debug"]["raw_score"] == 3.0
+    assert result["_debug"]["total_weight"] == 3.0
+    assert result["_debug"]["normalized_score"] == 1.0
+    assert result["_debug"]["any_penalty_applied"] is False
+    assert len(result["_debug"]["rules"]) == 2
+    assert result["_debug"]["rules"][0]["source_column"] == "nome"
+    assert result["_debug"]["rules"][0]["weighted_contribution"] == 2.0
+
+
+@patch("cidacsrl_rlp.cidacsrl.domain.services.scoring_engine.SIMILARITY_FUNCTION_MAP", MOCK_SIMILARITY_MAP)
+def test_debug_payload_empty_rules():
+    result = calculate_pair_scores_and_similarities(
+        source_row_dict={"nome": "João"},
+        candidate_data_dict={"nome": "João"},
+        rules=[],
+        debug=True,
+    )
+
+    assert result["match_score"] == 0.0
+    assert "_debug" in result
+    assert result["_debug"]["rules"] == []
+    assert result["_debug"]["total_weight"] == 0.0

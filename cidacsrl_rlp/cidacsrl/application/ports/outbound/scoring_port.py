@@ -5,5 +5,10 @@ from cidacsrl_rlp.cidacsrl.domain.models.linkage_specification import BlockingPh
 
 class ScoringPort(ABC):
     @abstractmethod
-    def calculate_score(self, df_candidates: Any, phase_context: BlockingPhaseContext) -> Any:
+    def calculate_score(
+        self,
+        df_candidates: Any,
+        phase_context: BlockingPhaseContext,
+        debug: bool = False,
+    ) -> Any:
         pass

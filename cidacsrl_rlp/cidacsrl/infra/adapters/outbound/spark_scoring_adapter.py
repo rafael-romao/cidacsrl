@@ -1,6 +1,7 @@
+import json
 from typing import Dict, Any
 import pyspark.sql.functions as F
-from pyspark.sql.types import FloatType, StructField, StructType
+from pyspark.sql.types import FloatType, StringType, StructField, StructType
 
 from cidacsrl_rlp.cidacsrl.application.ports.outbound.scoring_port import ScoringPort
 from cidacsrl_rlp.cidacsrl.domain.models.linkage_specification import BlockingPhaseContext
@@ -9,14 +10,16 @@ from cidacsrl_rlp.cidacsrl.domain.services.scoring_engine import calculate_pair_
 
 class SparkScoringAdapter(ScoringPort):
 
-    def _build_score_schema(self, phase_context: BlockingPhaseContext) -> StructType:
+    def _build_score_schema(self, phase_context: BlockingPhaseContext, debug: bool = False) -> StructType:
         fields = [StructField("match_score", FloatType(), nullable=True)]
         for rule in phase_context.rules:
             fields.append(StructField(f"sim_{rule.source_column}", FloatType(), nullable=True))
+        if debug:
+            fields.append(StructField("score_debug_json", StringType(), nullable=True))
         return StructType(fields)
 
-    def calculate_score(self, df_candidates: Any, phase_context: BlockingPhaseContext) -> Any:
-        score_schema = self._build_score_schema(phase_context)
+    def calculate_score(self, df_candidates: Any, phase_context: BlockingPhaseContext, debug: bool = False) -> Any:
+        score_schema = self._build_score_schema(phase_context, debug=debug)
         rules = phase_context.rules
         threshold = phase_context.strong_match_score_threshold
 
@@ -26,11 +29,17 @@ class SparkScoringAdapter(ScoringPort):
 
         @F.udf(returnType=score_schema)
         def compute_scores_udf(source_row: Any, candidate_row: Any) -> Dict[str, Any]:
-            return calculate_pair_scores_and_similarities(
-                source_row.asDict(recursive=True),
-                candidate_row.asDict(recursive=True),
+            score_result = calculate_pair_scores_and_similarities(
+                source_row.asDict(recursive=True) if hasattr(source_row, "asDict") else source_row,
+                candidate_row.asDict(recursive=True) if hasattr(candidate_row, "asDict") else candidate_row,
                 rules,
+                debug=debug,
             )
+
+            if debug:
+                score_result["score_debug_json"] = json.dumps(score_result.pop("_debug", {}))
+
+            return score_result
     
         df_scored = df_candidates.withColumn(
             "score_struct", 
@@ -52,5 +61,7 @@ class SparkScoringAdapter(ScoringPort):
         return df_filtered.select(
             *source_fields,
             *candidate_fields,
-            "score_struct.*"
+            "score_struct.*",
+            F.col("phase_match"),
+            F.col("candidate_record._score").alias("es_score")
         )

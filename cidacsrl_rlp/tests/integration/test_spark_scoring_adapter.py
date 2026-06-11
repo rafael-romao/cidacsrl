@@ -60,18 +60,22 @@ def candidates_df(spark):
         StructField("candidate_record", StructType([
             StructField("nome_completo", StringType()),
             StructField("idade", IntegerType()),
-            StructField("sexo", StringType())
-        ]))
+            StructField("sexo", StringType()),
+            StructField("_score", FloatType())
+        ])),
+        StructField("phase_match", StringType())
     ])
     
     data = [
         Row(
             source_record=Row(nome="João", idade=30, municipio_codigo="2927408"),
-            candidate_record=Row(nome_completo="João", idade=30, sexo="M")
+            candidate_record=Row(nome_completo="João", idade=30, sexo="M", _score=15.5),
+            phase_match="fase_teste_scoring"
         ),
         Row(
             source_record=Row(nome="Maria", idade=25, municipio_codigo="2927408"),
-            candidate_record=Row(nome_completo="Mariana", idade=25, sexo="F")
+            candidate_record=Row(nome_completo="Mariana", idade=25, sexo="F", _score=8.2),
+            phase_match="fase_teste_scoring"
         )
     ]
     return spark.createDataFrame(data, schema)
@@ -131,3 +135,12 @@ def test_calculate_score_with_empty_dataframe(adapter, real_phase_context, candi
     
     assert len(scored_df.collect()) == 0
     assert "match_score" in scored_df.columns
+
+
+def test_calculate_score_with_debug_column(adapter, real_phase_context, candidates_df):
+    scored_df = adapter.calculate_score(candidates_df, real_phase_context, debug=True)
+
+    assert "score_debug_json" in scored_df.columns
+    row = scored_df.first()
+    assert row.score_debug_json is not None
+    assert '"rules"' in row.score_debug_json
