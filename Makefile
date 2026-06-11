@@ -5,7 +5,7 @@ SPARK_PKG  := spark_packages
 
 .PHONY: all build clean help env-check clean-docker prepare-dirs stop-all stop
 .PHONY: up up-es up-ui up-jupyter down restart ps logs logs-engine logs-es logs-cerebro logs-jupyter shell-engine shell-es shell-jupyter
-.PHONY: test test-integration test-unit run-e2e-pipeline
+.PHONY: test test-integration test-unit run-e2e-pipeline run-linkage-pipeline
 
 all: help
 
@@ -120,6 +120,11 @@ run-e2e-pipeline: up
 	$(COMPOSE) exec cidacsrl_runner \
 		poetry run python -m cidacsrl_rlp.tests.e2e.run_e2e_pipeline
 
+run-linkage-pipeline: up-es
+	@echo "--> Executando o pipeline de teste (apenas linkage)..."
+	$(COMPOSE) run --rm --service-ports cidacsrl_runner python /app/cidacsrl_rlp/tests/e2e/run_linkage_pipeline.py
+	@make down
+
 # ─── 4. AUTOMAÇÃO DA SUÍTE DE TESTES (PYTEST) ──────────────────────────────────
 
 test: up
@@ -188,6 +193,7 @@ help:
 	@echo ""
 	@echo "Execução de Pipelines e Testes:"
 	@echo "  make run-e2e-pipeline  - Roda a esteira fim-a-fim indexando e linkando os samples reais"
+	@echo "  make run-linkage-pipeline - Roda a esteira de linkage (requer dados indexados)"
 	@echo "  make test              - Roda todos os testes (Unitários e Integração) via contêiner"
 	@echo "  make test-integration  - Executa apenas os testes da camada de integração"
 	@echo "  make test-unit         - Executa apenas as validações unitárias em memória"
