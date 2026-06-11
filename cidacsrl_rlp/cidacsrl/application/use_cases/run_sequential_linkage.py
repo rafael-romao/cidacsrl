@@ -5,6 +5,7 @@ from cidacsrl_rlp.cidacsrl.application.ports.outbound.get_candidates_port import
 from cidacsrl_rlp.cidacsrl.application.ports.outbound.scoring_port import ScoringPort
 from cidacsrl_rlp.cidacsrl.domain.models.linkage_specification import SequentialLinkageSpecification
 from pyspark.sql import DataFrame
+import pyspark.sql.functions as F
 import logging
 
 logger = logging.getLogger(__name__)
@@ -59,6 +60,9 @@ class RunSequentialLinkageUseCase:
             
             # Search Block
             df_candidates = self.get_candidates.get_candidates(df_remaining, phase_context)
+
+            # Phase information
+            df_candidates = df_candidates.withColumn("phase_match", F.lit(phase_context.phase_name))
             
             # Scoring Block
             df_scored_pairs = self.scoring.calculate_score(df_candidates, phase_context)
