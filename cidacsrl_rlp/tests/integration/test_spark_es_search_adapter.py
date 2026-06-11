@@ -14,10 +14,17 @@ from cidacsrl_rlp.cidacsrl.domain.models.linkage_specification import BlockingPh
 
 @pytest.fixture(scope="module")
 def es_container():
-    with ElasticSearchContainer("elasticsearch:9.1.8") as es:
-        host = es.get_container_host_ip()
-        port = es.get_exposed_port(9200)
+    container = ElasticSearchContainer("elasticsearch:9.1.8")
+    container.with_env("discovery.type", "single-node")
+    container._wait_strategy.with_startup_timeout(600).with_poll_interval(2)
+
+    container.start()
+    try:
+        host = container.get_container_host_ip()
+        port = container.get_exposed_port(9200)
         yield f"http://{host}:{port}"
+    finally:
+        container.stop()
 
 
 @pytest.fixture(scope="module")

@@ -7,7 +7,7 @@ import socket
 from cidacsrl_rlp.cidacsrl.application.ports.outbound.get_candidates_port import GetCandidatesPort
 from cidacsrl_rlp.cidacsrl.domain.models.linkage_specification import BlockingPhaseContext
 
-from pyspark.sql.types import StructType, StructField, StringType
+from pyspark.sql.types import StructType, StructField, StringType, FloatType
 
 from .client import get_es_client
 from .query_builder import ElasticsearchQueryBuilder
@@ -24,14 +24,16 @@ class SparkESSearchAdapter(GetCandidatesPort):
 
     @staticmethod
     def _normalize_candidate_record(
-        hit_source: Dict[str, Any],
+        hit: Dict[str, Any],
         phase_context: BlockingPhaseContext,
     ) -> Dict[str, Any]:
-        hit_source = hit_source or {}
-        return {
+        hit_source = hit.get("source", {})
+        normalized_record = {
             field_name: hit_source.get(field_name)
             for field_name in phase_context.target_fields.fetch_fields
         }
+        normalized_record["_score"] = hit.get("score")
+        return normalized_record
 
     def get_candidates(self, df_source: Any, phase_context: BlockingPhaseContext) -> Any:
         rules = phase_context.rules
@@ -67,9 +69,9 @@ class SparkESSearchAdapter(GetCandidatesPort):
                 )
             
                 for hit in hits:
-                    candidate_record = SparkESSearchAdapter._normalize_candidate_record(
-                        hit.get("source"),
-                        phase_context,
+                    candidate_record = self._normalize_candidate_record(
+                        hit=hit,
+                        phase_context=phase_context,
                     )
                     yield Row(
                         source_record=Row(**record_dict),
@@ -79,8 +81,8 @@ class SparkESSearchAdapter(GetCandidatesPort):
         rdd_candidates = df_source.rdd.mapPartitions(partition_search)
 
         candidate_schema = StructType([
-            StructField(field, StringType(), True) 
-            for field in fetch_fields
+            *[StructField(field, StringType(), True) for field in fetch_fields],
+            StructField("_score", FloatType(), True),
         ])
 
         final_schema = StructType([
