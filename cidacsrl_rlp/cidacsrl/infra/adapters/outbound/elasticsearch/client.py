@@ -279,3 +279,18 @@ def close_all_cached_es_clients():
                        f"Remaining clients: {len(_es_clients)}. Forcibly clearing.")
         _es_clients.clear()
     logger.info("All cached Elasticsearch clients have been processed for closure.")
+
+def validate_elasticsearch_schema(es_client, index_name: str, required_columns: set[str]) -> None:
+    try:
+        mapping = es_client.indices.get_mapping(index=index_name)
+        properties = mapping.get(index_name, {}).get('mappings', {}).get('properties', {})
+        es_fields = set(properties.keys())
+        
+        missing_fields = required_columns - es_fields
+        if missing_fields:
+            raise ValueError(
+                f"As seguintes colunas exigidas na configuração NÃO EXISTEM "
+                f"no índice '{index_name}': {', '.join(missing_fields)}"
+            )
+    except Exception as e:
+        raise RuntimeError(f"Falha ao validar schema do índice '{index_name}': {e}")

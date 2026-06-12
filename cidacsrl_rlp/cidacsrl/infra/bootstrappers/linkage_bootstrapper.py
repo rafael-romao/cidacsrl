@@ -5,7 +5,7 @@ from cidacsrl_rlp.shared.infra.spark.spark_factory import create_spark_session
 from cidacsrl_rlp.cidacsrl.infra.configs.models.storage_config import SourceStorageConfig, OutputStorageConfig
 from cidacsrl_rlp.cidacsrl.infra.configs.loader import parse_sequential_linkage_specification, parse_es_config
 
-from cidacsrl_rlp.cidacsrl.infra.adapters.outbound.elasticsearch.client import get_es_client
+from cidacsrl_rlp.cidacsrl.infra.adapters.outbound.elasticsearch.client import get_es_client, validate_elasticsearch_schema
 from cidacsrl_rlp.cidacsrl.infra.adapters.outbound.spark_data_ingestion_adapter import SparkDataIngestionAdapter
 from cidacsrl_rlp.cidacsrl.infra.adapters.outbound.spark_data_persistence_adapter import SparkDataPersistenceAdapter
 from cidacsrl_rlp.cidacsrl.infra.adapters.outbound.spark_data_transformation_adapter import SparkDataTransformationAdapter
@@ -37,8 +37,7 @@ def bootstrap_sequential_linkage(
     es_config = parse_es_config(es_config_data)
 
     test_client = get_es_client(es_config, use_cache=False)
-    if not test_client:
-        raise ConnectionError("Falha crítica de conectividade com o Elasticsearch.")
+    validate_elasticsearch_schema(test_client, linkage_spec.target_es_index, linkage_spec.get_required_target_columns())
 
     spark_session = create_spark_session(
         app_name=f"CIDACS-RL Record Linkage - {linkage_spec.source_table}_{linkage_spec.target_es_index}", 
