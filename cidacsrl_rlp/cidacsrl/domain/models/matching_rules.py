@@ -25,7 +25,7 @@ class ComparisonRule:
     target_column: str
     similarity: str
     weight: float
-    es_clause_type: Literal["must", "should", "filter", "must_not"] = "must"
+    es_clause_type: Literal["must", "should", "filter", "must_not"]
     query_type: Literal["match", "term", "match_phrase", "prefix"] = "match"
     penalty: float = 0.0
     is_fuzzy: bool = False
