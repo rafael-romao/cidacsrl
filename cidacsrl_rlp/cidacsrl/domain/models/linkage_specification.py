@@ -2,6 +2,7 @@ import logging
 from dataclasses import dataclass, field
 from typing import Any, Dict, Iterable, List, Optional
 
+from cidacsrl_rlp.cidacsrl.infra.configs.models.indexed_dataset_filter import IndexedDatasetFilterItem
 from cidacsrl_rlp.cidacsrl.domain.models.matching_rules import BlockingPhase, ComparisonRule
 
 logger = logging.getLogger(__name__)
@@ -52,6 +53,7 @@ class BlockingPhaseContext:
     target_fields: BlockingPhaseTargetFields = field(
         default_factory=BlockingPhaseTargetFields
     )
+    indexed_dataset_filter: Optional[List[IndexedDatasetFilterItem]] = None
     source_output_fields: List[str] = field(default_factory=list)
 
     def __post_init__(self):
@@ -88,6 +90,12 @@ class SequentialLinkageSpecification:
         logger.debug(f"Target ES Index: {self.target_es_index}")
 
     def build_blocking_phase_context(self, phase: BlockingPhase) -> BlockingPhaseContext:
+        raw_filters = phase.indexed_dataset_filter if getattr(phase, "indexed_dataset_filter", None) is not None else self.indexed_dataset_filter
+
+        parsed_filters = None
+        if raw_filters:
+            parsed_filters = [IndexedDatasetFilterItem.from_dict(f) for f in raw_filters]
+
         return BlockingPhaseContext(
             phase_name=phase.phase_name,
             phase_description=phase.phase_description,
@@ -99,7 +107,8 @@ class SequentialLinkageSpecification:
                 comparison_fields=phase.comparison_target_fields,
                 required_fields=[self.id_target_table],
                 extra_fields=list(self.extra_target_fields or []),
-            )
+            ),
+            indexed_dataset_filter=parsed_filters
         )
 
     def build_blocking_phase_contexts(self) -> List[BlockingPhaseContext]:
@@ -108,6 +117,15 @@ class SequentialLinkageSpecification:
             for phase in self.blocking_phases
         ]
     
+    def get_required_target_columns(self) -> set[str]:
+        required_fields = set()
+        for phase_context in self.build_blocking_phase_contexts():
+            for field in phase_context.target_fields.fetch_fields:
+                required_fields.add(field)
+        required_fields.add(self.id_target_table)
+        return required_fields
+
+
     @classmethod
     def from_dict(cls, config_dict: Dict[str, Any]) -> 'SequentialLinkageSpecification':
         config_dict = config_dict.copy()

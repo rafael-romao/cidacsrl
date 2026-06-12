@@ -63,12 +63,14 @@ class BlockingPhase:
         candidate_limit (int): Número máximo de candidatos a serem recuperados do Elasticsearch por registro fonte (default: 10).
         strong_match_score_threshold (float): Limiar de score (entre 0 e 1) para considerar um par como "strong match" nesta fase (default: 0.9).
         rules (List[ComparisonRule]): Lista de `ComparisonRule` para esta fase.
+        indexed_dataset_filter (Optional[List[Dict[str, Any]]]): Filtros estáticos adicionais a serem aplicados na consulta Elasticsearch para esta fase (ex: filtros de termo fixo).
     """
     phase_name: str
     phase_description: Optional[str] = None
     enabled: bool = True
     candidate_limit: int = 10
     strong_match_score_threshold: float = 0.9
+    indexed_dataset_filter: Optional[List[Dict[str, Any]]] = None
     rules: List[ComparisonRule] = field(default_factory=list)
 
     def __post_init__(self):

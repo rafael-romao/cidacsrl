@@ -53,7 +53,8 @@ class SparkESSearchAdapter(GetCandidatesPort):
             query_builder = ElasticsearchQueryBuilder(
                 phase_rules=rules,
                 fetch_fields=fetch_fields,
-                candidate_limit=limit
+                candidate_limit=limit,
+                static_filter=phase_context.indexed_dataset_filter
             )
             for record in partition:
                 if es_client is None:
