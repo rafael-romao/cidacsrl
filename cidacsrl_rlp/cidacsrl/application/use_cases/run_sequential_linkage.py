@@ -38,6 +38,7 @@ class RunSequentialLinkageUseCase:
         df_remaining.cache()
         
         df_scored_pairs = None
+        df_matches_to_exclude = None
         
         for phase_index, phase_context in enumerate(config.build_blocking_phase_contexts(), start=1):
             if not phase_context.enabled:
@@ -53,7 +54,7 @@ class RunSequentialLinkageUseCase:
                 
                 df_remaining = self.transformation_port.exclude_records(
                     primary_dataset=df_remaining,
-                    records_to_exclude=df_scored_pairs,
+                    records_to_exclude=df_matches_to_exclude,
                     join_key=join_key
                 )
                 df_remaining.cache()
@@ -66,6 +67,17 @@ class RunSequentialLinkageUseCase:
             
             # Scoring Block
             df_scored_pairs = self.scoring.calculate_score(df_candidates, phase_context)
+
+            threshold = phase_context.strong_match_score_threshold
+            df_matches_to_exclude = self.transformation_port.filter_matches_by_threshold(
+                dataset=df_scored_pairs, 
+                threshold=threshold
+            )
+
+            df_matches_to_exclude.cache()
+
+            df_matches_count = df_matches_to_exclude.count()
+            logger.info(f"Fase {phase_index} encontrou {df_matches_count} pares acima do limiar de {threshold}.")
             
             # Intermidiate Persistence
             logger.info(f"Persistindo resultados intermediários da Fase {phase_index} com {df_scored_pairs.count()} pares pontuados.")
@@ -73,7 +85,6 @@ class RunSequentialLinkageUseCase:
             self.persistence_port.write_data(
                 data=df_scored_pairs,
                 output_folder=phase_output_folder,
-                
             )
             
         logger.info("Todas as fases do fluxo sequencial foram executadas e persistidas.")
