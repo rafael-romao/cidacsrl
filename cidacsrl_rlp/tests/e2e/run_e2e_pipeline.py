@@ -1,5 +1,3 @@
-# tests/e2e/run_e2e_pipeline.py
-
 import argparse
 import os
 import subprocess
