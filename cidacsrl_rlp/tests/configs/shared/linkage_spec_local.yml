@@ -3,6 +3,11 @@ target_es_index: "nascimentos_example_index"
 id_source_table: "codigo_internacao"
 id_target_table: "codigo_nascimento"
 
+extra_target_fields:
+  - "uf_nascimento"
+  - "municipio_nascimento"
+
+
 blocking_phases:
   - phase_name: "fase_e2e_nome"
     enabled: true
@@ -11,20 +16,23 @@ blocking_phases:
     rules:
       - source_column: "nome_completo"
         target_column: "nome_completo"
+        es_clause_type: "must"
         similarity: "exact"
         weight: 0.5
       - source_column: "nome_mae"
         target_column: "nome_mae"
+        es_clause_type: "must"
         similarity: "exact"
         weight: 0.3
       - source_column: "data_nascimento"
         target_column: "data_nascimento"
+        es_clause_type: "should"
         similarity: "exact"
         weight: 0.2
-  - phase_name: "fase_e2e_nome_relaxada"
+  - phase_name: "fase_e2e_relaxada"
     enabled: true
     candidate_limit: 100
-    strong_match_score_threshold: 0.51
+    strong_match_score_threshold: 0.75
     rules:
       - source_column: "nome_completo"
         target_column: "nome_completo"
@@ -37,9 +45,9 @@ blocking_phases:
         similarity: "jaro_winkler"
         es_clause_type: "should"
         is_fuzzy: true
-        weight: 0.4
+        weight: 0.3
       - source_column: "data_nascimento"
         target_column: "data_nascimento"
         es_clause_type: "should"
         similarity: "exact"
-        weight: 0.1
+        weight: 0.2
