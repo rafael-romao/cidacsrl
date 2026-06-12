@@ -1,0 +1,40 @@
+source_table: "internacao_example" 
+target_es_index: "nascimentos_example_index"
+id_source_table: "codigo_internacao"
+id_target_table: "codigo_nascimento"
+
+blocking_phases:
+  - phase_name: "fase_e2e_nome"
+    enabled: true
+    candidate_limit: 10
+    strong_match_score_threshold: 0.99
+    rules:
+      - source_column: "nome_completo"
+        target_column: "nome_completo"
+        similarity: "exact"
+        weight: 0.5
+      - source_column: "nome_mae"
+        target_column: "nome_mae"
+        similarity: "exact"
+        weight: 0.3
+      - source_column: "data_nascimento"
+        target_column: "data_nascimento"
+        similarity: "exact"
+        weight: 0.2
+  - phase_name: "fase_e2e_nome_relaxada"
+    enabled: true
+    candidate_limit: 10
+    strong_match_score_threshold: 0
+    rules:
+      - source_column: "nome_completo"
+        target_column: "nome_completo"
+        similarity: "jaro_winkler"
+        weight: 0.5
+      - source_column: "nome_mae"
+        target_column: "nome_mae"
+        similarity: "jaro_winkler"
+        weight: 0.4
+      - source_column: "data_nascimento"
+        target_column: "data_nascimento"
+        similarity: "exact"
+        weight: 0.1

@@ -33,8 +33,8 @@ blocking_phases:
       - source_column: "nome_mae"
         target_column: "nome_mae"
         similarity: "jaro_winkler"
-        weight: 0.3
+        weight: 0.4
       - source_column: "data_nascimento"
         target_column: "data_nascimento"
         similarity: "exact"
-        weight: 0.2
+        weight: 0.1

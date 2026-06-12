@@ -1,0 +1,4 @@
+host: "localhost"
+port: 9200
+es_connection_url: "http://localhost:9200"
+wan_only: true
