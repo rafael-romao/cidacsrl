@@ -12,14 +12,13 @@ def spark():
     spark = (
         SparkSession.builder
         .master("local[2]")
-        .appName("SparkScoringAdapterTests")
+        .appName("cidacsrl-test-scoring")
         .config("spark.driver.host", "127.0.0.1")
         .config("spark.sql.shuffle.partitions", "2")
         .config("spark.ui.enabled", "false")
         .getOrCreate()
     )
     yield spark
-    spark.stop()
 
 
 @pytest.fixture

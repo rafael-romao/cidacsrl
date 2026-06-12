@@ -22,7 +22,7 @@ def test_index_dataset_use_case_execution_success():
     mock_index_config.name = "nascimentos_test"
     mock_spec.index_config = mock_index_config
     
-    mock_spec.columns = [
+    mock_spec.index_columns = [
         IndexColumnConfig(name="codigo_nascimento", type="keyword"),
         IndexColumnConfig(name="nome_completo", type="text")
     ]

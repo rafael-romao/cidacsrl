@@ -8,7 +8,7 @@ def spark():
     spark = (
         SparkSession.builder
         .master("local[1]")
-        .appName("test")
+        .appName("cidacsrl-test-es-indexing")
         .config(
             "spark.jars.packages",
             "org.elasticsearch:elasticsearch-spark-30_2.12:9.1.8"
@@ -16,13 +16,10 @@ def spark():
         .getOrCreate()
     )
     yield spark
-    spark.stop()
 
 @pytest.fixture(scope="session")
-def elasticsearch_service():
-    es_url = "http://localhost:9200"
+def elasticsearch_service(es_url):
     client = Elasticsearch(es_url)
-    # Opcional: aguarde o serviço ficar pronto
     yield {"es_connection_url": es_url}, client
     client.close()
 

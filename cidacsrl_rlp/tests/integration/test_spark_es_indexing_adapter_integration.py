@@ -13,30 +13,18 @@ from cidacsrl_rlp.cidacsrl.domain.models.indexing_specification import DatasetIn
 
 
 
-# =========================================================================
-# FIXTURES DE INFRAESTRUTURA EFÊMERA (Testcontainers + Spark)
-# =========================================================================
-
 @pytest.fixture(scope="module")
 def es_container():
-    """Levanta um container real e isolado do Elasticsearch usando a versao 9.1.8."""
     with ElasticSearchContainer("elasticsearch:9.1.8") as es:
         yield es
 
 @pytest.fixture(scope="module")
-def spark_session_local():
-    """Cria uma SparkSession local para testes de integração."""
+def spark():
     from pyspark.sql import SparkSession
-    from pyspark import SparkContext
-    import time
 
-    if SparkContext._active_spark_context is not None:
-        SparkContext._active_spark_context.stop()
-    time.sleep(0.5)
-
-    spark = SparkSession.builder \
+    session = SparkSession.builder \
         .master("local[2]") \
-        .appName("CIDACS-RL-Indexing-Integration-Test") \
+        .appName("cidacsrl-test-es-indexing-integration") \
         .config("spark.ui.showConsoleProgress", "false") \
         .config("spark.ui.enabled", "false") \
         .config("spark.port.maxRetries", "100") \
@@ -44,22 +32,9 @@ def spark_session_local():
         .config("spark.jars.packages", "org.elasticsearch:elasticsearch-spark-30_2.12:9.1.8") \
         .getOrCreate()
 
-    yield spark
-    spark.stop()
-    if SparkContext._active_spark_context is not None:
-        SparkContext._active_spark_context.stop()
+    yield session
 
-
-# =========================================================================
-# CASOS DE USO: TESTES DE INTEGRAÇÃO REAL COM O MOTOR DO ES
-# =========================================================================
-
-def test_adapter_ensure_index_and_bulk_ingestion_integration(es_container, spark_session_local):
-    """
-    Testa a criação de índice e ingestão em lote no Elasticsearch via Spark,
-    garantindo que o mapeamento e os dados estejam corretos.
-    """
-    spark = spark_session_local
+def test_adapter_ensure_index_and_bulk_ingestion_integration(es_container, spark):
     host = es_container.get_container_host_ip()
     port = es_container.get_exposed_port(9200)
     connection_url = f"http://{host}:{port}"
@@ -84,7 +59,6 @@ def test_adapter_ensure_index_and_bulk_ingestion_integration(es_container, spark
         IndexColumnConfig(name="uf_nascimento", type="keyword")
     ]
 
-    # Nome de índice único
     index_name = f"nascimentos_integration_test_{uuid.uuid4().hex[:8]}"
     adapter = SparkESIndexingAdapter(es_config=es_config)
 
@@ -123,7 +97,7 @@ def test_adapter_ensure_index_and_bulk_ingestion_integration(es_container, spark
             client.indices.delete(index=index_name)
 
 
-def test_adapter_ensure_index_idempotency_integration(es_container, spark_session_local):
+def test_adapter_ensure_index_idempotency_integration(es_container, spark):
     host = es_container.get_container_host_ip()
     port = es_container.get_exposed_port(9200)
     

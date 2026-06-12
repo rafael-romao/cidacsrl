@@ -11,36 +11,28 @@ def mock_output_config(tmp_path):
     )
 
 @pytest.fixture(scope="module")
-def spark_session_local():
-    """Garante uma sessão Spark limpa e destrói o contexto Java agressivamente no final."""
-    from pyspark import SparkContext
+def spark():
     from pyspark.sql import SparkSession
-    
-    if SparkContext._active_spark_context is not None:
-        SparkContext._active_spark_context.stop()
 
-    spark = SparkSession.builder \
-        .appName("pytest-pyspark-testing-data-persistente") \
+    session = SparkSession.builder \
+        .appName("cidacsrl-test-data-persistence") \
         .master("local[2]") \
         .config("spark.sql.shuffle.partitions", "1") \
         .config("spark.ui.enabled", "false") \
-        .getOrCreate() 
-    
-    yield spark
-    spark.stop()
-    if SparkContext._active_spark_context is not None:
-        SparkContext._active_spark_context.stop()
+        .getOrCreate()
+
+    yield session
 
 
-def test_write_data_success(spark_session_local, mock_output_config):
-    adapter = SparkDataPersistenceAdapter(spark_session=spark_session_local, config=mock_output_config)
+def test_write_data_success(spark, mock_output_config):
+    adapter = SparkDataPersistenceAdapter(spark_session=spark, config=mock_output_config)
     output_folder = "test_output"
-    
-    df = spark_session_local.createDataFrame([("A", 1)], ["id", "val"])
+
+    df = spark.createDataFrame([("A", 1)], ["id", "val"])
     adapter.write_data(df, output_folder)
-    
+
     physical_path = os.path.join(mock_output_config.output_data_path, output_folder)
     assert os.path.exists(physical_path)
-    
-    saved_df = spark_session_local.read.parquet(physical_path)
+
+    saved_df = spark.read.parquet(physical_path)
     assert saved_df.count() == 1

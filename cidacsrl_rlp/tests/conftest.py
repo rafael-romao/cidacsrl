@@ -7,16 +7,14 @@ import pytest
 @pytest.fixture(scope="session")
 def test_paths():
     """Centraliza as rotas absolutas do ambiente de teste para evitar caminhos quebrados."""
-    # Como este ficheiro está em tests/configs/conftest.py, 
-    # o .parent aponta para tests/configs e o .parent.parent aponta para tests/
-    tests_root = Path(__file__).parent.parent.resolve()
+    tests_root = Path(__file__).parent.resolve()  # cidacsrl_rlp/tests/
     
     return {
-        "configs": tests_root / "configs",
-        "input_data": tests_root / "data" / "input",
-        "output_data": tests_root / "data" / "output",
-        "env_yaml": tests_root / "configs" / "env_local.yml",
-        "indexing_yaml": tests_root / "configs" / "specifications" / "nascimentos" / "indexing" / "indexing_nascimentos.yml"
+        "input_data":       tests_root / "data" / "input",
+        "output_data":      tests_root / "data" / "output",
+        "configs":          tests_root / "configs",
+        "spark_config":     tests_root / "configs" / "spark_local.yml",
+        "linkage_spec_e2e": tests_root / "configs" / "linkage_spec_e2e.yml",
     }
 
 @pytest.fixture(scope="function", autouse=True)
@@ -26,12 +24,15 @@ def clean_output_folder(test_paths):
     # Cria a pasta caso ela ainda não exista fisicamente no clone local
     output_dir.mkdir(parents=True, exist_ok=True)
     
-    for file in output_dir.iterdir():
-        if file.is_file() and file.name != ".gitkeep":
-            file.unlink()
-        elif file.is_dir():
-            import shutil
-            shutil.rmtree(file)
+    import shutil
+    for item in output_dir.iterdir():
+        try:
+            if item.is_file() and item.name != ".gitkeep":
+                item.unlink()
+            elif item.is_dir():
+                shutil.rmtree(item)
+        except PermissionError:
+            pass 
     yield
 
 @pytest.fixture(scope="module", autouse=True)
@@ -59,3 +60,20 @@ def force_spark_context_teardown():
             
     except ImportError:
         pass
+
+@pytest.fixture(scope="session")
+def es_url() -> str:
+    return os.environ.get("CIDACSRL_ES_URL", "http://localhost:9200")
+
+@pytest.fixture(scope="session")
+def es_config_data(es_url) -> dict:
+    return {"es_connection_url": es_url, "wan_only": True}
+
+@pytest.fixture(scope="session")
+def storage_config_data(test_paths) -> dict:
+    return {
+        "source_data_path": str(test_paths["input_data"]),
+        "output_data_path": str(test_paths["output_data"]),
+        "source_data_format": "parquet",
+        "output_data_format": "parquet",
+    }
