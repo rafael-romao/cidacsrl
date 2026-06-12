@@ -120,10 +120,15 @@ run-e2e-pipeline: up
 	$(COMPOSE) exec cidacsrl_runner \
 		poetry run python -m cidacsrl_rlp.tests.e2e.run_e2e_pipeline
 
-run-linkage-pipeline: up-es
-	@echo "--> Executando o pipeline de teste (apenas linkage)..."
-	$(COMPOSE) run --rm --service-ports cidacsrl_runner python /app/cidacsrl_rlp/tests/e2e/run_linkage_pipeline.py
-	@make down
+run-e2e-linkage-only: up
+	@echo "--> Disparando o Pipeline E2E apenas com linkage (índice já deve estar populado)..."
+	$(COMPOSE) exec cidacsrl_runner \
+		poetry run python -m cidacsrl_rlp.tests.e2e.run_e2e_pipeline --skip-indexing
+
+run-e2e-auto: up
+	@echo "--> Disparando o Pipeline E2E com detecção automática de índice populado..."
+	$(COMPOSE) exec cidacsrl_runner \
+		poetry run python -m cidacsrl_rlp.tests.e2e.run_e2e_pipeline --auto-skip-indexing
 
 # ─── 4. AUTOMAÇÃO DA SUÍTE DE TESTES (PYTEST) ──────────────────────────────────
 
@@ -192,9 +197,10 @@ help:
 	@echo "  make shell-engine      - Abre terminal bash dentro do container Engine"
 	@echo ""
 	@echo "Execução de Pipelines e Testes:"
-	@echo "  make run-e2e-pipeline  - Roda a esteira fim-a-fim indexando e linkando os samples reais"
-	@echo "  make run-linkage-pipeline - Roda a esteira de linkage (requer dados indexados)"
-	@echo "  make test              - Roda todos os testes (Unitários e Integração) via contêiner"
+	@echo "  make run-e2e-pipeline       - Roda a esteira fim-a-fim indexando e linkando os samples reais"
+	@echo "  make run-e2e-linkage-only   - Roda apenas o linkage (assume índice já populado)"
+	@echo "  make run-e2e-auto           - Roda o pipeline detectando automaticamente se reindexar"
+	@echo "  make test                   - Roda todos os testes (Unitários e Integração) via contêiner"
 	@echo "  make test-integration  - Executa apenas os testes da camada de integração"
 	@echo "  make test-unit         - Executa apenas as validações unitárias em memória"
 	@echo ""
