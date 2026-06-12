@@ -1,8 +1,12 @@
 from abc import ABC, abstractmethod
-from typing import Any
+from pyspark.sql import DataFrame
 
 class DataTransformationPort(ABC):
     
     @abstractmethod
-    def exclude_records(self, primary_dataset: Any, records_to_exclude: Any, join_key: str) -> Any:
+    def exclude_records(self, primary_dataset: DataFrame, records_to_exclude: DataFrame, join_key: str) -> DataFrame:
+        pass
+
+    @abstractmethod
+    def filter_matches_by_threshold(self, dataset: DataFrame, threshold: float) -> DataFrame:
         pass
