@@ -5,6 +5,7 @@ import logging
 import socket
 
 from cidacsrl_rlp.cidacsrl.application.ports.outbound.get_candidates_port import GetCandidatesPort
+from cidacsrl_rlp.cidacsrl.application.ports.outbound.search_executor import SearchExecutor
 from cidacsrl_rlp.cidacsrl.domain.models.linkage_specification import BlockingPhaseContext
 
 from pyspark.sql.types import StructType, StructField, StringType, FloatType
@@ -18,9 +19,10 @@ logger = logging.getLogger(__name__)
 
 
 class SparkESSearchAdapter(GetCandidatesPort):
-    def __init__(self, index_name: str, es_config: Dict[str, Any]):        
+    def __init__(self, index_name: str, es_config: Dict[str, Any], search_executor: SearchExecutor):        
         self.es_config = es_config
-        self.index_name = index_name 
+        self.index_name = index_name
+        self.search_executor = search_executor
 
     @staticmethod
     def _normalize_candidate_record(
@@ -60,8 +62,8 @@ class SparkESSearchAdapter(GetCandidatesPort):
                 if es_client is None:
                     raise RuntimeError("Elasticsearch client could not be initialized. Check connection and configuration.")
                 record_dict = record.asDict(recursive=True)
-                query_body = query_builder.build_search_body_for_record(record_dict)
-                response = es_client.search(index=index, body=query_body)
+                query_list = [query_builder.build_search_body_for_record(record_dict)]                
+                response = self.search_executor.execute(es_client, index, query_list)[0]
                 response_data = response.body if hasattr(response, "body") else response 
                 response_dict = dict(response_data) if not isinstance(response_data, dict) else response_data
                 hits = extract_hits_from_es_response(
