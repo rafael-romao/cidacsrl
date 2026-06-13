@@ -1,4 +1,3 @@
-# cli.py
 import argparse
 import logging
 import sys
@@ -14,10 +13,10 @@ def main():
     parser = argparse.ArgumentParser(description="CIDACS-RL Engine - Interface de Linha de Comando")
     parser.add_argument("use_case", choices=["cleaning", "indexing", "linkage", "deduplication"])
     parser.add_argument("--env-config", required=True, help="YAML de configuracao do ambiente local/deploy")
-    parser.add_argument("--spec-config", required=False, help="YAML com a especificacao abstrata de dominio do Caso de Uso")
+    parser.add_argument("--spec-config", required=False, help="YAML com a especificacao do pipeline")
     
     args = parser.parse_args()
-    logger.info(f"Iniciando o Inbound Adapter CLI para o Caso de Uso: {args.use_case}")
+    logger.info(f"Pipeline de execução: {args.use_case}")
 
     
     env_data = load_yaml(args.env_config)    
@@ -43,7 +42,7 @@ def main():
         )
         
     elif args.use_case in ["cleaning", "deduplication"]:
-        logger.info(f"O Caso de Uso {args.use_case} está mapeado, mas aguarda a fiação do bootstrapper correspondente.")
+        logger.info(f"Pipeline {args.use_case} em desenvolvimento")
 
 if __name__ == "__main__":
     main()
