@@ -1,9 +1,32 @@
-source_data_path: "tests/data/input"
-output_data_path: "tests/data/output"
-es_config_path: "tests/configs/elasticsearch.yml"
-spark_config_path: "tests/configs/spark_config.yml"
-source_data_format: "parquet"
-output_data_format: "parquet"
+storage:
+  source_path: "tests/data/input"
+  source_format: "parquet"
+  output_path: "tests/data/output"
+  output_format: "parquet"
 
-indexing_specification_path: "tests/configs/specifications/nascimentos/indexing/indexing_nascimentos.yml"
-linkage_specification_path: "tests/configs/specifications/nascimentos/linkage/linkage_sequential.yml"
+execution:
+  sample_fraction: 0.1
+  sample_seed: 42
+  audit_log_path: "tests/data/audit_logs"
+  partitioning:
+    partition_column: "uf_internacao"
+    filter_partitions: ["BA", "SP"]
+
+specification:
+  indexing_path: "/tests/configs/shared/index_spec_local.yml"
+  linkage_path: "/tests/configs/shared/linkage_spec_local.yml"
+
+spark:
+  spark_configs:
+    spark.master: "local[*]"
+    spark.sql.shuffle.partitions: "2"
+    spark.ui.enabled: "false"
+    spark.jars.packages: "org.elasticsearch:elasticsearch-spark-30_2.12:9.1.8"
+    spark.port.maxRetries: "100"
+
+elasticsearch:
+  host: "localhost"
+  port: 9200
+  es_connection_url: "http://localhost:9200"
+  wan_only: true
+  search_strategy: "multisearch"

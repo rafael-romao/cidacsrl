@@ -18,24 +18,31 @@ def main():
     args = parser.parse_args()
     logger.info(f"Pipeline de execução: {args.use_case}")
 
-    
-    env_data = load_yaml(args.env_config)    
-    es_data = load_yaml(env_data.get("es_config_path"))
-    spark_data = load_yaml(env_data.get("spark_config_path"))
+    # Configurações de ambiente e infraestrutura
+    env_data = load_yaml(args.env_config)
+
+
+    es_data = env_data.get("elasticsearch", {})
+    spark_data = env_data.get("spark", {})
+    storage_data = env_data.get("storage", {})
+    execution_data = env_data.get("execution", {})
 
     if args.use_case == "indexing":
-        indexing_spec_data = load_yaml(args.spec_config)        
+        spec_path = args.spec_config or env_data.get("specification", {}).get("indexing_path")
+        indexing_spec_data = load_yaml(spec_path)
         bootstrap_elasticsearch_indexing(
-            storage_config_data=env_data,
+            storage_config_data=storage_data,
             indexing_spec_data=indexing_spec_data,
             es_config_data=es_data,
             spark_config_data=spark_data
         )
 
     elif args.use_case == "linkage":
-        linkage_spec_data = load_yaml(args.spec_config)        
+        spec_path = args.spec_config or env_data.get("specification", {}).get("linkage_path")
+        linkage_spec_data = load_yaml(spec_path)
         bootstrap_sequential_linkage(
-            storage_config_data=env_data,
+            storage_config_data=storage_data,
+            execution_config_data=execution_data,
             linkage_spec_data=linkage_spec_data,
             es_config_data=es_data,
             spark_config_data=spark_data
