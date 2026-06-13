@@ -8,6 +8,7 @@ import logging
 from pathlib import Path
 from pyspark.sql import SparkSession
 from elasticsearch import Elasticsearch
+from urllib.parse import urlparse
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
 logger = logging.getLogger("CIDACS-RL-E2E")
@@ -28,14 +29,46 @@ def _shared_configs_root() -> Path:
 
 
 def _build_runtime_env_config() -> Path:
+    parsed_url = urlparse(ES_URL)
+    es_host = parsed_url.hostname or "localhost"
+    es_port = parsed_url.port or 9200
     runtime_env = {
-        "source_data_path": str(_tests_root() / "data" / "input"),
-        "output_data_path": str(_tests_root() / "data" / "output"),
-        "source_data_format": "parquet",
-        "output_data_format": "parquet",
-        "es_config_path": str(_configs_root() / "integration" / "es_local.yml"),
-        "spark_config_path": str(_shared_configs_root() / "spark_local.yml"),
-    }
+            "storage": {
+                "source_path": str(_tests_root() / "data" / "input"),
+                "source_format": "parquet",
+                "output_path": str(_tests_root() / "data" / "output"),
+                "output_format": "parquet"
+            },
+            "execution": {
+                "sample_fraction": 1.0,
+                "sample_seed": 42,
+                "audit_log_path": str(_tests_root() / "data" / "output" / "_audit"),
+                "partitioning": {
+                    "partition_column": None,
+                    "filter_partitions": []
+                }
+            },
+            "specification": {
+                "indexing_path": str(_shared_configs_root() / "index_spec_local.yml"),
+                "linkage_path": str(_shared_configs_root() / "linkage_spec_local.yml")
+            },
+            "spark": {
+                "spark_configs": {
+                    "spark.master": "local[*]",
+                    "spark.sql.shuffle.partitions": "2",
+                    "spark.ui.enabled": "false",
+                    "spark.jars.packages": "org.elasticsearch:elasticsearch-spark-30_2.12:9.1.8",
+                    "spark.port.maxRetries": "100"
+                }
+            },
+            "elasticsearch": {
+                "host": es_host,
+                "port": es_port,
+                "es_connection_url": ES_URL,
+                "wan_only": True,
+                "search_strategy": "multisearch" 
+            }
+        }
     temp_file = tempfile.NamedTemporaryFile(mode="w", suffix=".yml", delete=False)
     with temp_file:
         yaml.safe_dump(runtime_env, temp_file, sort_keys=False)
@@ -70,9 +103,8 @@ def run_indexing_step(runtime_env_path: Path) -> None:
     logger.info("Passo 1/2: Disparando processo de Indexação em Massa (Bulk) no ES...")
     result = subprocess.run(
         [
-            "python", "/app/cidacsrl_rlp/cli.py", "indexing",
-            "--env-config", str(runtime_env_path),
-            "--spec-config", str(_shared_configs_root() / "index_spec_local.yml"),
+            "poetry", "run", "python", "-m", "cidacsrl_rlp.cli", "indexing",
+            "--env-config", str(runtime_env_path)
         ],
         check=False,
     )
@@ -86,9 +118,8 @@ def run_linkage_step(runtime_env_path: Path) -> None:
     logger.info("Passo 2/2: Disparando motor de Record Linkage das fontes Parquet...")
     result = subprocess.run(
         [
-            "python", "/app/cidacsrl_rlp/cli.py", "linkage",
-            "--env-config", str(runtime_env_path),
-            "--spec-config", str(_shared_configs_root() / "linkage_spec_local.yml"),
+            "poetry", "run", "python", "-m", "cidacsrl_rlp.cli", "linkage",
+            "--env-config", str(runtime_env_path)
         ],
         check=False,
     )
