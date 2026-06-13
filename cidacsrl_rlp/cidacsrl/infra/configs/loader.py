@@ -4,7 +4,8 @@ from typing import Dict, Any, Union, List
 from pathlib import Path
 
 
-from cidacsrl_rlp.cidacsrl.infra.configs.models.linkage_env_config import LinkageEnvironmentConfig
+from cidacsrl_rlp.cidacsrl.infra.configs.models.storage_config import SourceStorageConfig, OutputStorageConfig
+from cidacsrl_rlp.cidacsrl.infra.configs.models.execution_config import ExecutionConfig, DataPartitioningConfig
 from cidacsrl_rlp.cidacsrl.infra.configs.models.indexed_dataset_filter import parse_indexed_dataset_filter
 from cidacsrl_rlp.cidacsrl.domain.models.linkage_specification import SequentialLinkageSpecification
 from cidacsrl_rlp.cidacsrl.infra.elasticsearch.models.service_config import ElasticsearchConfig
@@ -13,15 +14,7 @@ from cidacsrl_rlp.cidacsrl.domain.models.indexing_specification import DatasetIn
 logger = logging.getLogger(__name__)
 
 def load_yaml(file_path: Union[str, Path]) -> Dict[str, Any]:
-    """
-    Carrega e valida um arquivo de configuração YAML base.
-
-    Raises:
-        FileNotFoundError: Se o arquivo não for encontrado.
-        ValueError: Se o caminho não for arquivo, não for YAML, estiver vazio
-                    ou o conteúdo não for um dicionário.
-        IOError: Se ocorrer erro de leitura.
-    """
+    """Carrega e valida um arquivo de configuração YAML base."""
     path_obj = Path(file_path).resolve()
     file_name = path_obj.name
 
@@ -32,120 +25,107 @@ def load_yaml(file_path: Union[str, Path]) -> Dict[str, Any]:
     if not path_obj.is_file():
         raise ValueError(f"Path '{path_obj}' is not a valid file.")
     if path_obj.suffix.lower() not in (".yaml", ".yml"):
-        raise ValueError(
-            f"File '{file_name}' must be a YAML file (.yaml or .yml). "
-            f"Found suffix: '{path_obj.suffix}'"
-        )
+        raise ValueError(f"File '{file_name}' must be a valid YAML file (.yml or .yaml).")
+        
+    with open(path_obj, "r", encoding="utf-8") as f:
+        try:
+            content = yaml.safe_load(f)
+        except yaml.YAMLError as e:
+            raise ValueError(f"Error parsing YAML file '{file_name}': {e}") from e
 
-    try:
-        with open(path_obj, "r", encoding="utf-8") as f:
-            config_data = yaml.safe_load(f)
-    except yaml.YAMLError as e:
-        raise ValueError(f"Error parsing YAML file '{file_name}': {e}") from e
-    except IOError as e:
-        raise IOError(f"Error reading file '{file_name}': {e}") from e
-    except Exception as e:
-        raise IOError(f"Unexpected error reading file '{file_name}': {e}") from e
-
-    if config_data is None:
-        raise ValueError(f"Configuration file '{file_name}' is empty.")
-    if not isinstance(config_data, dict):
-        raise ValueError(
-            f"Invalid configuration format in '{file_name}'. "
-            f"Expected a dictionary, got {type(config_data).__name__}."
-        )
-
-    logger.debug(f"YAML loaded successfully from '{path_obj}'.")
-    return config_data
-
-def _validate_required_keys(
-    config_data: Dict[str, Any], required_keys: List[str], file_name: str
-) -> None:
-    missing = [k for k in required_keys if k not in config_data]
-    if missing:
-        raise ValueError(f"Missing required keys in '{file_name}': {missing}")
+    if content is None:
+        return {}
+    if not isinstance(content, dict):
+        raise ValueError(f"YAML file '{file_name}' content must be a dictionary.")
+        
+    return content
 
 
-def parse_linkage_env_config(data: Dict[str, Any]) -> LinkageEnvironmentConfig:
-    _validate_required_keys(
-        data,
-        required_keys=[
-            "linkage_specification_path",
-            "es_config_path",
-            "spark_config_path",
-            "source_data_path",
-            "output_data_path",
-            "source_data_format",
-            "output_data_format",
-        ],
-        file_name="LinkageEnvironmentConfig",
+def parse_source_storage_config(data: Dict[str, Any]) -> SourceStorageConfig:
+    """
+    Traduz o sub-bloco 'storage' para o contrato estrito de LEITURA de dados.
+    """
+    if not data:
+        raise ValueError("O bloco de configuração de armazenamento ('storage') está vazio ou ausente.")
+        
+    return SourceStorageConfig(
+        source_path=data.get("source_path"),
+        source_format=data.get("source_format", "parquet")
     )
-    return LinkageEnvironmentConfig(**data)
 
 
-def parse_sequential_linkage_specification(data: Dict[str, Any]) -> SequentialLinkageSpecification:
-    _validate_required_keys(
-        data,
-        required_keys=[
-            "source_table",
-            "id_source_table",
-            "target_es_index",
-            "id_target_table",
-            "blocking_phases",
-        ],
-        file_name="SequentialLinkageSpecification",
+def parse_output_storage_config(data: Dict[str, Any]) -> OutputStorageConfig:
+    """
+    Traduz o sub-bloco 'storage' para o contrato estrito de PERSISTÊNCIA de dados.
+    """
+    if not data:
+        raise ValueError("O bloco de configuração de armazenamento ('storage') está vazio ou ausente.")
+        
+    return OutputStorageConfig(
+        output_path=data.get("output_path"),
+        output_format=data.get("output_format", "parquet")
     )
-    parsed_data = data.copy()
-    parsed_data["indexed_dataset_filter"] = parse_indexed_dataset_filter(
-        parsed_data.get("indexed_dataset_filter")
+
+
+def parse_execution_config(data: Dict[str, Any]) -> ExecutionConfig:
+    """
+    Traduz o sub-bloco 'execution' governando o comportamento do motor.
+    """
+    if not data:
+        data = {}
+
+    part_data = data.get("partitioning", {})
+    partitioning_config = DataPartitioningConfig(
+        partition_column=part_data.get("partition_column"),
+        filter_partitions=part_data.get("filter_partitions", [])
     )
-    return SequentialLinkageSpecification.from_dict(parsed_data)
+
+    return ExecutionConfig(
+        partitioning=partitioning_config,
+        sample_fraction=data.get("sample_fraction"),
+        sample_seed=data.get("sample_seed", 42),
+        audit_log_path=data.get("audit_log_path")
+    )
 
 
 def parse_es_config(data: Dict[str, Any]) -> ElasticsearchConfig:
-    # 1. Validação de presença obrigatória básica
-    if "es_connection_url" not in data and "cloud_id" not in data:
-        raise ValueError("A configuração do Elasticsearch deve conter 'es_connection_url' ou 'cloud_id'.")
+    """
+    Traduz o sub-bloco 'elasticsearch' aplicando as regras de Fail-Fast.
+    """
+    if not data:
+        raise ValueError("O bloco de configuração 'elasticsearch' está ausente no arquivo de ambiente.")
+    
+    if "es_connection_url" not in data:
+        raise ValueError("A propriedade 'es_connection_url' é obrigatória dentro do bloco elasticsearch.")
 
-    # 2. Validações de Regra de Negócio (Sanity Checks)
-    if "es_connection_url" in data:
-        url = data["es_connection_url"]
-        if not url or not url.startswith(("http://", "https://")):
-            raise ValueError(f"'es_connection_url' inválida: '{url}'. Deve começar com 'http://' ou 'https://'.")
+    return ElasticsearchConfig(
+        es_connection_url=data["es_connection_url"],
+        verify_certs=data.get("verify_certs", True),
+        request_timeout=data.get("request_timeout", 30),
+        msearch_batch_size=data.get("msearch_batch_size", 100),
+        es_user=data.get("es_user"),
+        es_password=data.get("es_password"),
+        api_key=data.get("api_key"),
+        search_strategy=data.get("search_strategy", "multisearch")
+    )
 
-    if data.get("request_timeout", 60) <= 0:
-        raise ValueError("'request_timeout' deve ser um valor positivo.")
 
-    if data.get("msearch_batch_size", 100) <= 0:
-        raise ValueError("'msearch_batch_size' deve ser um valor positivo.")
-
-    # 3. Cast seguro para o TypedDict
-    return ElasticsearchConfig(**data)
+def parse_sequential_linkage_specification(data: Dict[str, Any]) -> SequentialLinkageSpecification:
+    return SequentialLinkageSpecification.from_dict(data)
 
 
 def parse_dataset_indexing_specification(data: Dict[str, Any]) -> DatasetIndexingSpecification:
-    if "source_config" not in data:
-        raise ValueError("O campo 'source_config' com as configurações dos dados de origem é obrigatório.")
+    source_cfg = data.get("source_config")
+    if not source_cfg or "id_field" not in source_cfg:
+        raise ValueError("O 'source_config' deve ter 'id_field' definido para indicar o campo de ID no Elasticsearch.")    
     
-    if "index_config" not in data:
-        raise ValueError("O campo 'index_config' com as configurações do índice é obrigatório.")
-    
-    if "index_columns" not in data:
-        raise ValueError("O campo 'index_columns' com as definições das colunas a serem indexadas é obrigatório.")
-
-    src_cfg = data["source_config"]
-    if "source_table" not in src_cfg or not src_cfg["source_table"]:
-        raise ValueError("O 'source_config' deve ter o campo 'source_table', o 'relative path' para definir a tabela de origem.")
-    if "id_field" not in src_cfg or not src_cfg["id_field"]:
-        raise ValueError("O 'source_config' deve ter 'id_field' definido para indicar qual campo da fonte deve ser usado como ID no Elasticsearch.")    
-    
-    idx_cfg = data["index_config"]
+    idx_cfg = data.get("index_config", {})
     if idx_cfg.get("number_of_shards", 1) <= 0:
-        raise ValueError("O 'number_of_shards' deve ser um numero inteiro positivo.")
+        raise ValueError("O 'number_of_shards' deve ser um número inteiro positivo.")
     if idx_cfg.get("number_of_replicas", 0) < 0:
-        raise ValueError("O 'number_of_replicas' nao pode ser um valor negativo.")
+        raise ValueError("O 'number_of_replicas' não pode ser um valor negativo.")
 
-    col_cfgs = data["index_columns"]
+    col_cfgs = data.get("index_columns")
     if not isinstance(col_cfgs, list) or len(col_cfgs) == 0:
         raise ValueError("O 'index_columns' deve ser uma lista com as definições das colunas a serem indexadas.")
     for col in col_cfgs:
@@ -154,16 +134,10 @@ def parse_dataset_indexing_specification(data: Dict[str, Any]) -> DatasetIndexin
 
     return DatasetIndexingSpecification.from_dict(data)
 
-def load_linkage_env_config(path: Union[str, Path]) -> LinkageEnvironmentConfig:
-    return parse_linkage_env_config(load_yaml(path))
-
 
 def load_sequential_linkage_specification(path: Union[str, Path]) -> SequentialLinkageSpecification:
     return parse_sequential_linkage_specification(load_yaml(path))
 
-
-def load_es_config(path: Union[str, Path]) -> ElasticsearchConfig:
-    return parse_es_config(load_yaml(path))
 
 def load_dataset_indexing_specification(path: Union[str, Path]) -> DatasetIndexingSpecification:
     return parse_dataset_indexing_specification(load_yaml(path))
