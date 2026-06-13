@@ -7,6 +7,10 @@ logger = logging.getLogger(__name__)
 
 class ElasticsearchConfig(TypedDict):
     es_connection_url: str
+    host: NotRequired[str]
+    port: NotRequired[int]
+    wan_only: NotRequired[bool]
+    search_strategy: NotRequired[str]
     verify_certs: NotRequired[bool]
     request_timeout: NotRequired[int]
     msearch_batch_size: NotRequired[int]
