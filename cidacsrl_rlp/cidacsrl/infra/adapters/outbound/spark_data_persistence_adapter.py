@@ -12,9 +12,9 @@ class SparkDataPersistenceAdapter(DataPersistencePort):
         self.config = config
 
     def _resolve_output_path(self, table_name: str) -> str:
-        return os.path.join(self.config.output_data_path, table_name)
+        return os.path.join(self.config.output_path, table_name)
 
     def write_data(self, data: DataFrame, output_folder: str, **kwargs) -> None:        
         physical_path = self._resolve_output_path(output_folder)
         logger.debug(f"Persistindo dados em: {physical_path}")
-        data.write.mode("overwrite").format(self.config.output_data_format).save(physical_path)
+        data.write.mode("overwrite").format(self.config.output_format).save(physical_path)

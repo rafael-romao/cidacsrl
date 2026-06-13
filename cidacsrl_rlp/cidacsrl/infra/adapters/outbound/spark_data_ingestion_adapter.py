@@ -13,14 +13,14 @@ class SparkDataIngestionAdapter(DataIngestionPort):
         self.config = config
 
     def _resolve_source_path(self, table_name: str) -> str:
-        return os.path.join(self.config.source_data_path, table_name)
+        return os.path.join(self.config.source_path, table_name)
 
     def check_health(self, source_table: str) -> list[str]:
         errors = []
         try:            
             logger.debug(f"Verificando acesso ao caminho de origem para '{source_table}'.")
             physical_input_path = self._resolve_source_path(source_table)
-            self.spark.read.format(self.config.source_data_format).load(physical_input_path).limit(1).collect()
+            self.spark.read.format(self.config.source_format).load(physical_input_path).limit(1).collect()
         except Exception as e:
             errors.append(f"Erro ao acessar dados de origem em {physical_input_path}: {e}")
         return errors
@@ -28,11 +28,11 @@ class SparkDataIngestionAdapter(DataIngestionPort):
     def read_source_data(self, table_name: str, **kwargs) -> DataFrame:
         physical_path = self._resolve_source_path(table_name)
         logger.debug(f"Carregando dados da origem: {physical_path}")        
-        return self.spark.read.format(self.config.source_data_format).load(physical_path)
+        return self.spark.read.format(self.config.source_format).load(physical_path)
 
     def read_target_data(self, index_name: str, **kwargs) -> DataFrame:
         physical_path = self._resolve_source_path(index_name)
-        return self.spark.read.format(self.config.source_data_format).load(physical_path)
+        return self.spark.read.format(self.config.source_format).load(physical_path)
     
     def read_specific_partition(self, table_name: str, partition_expr: str, **kwargs) -> DataFrame:        
         return self.read_source_data(table_name).filter(partition_expr)
