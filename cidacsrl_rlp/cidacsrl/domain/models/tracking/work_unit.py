@@ -1,4 +1,4 @@
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from enum import Enum
 from typing import Dict, Any, Optional
 from datetime import datetime
@@ -20,7 +20,7 @@ class WorkUnitMetadata:
 class WorkUnitExecutionRecord:
     """Representa o registro real de execução de uma Work Unit dentro do arquivo de Tracking."""
     unit_id: str
-    filters: Dict[str, Any]
+    filters: Dict[str, Any] = field(default_factory=dict)
     status: WorkUnitStatus = WorkUnitStatus.PENDING
     records_processed: int = 0
     started_at: Optional[str] = None
