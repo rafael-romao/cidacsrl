@@ -12,7 +12,7 @@ class IndexDatasetUseCase:
         
         self.indexing_port.ensure_index_with_mapping(spec)
         
-        df_source = self.ingestion_port.read_source_data(table_name=source_table)
+        df_source = self.ingestion_port.read_all(table_name=source_table)
         
         index_columns = [col.name for col in spec.index_columns]
         df_index = df_source.select(*index_columns)
