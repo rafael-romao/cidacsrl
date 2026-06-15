@@ -1,7 +1,5 @@
 import os
 from pathlib import Path
-from pyspark.sql import SparkSession
-from pyspark import SparkContext
 import pytest
 
 @pytest.fixture(scope="session")
@@ -16,24 +14,6 @@ def test_paths():
         "spark_config":     tests_root / "configs" / "spark_local.yml",
         "linkage_spec_e2e": tests_root / "configs" / "linkage_spec_e2e.yml",
     }
-
-@pytest.fixture(scope="function", autouse=True)
-def clean_output_folder(test_paths):
-    """Garante que a pasta de output esteja vazia antes de cada teste rodar."""
-    output_dir = test_paths["output_data"]
-    # Cria a pasta caso ela ainda não exista fisicamente no clone local
-    output_dir.mkdir(parents=True, exist_ok=True)
-    
-    import shutil
-    for item in output_dir.iterdir():
-        try:
-            if item.is_file() and item.name != ".gitkeep":
-                item.unlink()
-            elif item.is_dir():
-                shutil.rmtree(item)
-        except PermissionError:
-            pass 
-    yield
 
 @pytest.fixture(scope="module", autouse=True)
 def force_spark_context_teardown():
