@@ -40,12 +40,10 @@ def _build_runtime_env_config() -> Path:
                 "output_format": "parquet"
             },
             "execution": {
-                "sample_fraction": 1.0,
-                "sample_seed": 42,
                 "audit_log_path": str(_tests_root() / "data" / "output" / "_audit"),
                 "partitioning": {
-                    "partition_column": None,
-                    "filter_partitions": []
+                    "partition_column": "uf_internacao",
+                    "filter_partitions": ["BA", "SP"]
                 }
             },
             "specification": {
