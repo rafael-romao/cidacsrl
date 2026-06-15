@@ -34,7 +34,8 @@ class RecordLinkageUseCase:
         self.tracking = tracking_port
 
     def execute(self, specification: SequentialLinkageSpecification, job_id: str, execution_config: Any) -> None:
-        logger.info(f"[{job_id}] - Iniciando  o fluxo de Record Linkage sequencial para a fonte '{specification.source_table}' e índice '{specification.target_es_index}'.")
+        project_name = specification.linkage_project_name
+        logger.info(f"[{job_id}] - Linkage '{project_name}' - Fonte: '{specification.source_table}' - Índice: '{specification.target_es_index}'.")
 
         
         work_stream = self.orchestrator.prepare_and_route(
@@ -47,7 +48,7 @@ class RecordLinkageUseCase:
             
            
             df_remaining = payload.dataframe
-            phase_outputs = []
+            total_unit_persisted = 0
             
 
             for phase_index, phase_context in enumerate(specification.build_blocking_phase_contexts(), start=1):
@@ -78,7 +79,16 @@ class RecordLinkageUseCase:
                 
                
                 phase_marked = self.transformation.add_phase_marker(matched_pairs, phase_context.phase_name)
-                phase_outputs.append(phase_marked)
+                
+                records_saved = self.persistence.save_phase_output(
+                    df=phase_marked,
+                    project_name=project_name,
+                    job_id=job_id,
+                    unit_id=payload.unit_id,
+                    phase_name=phase_context.phase_name
+                )
+                
+                total_unit_persisted += records_saved
 
                 
                 df_remaining = self.transformation.exclude_records(
@@ -89,16 +99,13 @@ class RecordLinkageUseCase:
                 df_remaining.cache()
 
             
-            total_persisted = self.persistence.save_linkage_output(
-                phase_outputs=phase_outputs,
-                unit_id=payload.unit_id
-            )
+
 
             
             self.tracking.update_work_unit_status(
                 job_id=job_id,
                 unit_id=payload.unit_id,
                 status=WorkUnitStatus.COMPLETED,
-                records_processed=total_persisted
+                records_processed=total_unit_persisted
             )
-            logger.info(f"[{job_id}] - [{payload.unit_id}] - Bloco consolidado e finalizado com {total_persisted} links.")
+            logger.info(f"[{job_id}] - [{payload.unit_id}] - Bloco consolidado e finalizado com {total_unit_persisted} links.")

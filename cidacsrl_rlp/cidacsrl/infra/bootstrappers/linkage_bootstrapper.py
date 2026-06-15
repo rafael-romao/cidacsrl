@@ -82,8 +82,7 @@ def bootstrap_sequential_linkage(
         )
         
         persistence_adapter = SparkDataPersistenceAdapter(
-            spark_session=spark_session, 
-            config=output_storage_config
+            output_config=output_storage_config
         )
         
         transformation_adapter = SparkDataTransformationAdapter()

@@ -1,8 +1,15 @@
 from abc import ABC, abstractmethod
-from typing import Any, List
+from pyspark.sql import DataFrame
 
 class DataPersistencePort(ABC):
 
     @abstractmethod
-    def save_linkage_output(self, phase_outputs: List[Any], unit_id: str) -> int:
+    def save_phase_output(
+        self, 
+        df: DataFrame, 
+        project_name: str, 
+        job_id: str, 
+        unit_id: str, 
+        phase_name: str
+    ) -> int:
         pass

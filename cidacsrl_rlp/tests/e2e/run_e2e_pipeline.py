@@ -147,9 +147,27 @@ def verify_and_validate_e2e_results(
     logger.info(f"Auditoria ES: Encontrados {total_docs} documentos no índice '{index_name}'.")
     assert total_docs > 0, f"Índice '{index_name}' está vazio após a execução."
 
-    # 2. Validação no Disco (Camada de Linkage)
+    # 2. Validação no Disco (Leitura adaptada à nova árvore profunda por projeto/job/unit/phase)
     with open(linkage_spec_path) as f:
         linkage_spec = yaml.safe_load(f)
+
+    source_table = linkage_spec["source_table"]
+    target_es_index = linkage_spec["target_es_index"]
+    
+    # Determina deterministicamente o nome do projeto de acordo com a regra de negócio do domínio
+    project_dir_name = f"linkage_{source_table}_{target_es_index}"
+    project_output_path = base_output_path / project_dir_name
+
+    logger.info(f"Varrendo os resultados consolidados na árvore do projeto: {project_output_path}")
+    assert project_output_path.exists(), f"Erro Crítico: Pasta do projeto de linkage não foi criada: {project_output_path}"
+
+    # Localiza dinamicamente as pastas de jobs geradas dentro do projeto
+    job_dirs = [p for p in project_output_path.iterdir() if p.is_dir() and p.name.startswith("job_")]
+    assert job_dirs, f"Erro Crítico: Nenhuma pasta de execução de Job válida encontrada em {project_output_path}"
+    
+    # Seleciona o diretório do Job mais recente gerado pelo teste corrente
+    active_job_path = max(job_dirs, key=lambda p: p.stat().st_mtime)
+    logger.info(f"Execução ativa detectada para auditoria de dados: {active_job_path.name}")
 
     spark = (
         SparkSession.builder
@@ -158,33 +176,25 @@ def verify_and_validate_e2e_results(
         .getOrCreate()
     )
 
-    all_phases_df = None
-    for i, phase in enumerate(linkage_spec.get("blocking_phases", [])):
-        if phase.get("enabled", False):
-            phase_name = phase["phase_name"]
-            phase_output_path = base_output_path / f"phase_{i + 1}_{phase_name}"
-            logger.info(f"Lendo resultados da fase: {phase_output_path}")
-            assert phase_output_path.exists(), (
-                f"Erro Crítico: pasta de resultados não gerada em: {phase_output_path}"
+    try:
+        all_phases_df = spark.read.parquet(f"{active_job_path}/*/*")
+        
+        total_links = all_phases_df.count()
+        rows = all_phases_df.limit(5).collect()
+        
+        logger.info(f"Auditoria Disco: Total de pares linkados gerados pelo motor: {total_links}")
+        assert total_links > 0, "O pipeline rodou, mas nenhum par de matching foi gerado após a filtragem."
+
+        logger.info("Amostra dos Pares Identificados e Armazenados:")
+        for i, row in enumerate(rows):
+            logger.info(
+                f"  [Par #{i + 1}] Origem ID: {row.source_codigo_internacao} "
+                f"-> Candidato ES ID: {row.candidate_codigo_nascimento} "
+                f"| Score: {row.match_score} | Fase: {row.phase_match}"
             )
-            df_phase = spark.read.parquet(str(phase_output_path))
-            all_phases_df = df_phase if all_phases_df is None else all_phases_df.unionByName(df_phase)
-
-    assert all_phases_df is not None, "Nenhuma fase de linkage habilitada foi encontrada ou processada."
-
-    total_links = all_phases_df.count()
-    rows = all_phases_df.limit(5).collect()
-    spark.stop()
-
-    logger.info(f"Auditoria Disco: Total de pares linkados gerados pelo motor: {total_links}")
-    assert total_links > 0, "O pipeline rodou, mas nenhum par de matching foi gerado."
-
-    logger.info("Amostra dos Pares Identificados:")
-    for i, row in enumerate(rows):
-        logger.info(
-            f"  [Par #{i + 1}] Origem ID: {row.source_codigo_internacao} "
-            f"-> Candidato ES ID: {row.candidate_codigo_nascimento} | Score: {row.match_score}"
-        )
+            
+    finally:
+        spark.stop()
 
 
 def _parse_args() -> argparse.Namespace:

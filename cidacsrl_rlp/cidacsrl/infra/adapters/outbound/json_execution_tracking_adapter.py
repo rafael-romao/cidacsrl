@@ -25,7 +25,7 @@ class JSONExecutionTrackingAdapter(ExecutionTrackingPort):
             try:
                 return json.load(f)
             except json.JSONDecodeError:
-                logger.warning(f"Ficheiro de checkpoint corrompido detetado em {file_path}. A assumir dicionário vazio.")
+                logger.warning(f"Arquivo de checkpoint corrompido detectado em {file_path}. ")
                 return {}
 
     def _write_raw_file(self, file_path: str, data: Dict[str, Any]) -> None:
@@ -33,19 +33,17 @@ class JSONExecutionTrackingAdapter(ExecutionTrackingPort):
             json.dump(data, f, indent=4, ensure_ascii=False)
 
     def initialize_job_state(self, job_id: str, work_units: List[WorkUnitExecutionRecord]) -> None:
-        """Inicializa de forma segura o ficheiro JSON sem sobrescrever dados de um Restart."""
         file_path = self._resolve_checkpoint_path(job_id)
         
         if os.path.exists(file_path):
-            logger.info(f"[{job_id}] Ficheiro de checkpoint existente localizado em '{file_path}'. Estado preservado para Restart.")
+            logger.info(f"[{job_id}] - Arquivo de checkpoint existente localizado em '{file_path}'. Processo marcado para reinício a partir do estado salvo.")
             return
 
-        logger.info(f"[{job_id}] A criar novo ficheiro de auditoria e tracking em '{file_path}'...")
+        logger.info(f"[{job_id}] - Criando novo arquivo  '{file_path}'...")
         initial_state = {record.unit_id: record.to_dict() for record in work_units}
         self._write_raw_file(file_path, initial_state)
 
     def get_pending_work_units(self, job_id: str) -> List[WorkUnitExecutionRecord]:
-        """Varre o JSON e reconstrói os objetos de domínio cujo status não seja COMPLETED."""
         file_path = self._resolve_checkpoint_path(job_id)
         raw_state = self._read_raw_file(file_path)
 

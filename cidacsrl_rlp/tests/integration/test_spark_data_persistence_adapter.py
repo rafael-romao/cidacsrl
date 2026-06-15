@@ -1,91 +1,54 @@
 import pytest
 from pathlib import Path
-from pyspark.sql import SparkSession
+from pyspark.sql import SparkSession, Row
 from cidacsrl_rlp.cidacsrl.infra.adapters.outbound.spark_data_persistence_adapter import SparkDataPersistenceAdapter
-from cidacsrl_rlp.cidacsrl.infra.configs.loader import parse_output_storage_config
+from cidacsrl_rlp.cidacsrl.infra.configs.models.storage_config import OutputStorageConfig
 
 
 @pytest.fixture(scope="module")
-def local_spark():
-    """Cria uma sessão local e isolada do Spark para este módulo de integração."""
-    spark = SparkSession.builder \
-        .appName("CIDACS-RL Integration Testing Persistence") \
+def spark():
+    session = SparkSession.builder \
+        .appName("cidacsrl-test-persistence-adapter") \
         .master("local[2]") \
-        .config("spark.sql.shuffle.partitions", "1") \
         .config("spark.ui.enabled", "false") \
         .getOrCreate()
-    yield spark
-    spark.stop()
+    yield session
+    session.stop()
 
 
-@pytest.fixture
-def simulated_persistence_config(tmp_path):
-    output_dir = tmp_path / "output_data"
-    output_dir.mkdir()
-    
-    storage_data = {
-        "output_path": str(output_dir),
-        "output_format": "parquet"
-    }
-    
-    return {
-        "config": parse_output_storage_config(storage_data),
-        "output_dir": output_dir
-    }
-
-
-def test_save_linkage_output_consolidates_and_persists_data_slices_correctly(
-    local_spark, 
-    simulated_persistence_config
-):
-    unit_id = "uf_internacao_BA"
-    
-    data_phase_1 = [{"codigo_internacao": "I01", "codigo_nascimento": "N01", "score": 1.0}]
-    data_phase_2 = [{"codigo_internacao": "I02", "codigo_nascimento": "N02", "score": 0.85}]
-    
-    df_1 = local_spark.createDataFrame(data_phase_1)
-    df_2 = local_spark.createDataFrame(data_phase_2)
-    
-    adapter = SparkDataPersistenceAdapter(
-        spark_session=local_spark,
-        config=simulated_persistence_config["config"]
+def test_save_phase_output_materializes_isolated_directory_tree(spark, tmp_path):
+    # Configuração de infraestrutura pura apontando para o diretório temporário do teste
+    config = OutputStorageConfig(
+        output_path=str(tmp_path / "output"),
+        output_format="parquet"
     )
     
-    total_records = adapter.save_linkage_output(
-        phase_outputs=[df_1, df_2],
-        unit_id=unit_id
+    adapter = SparkDataPersistenceAdapter(output_config=config)
+    
+    # Cria uma massa de dados de teste de pares identificados
+    df_test = spark.createDataFrame([
+        Row(source_id="A1", candidate_id="B1", match_score=0.98, phase_match="fase_teste")
+    ])
+    
+    # Executa a escrita passando as chaves lógicas isoladas
+    records_saved = adapter.save_phase_output(
+        df=df_test,
+        project_name="linkage_internacao_nascimentos",
+        job_id="job_2026_test",
+        unit_id="unit_BA",
+        phase_name="fase_e2e_nome"
     )
     
-    assert total_records == 2
+    # Validações estruturais e físicas
+    assert records_saved == 1
     
-    expected_unit_path = simulated_persistence_config["output_dir"] / f"unit_{unit_id}"
-    assert expected_unit_path.exists()
-    assert expected_unit_path.is_dir()
-    
-    persisted_df = local_spark.read.format("parquet").load(str(expected_unit_path))
-    rows = persisted_df.collect()
-    
-    assert len(rows) == 2
-    ids_internacao = [row["codigo_internacao"] for row in rows]
-    assert "I01" in ids_internacao
-    assert "I02" in ids_internacao
-
-
-def test_save_linkage_output_returns_zero_when_phase_outputs_is_empty(
-    local_spark,
-    simulated_persistence_config
-):
-    adapter = SparkDataPersistenceAdapter(
-        spark_session=local_spark,
-        config=simulated_persistence_config["config"]
+    expected_path = (
+        tmp_path / "output" / "linkage_internacao_nascimentos" / "job_2026_test" / "unit_BA" / "fase_e2e_nome"
     )
     
-    total_records = adapter.save_linkage_output(
-        phase_outputs=[],
-        unit_id="uf_empty"
-    )
+    assert expected_path.exists()
+    assert expected_path.is_dir()
     
-    assert total_records == 0
-    
-    expected_unit_path = simulated_persistence_config["output_dir"] / "unit_uf_empty"
-    assert not expected_unit_path.exists()
+    # Garante que o Spark gerou os fragmentos físicos reais lá dentro
+    parquet_files = list(expected_path.glob("*.parquet"))
+    assert len(parquet_files) > 0

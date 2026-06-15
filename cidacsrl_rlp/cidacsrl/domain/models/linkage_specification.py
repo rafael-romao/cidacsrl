@@ -88,6 +88,10 @@ class SequentialLinkageSpecification:
         
         logger.debug(f"Source table name: {self.source_table}")
         logger.debug(f"Target ES Index: {self.target_es_index}")
+    
+    @property
+    def linkage_project_name(self) -> str:
+        return f"linkage_{self.source_table}_{self.target_es_index}"
 
     def build_blocking_phase_context(self, phase: BlockingPhase) -> BlockingPhaseContext:
         raw_filters = phase.indexed_dataset_filter if getattr(phase, "indexed_dataset_filter", None) is not None else self.indexed_dataset_filter
