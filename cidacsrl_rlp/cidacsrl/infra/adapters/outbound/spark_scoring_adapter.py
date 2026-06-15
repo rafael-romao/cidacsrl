@@ -44,9 +44,7 @@ class SparkScoringAdapter(ScoringPort):
         df_scored = df_candidates.withColumn(
             "score_struct", 
             compute_scores_udf(F.col("source_record"), F.col("candidate_record"))
-        )
-
-        df_filtered = df_scored.filter(F.col("score_struct.match_score") >= threshold)
+        )        
 
         source_fields = [
             F.col(f"source_record.{field_name}").alias(f"source_{field_name}") 
@@ -58,10 +56,9 @@ class SparkScoringAdapter(ScoringPort):
             for field_name in phase_context.target_fields.result_fields
         ]
 
-        return df_filtered.select(
+        return df_scored.select(
             *source_fields,
             *candidate_fields,
             "score_struct.*",
-            F.col("phase_match"),
             F.col("candidate_record._score").alias("es_score")
         )
