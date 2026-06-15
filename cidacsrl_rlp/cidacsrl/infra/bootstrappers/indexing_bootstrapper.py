@@ -2,7 +2,7 @@
 import logging
 from typing import Any, Dict
 
-from cidacsrl_rlp.shared.infra.spark.spark_factory import create_spark_session
+from cidacsrl_rlp.cidacsrl.infra.spark.spark_factory import create_spark_session
 from cidacsrl_rlp.cidacsrl.infra.configs.models.storage_config import SourceStorageConfig
 from cidacsrl_rlp.cidacsrl.infra.configs.loader import parse_dataset_indexing_specification, parse_es_config
 
@@ -21,8 +21,8 @@ def bootstrap_elasticsearch_indexing(
     logger.info("Initializing Indexing Bootstrapper...")
 
     source_config = SourceStorageConfig(
-        source_data_path=storage_config_data["source_data_path"],
-        source_data_format=storage_config_data.get("source_data_format", "parquet")
+        source_path=storage_config_data["source_path"],
+        source_format=storage_config_data.get("source_format", "parquet")
     )
     es_config = parse_es_config(es_config_data)
     indexing_spec = parse_dataset_indexing_specification(indexing_spec_data)
