@@ -143,9 +143,24 @@ def test_bootstrap_sequential_linkage_wires_and_executes_from_simulated_content(
         storage_config=ANY
     )
     mock_persistence_cls.assert_called_once_with(
-        spark_session=mock_spark,
-        config=ANY
-    )
+                output_config=ANY
+            )
+    
+    mock_use_case_cls.assert_called_once_with(
+            orchestrator=mock_orchestrator_cls.return_value,
+            persistence_port=mock_persistence_cls.return_value,
+            transformation_port=mock_transformation_cls.return_value,
+            get_candidates_port=mock_search_cls.return_value,
+            scoring_port=mock_scoring_cls.return_value,
+            tracking_port=mock_tracking_cls.return_value
+        )
+
+    
+    mock_use_case.execute.assert_called_once_with(
+            specification=ANY,
+            job_id=mock_execution_config_data["job_id"],
+            execution_config=ANY
+        )
 
     # 3. Validação do Orquestrador de Aplicação (Recebe portas primitivas)
     mock_orchestrator_cls.assert_called_once_with(
