@@ -1,5 +1,6 @@
 from dataclasses import dataclass, field
 from typing import Optional, List
+from datetime import datetime
 
 @dataclass(frozen=True)
 class DataPartitioningConfig:    
@@ -12,8 +13,13 @@ class DataPartitioningConfig:
 
 @dataclass(frozen=True)
 class ExecutionConfig:
-    """Responsável por COMO o pipeline deve se comportar durante a execução."""
+    job_id: Optional[str] = None 
     partitioning: DataPartitioningConfig = field(default_factory=DataPartitioningConfig)
     sample_fraction: Optional[float] = None
     sample_seed: int = 42
     audit_log_path: Optional[str] = None
+
+    def __post_init__(self):
+        if not self.job_id:
+            timestamp_str = datetime.now().strftime("%Y%m%d_%H%M%S")
+            object.__setattr__(self, "job_id", f"job_{timestamp_str}")
