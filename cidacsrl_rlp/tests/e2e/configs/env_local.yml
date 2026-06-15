@@ -1,8 +1,0 @@
-source_path: "cidacsrl_rlp/tests/data/input"
-output_data_path: "cidacsrl_rlp/tests/data/output"
-source_format: "parquet"
-output_data_format: "parquet"
-
-linkage_specification_path: "cidacsrl_rlp/tests/e2e/configs/linkage_spec_local.yml"
-es_config_path: "cidacsrl_rlp/tests/e2e/configs/es_local.yml"
-spark_config_path: "cidacsrl_rlp/tests/e2e/configs/spark_local.yml"

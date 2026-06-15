@@ -96,9 +96,7 @@ class RecordLinkageUseCase:
                     records_to_exclude=matched_pairs,
                     join_key=specification.id_source_table
                 )
-                df_remaining.cache()
-
-            
+                df_remaining.cache()           
 
 
             

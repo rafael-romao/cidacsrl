@@ -10,7 +10,6 @@ execution:
   audit_log_path: "tests/data/audit_logs"
   partitioning:
     partition_column: "uf_internacao"
-    filter_partitions: ["BA", "SP"]
 
 specification:
   indexing_path: "/tests/configs/shared/index_spec_local.yml"
