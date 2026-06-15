@@ -1,19 +1,23 @@
 from abc import ABC, abstractmethod
-from typing import Any, Optional
-
+from typing import List, Dict, Any
 class DataIngestionPort(ABC):
+    """
+    Porta de saída responsável pelo carregamento e inspeção 
+    física de volumes de dados brutos no storage do Spark.
+    """
+
     @abstractmethod
-    def read_source_data(self, table_name: str, **kwargs) -> Any:
+    def check_health(self, source_table: str) -> List[str]:
         pass
 
     @abstractmethod
-    def read_target_data(self, index_name: str, **kwargs) -> Any:
+    def discover_partitions(self, table_name: str, partition_column: str) -> List[str]:
         pass
 
     @abstractmethod
-    def read_specific_partition(self, table_name: str, partition_expr: str, **kwargs) -> Any:
+    def read_all(self, table_name: str) -> Any:
         pass
 
     @abstractmethod
-    def get_partitioned_sample(self, table_name: str, fraction: float, seed: Optional[int] = None, **kwargs) -> Any:
+    def read_slice(self, table_name: str, filters: Dict[str, Any]) -> Any:
         pass

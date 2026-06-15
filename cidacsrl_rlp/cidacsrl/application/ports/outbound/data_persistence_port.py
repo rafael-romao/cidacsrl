@@ -1,8 +1,8 @@
 from abc import ABC, abstractmethod
-from typing import Any, Optional
+from typing import Any, List
 
 class DataPersistencePort(ABC):
 
     @abstractmethod
-    def write_data(self, data: Any, path: str, partition_cols: Optional[list[str]] = None) -> None:
+    def save_linkage_output(self, phase_outputs: List[Any], unit_id: str) -> int:
         pass
