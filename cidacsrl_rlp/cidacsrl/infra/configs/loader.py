@@ -68,23 +68,20 @@ def parse_output_storage_config(data: Dict[str, Any]) -> OutputStorageConfig:
 
 
 def parse_execution_config(data: Dict[str, Any]) -> ExecutionConfig:
-    """
-    Traduz o sub-bloco 'execution' governando o comportamento do motor.
-    """
-    if not data:
-        data = {}
-
-    part_data = data.get("partitioning", {})
-    partitioning_config = DataPartitioningConfig(
-        partition_column=part_data.get("partition_column"),
-        filter_partitions=part_data.get("filter_partitions", [])
+    exec_data = data.get("execution", {}) if "execution" in data else data
+    
+    partition_data = exec_data.get("partitioning", {})
+    partitioning = DataPartitioningConfig(
+        partition_column=partition_data.get("partition_column"),
+        filter_partitions=partition_data.get("filter_partitions", [])
     )
-
+    
     return ExecutionConfig(
-        partitioning=partitioning_config,
-        sample_fraction=data.get("sample_fraction"),
-        sample_seed=data.get("sample_seed", 42),
-        audit_log_path=data.get("audit_log_path")
+        job_id=exec_data.get("job_id"),
+        partitioning=partitioning,
+        sample_fraction=exec_data.get("sample_fraction"),
+        sample_seed=exec_data.get("sample_seed", 42),
+        audit_log_path=exec_data.get("audit_log_path")
     )
 
 
