@@ -9,8 +9,8 @@ from cidacsrl_rlp.cidacsrl.infra.bootstrappers.indexing_bootstrapper import boot
 @pytest.fixture
 def storage_config_data():
     return {
-        "source_data_path": "/mock/source",
-        "source_data_format": "parquet",
+        "source_path": "/mock/source",
+        "source_format": "parquet",
     }
 
 

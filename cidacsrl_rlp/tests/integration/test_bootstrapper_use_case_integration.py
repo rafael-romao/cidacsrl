@@ -16,9 +16,9 @@ def setup_integration_payloads(tmp_path):
 
     # Dicionário de Storage (Ambiente)
     storage_payload = {
-        "source_data_path": str(data_input_dir),
+        "source_path": str(data_input_dir),
         "output_data_path": str(data_output_dir),
-        "source_data_format": "parquet",
+        "source_format": "parquet",
         "output_data_format": "parquet"
     }
 
@@ -53,6 +53,11 @@ def setup_integration_payloads(tmp_path):
         "spark.master": "local[1]"
     }
 
+    execution_payload = {
+        "job_id": "job_test_integration",
+        "audit_log_path": str(tmp_path / "audit")
+    }
+
     # Preparar dados estáticos de origem
     from pyspark.sql import SparkSession
     spark = SparkSession.builder.master("local[1]").appName("DataPrep").getOrCreate()
@@ -62,6 +67,7 @@ def setup_integration_payloads(tmp_path):
 
     return {
         "storage_config_data": storage_payload,
+        "execution_config_data": execution_payload,
         "linkage_spec_data": linkage_spec_payload,
         "es_config_data": es_payload,
         "spark_config_data": spark_payload,
@@ -78,6 +84,7 @@ def test_bootstrap_sequential_linkage_execution(setup_integration_payloads):
         try:
             bootstrap_sequential_linkage(
                 storage_config_data=payloads["storage_config_data"],
+                execution_config_data=payloads["execution_config_data"],
                 linkage_spec_data=payloads["linkage_spec_data"],
                 es_config_data=payloads["es_config_data"],
                 spark_config_data=payloads["spark_config_data"]

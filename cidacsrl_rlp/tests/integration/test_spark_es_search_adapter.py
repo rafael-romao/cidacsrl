@@ -60,8 +60,8 @@ def spark():
 @pytest.fixture
 def real_phase_context():
     rules = [
-        ComparisonRule(source_column="nome", target_column="nome_completo", similarity="jaro_winkler", weight=1.0),
-        ComparisonRule(source_column="data_nasc", target_column="data_nascimento", similarity="exact", weight=1.0)
+        ComparisonRule(source_column="nome", target_column="nome_completo", similarity="jaro_winkler", weight=1.0, es_clause_type="must"),
+        ComparisonRule(source_column="data_nasc", target_column="data_nascimento", similarity="exact", weight=1.0, es_clause_type="must")
     ]
     
     target_config = BlockingPhaseTargetFields(

@@ -20,8 +20,8 @@ MOCK_SIMILARITY_MAP = {
 def base_rules():
     """Retorna um conjunto padrão de regras para testes básicos."""
     return [
-        ComparisonRule(source_column="nome", target_column="nome", similarity="exact", weight=2.0, penalty=0.0),
-        ComparisonRule(source_column="idade", target_column="idade", similarity="exact", weight=1.0, penalty=0.0)
+        ComparisonRule(source_column="nome", target_column="nome", similarity="exact", weight=2.0, es_clause_type="must", penalty=0.0),
+        ComparisonRule(source_column="idade", target_column="idade", similarity="exact", weight=1.0, es_clause_type="must", penalty=0.0)
     ]
 
 # ==========================================
@@ -67,7 +67,7 @@ def test_calculate_complete_mismatch(base_rules):
 def test_calculate_partial_match_with_mocked_jaro():
     """Caso 4: Match parcial com pesos diferentes."""
     rules = [
-        ComparisonRule(source_column="nome", target_column="nome", similarity="mock_jaro", weight=10.0, penalty=0.0)
+        ComparisonRule(source_column="nome", target_column="nome", similarity="mock_jaro", weight=10.0, es_clause_type="must", penalty=0.0)
     ]
     
     result = calculate_pair_scores_and_similarities(
@@ -96,8 +96,8 @@ def test_null_values_without_penalty(base_rules):
 def test_null_values_with_penalty():
     """Caso 6: Valor nulo presente, e a regra possui penalidade."""
     rules = [
-        ComparisonRule(source_column="nome", target_column="nome", similarity="exact", weight=2.0, penalty=0.0),
-        ComparisonRule(source_column="cpf", target_column="cpf", similarity="exact", weight=1.0, penalty=1.5)
+        ComparisonRule(source_column="nome", target_column="nome", similarity="exact", weight=2.0, es_clause_type="must", penalty=0.0),
+        ComparisonRule(source_column="cpf", target_column="cpf", similarity="exact", weight=1.0, es_clause_type="must", penalty=1.5)
     ]
     
     result = calculate_pair_scores_and_similarities(
@@ -114,8 +114,8 @@ def test_null_values_with_penalty():
 def test_negative_score_due_to_penalty():
     """Caso 7: Penalidades superam os acertos, resultando em score negativo."""
     rules = [
-        ComparisonRule(source_column="nome", target_column="nome", similarity="exact", weight=1.0, penalty=0.0),
-        ComparisonRule(source_column="cpf", target_column="cpf", similarity="exact", weight=1.0, penalty=5.0)
+        ComparisonRule(source_column="nome", target_column="nome", similarity="exact", weight=1.0, es_clause_type="must", penalty=0.0),
+        ComparisonRule(source_column="cpf", target_column="cpf", similarity="exact", weight=1.0, es_clause_type="must", penalty=5.0)
     ]
     
     result = calculate_pair_scores_and_similarities(
@@ -130,7 +130,7 @@ def test_negative_score_due_to_penalty():
 def test_resilience_to_exceptions_in_similarity_functions(caplog):
     """Caso 8: Uma função matemática de similaridade levanta um erro inesperado."""
     rules = [
-        ComparisonRule(source_column="campo", target_column="campo", similarity="mock_error", weight=1.0, penalty=0.0)
+        ComparisonRule(source_column="campo", target_column="campo", similarity="mock_error", weight=1.0, es_clause_type="must", penalty=0.0)
     ]
     
     result = calculate_pair_scores_and_similarities(
@@ -146,7 +146,7 @@ def test_resilience_to_exceptions_in_similarity_functions(caplog):
 def test_missing_similarity_key_raises_error():
     """Caso 9: O nome da função de similaridade não existe no mapa."""
     rules = [
-        ComparisonRule(source_column="nome", target_column="nome", similarity="funcao_inexistente", weight=1.0, penalty=0.0)
+        ComparisonRule(source_column="nome", target_column="nome", similarity="funcao_inexistente", weight=1.0, es_clause_type="must", penalty=0.0)
     ]
     
     with pytest.raises(KeyError):

@@ -11,6 +11,7 @@ def _build_rule(source_column: str, target_column: str) -> ComparisonRule:
 		target_column=target_column,
 		similarity="exact",
 		weight=1.0,
+		es_clause_type="must",
 	)
 
 

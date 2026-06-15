@@ -7,8 +7,8 @@ def test_bootstrap_elasticsearch_indexing_execution(test_paths):
     captured = {}
 
     storage_config_data = {
-        "source_data_path": str(test_paths["input_data"]),
-        "source_data_format": "parquet",
+        "source_path": str(test_paths["input_data"]),
+        "source_format": "parquet",
     }
     indexing_spec_data = {
         "source_config": {

@@ -29,8 +29,8 @@ def adapter():
 @pytest.fixture
 def sample_rules():
     return [
-        ComparisonRule(source_column="nome", target_column="nome_completo", similarity="exact", weight=2.0, penalty=0.0),
-        ComparisonRule(source_column="idade", target_column="idade", similarity="exact", weight=1.0, penalty=0.0)
+        ComparisonRule(source_column="nome", target_column="nome_completo", similarity="exact", weight=2.0, es_clause_type="must", penalty=0.0),
+        ComparisonRule(source_column="idade", target_column="idade", similarity="exact", weight=1.0, es_clause_type="must", penalty=0.0)
     ]
 
 

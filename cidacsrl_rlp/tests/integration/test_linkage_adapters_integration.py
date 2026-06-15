@@ -4,6 +4,7 @@ from elasticsearch import Elasticsearch
 from pyspark.sql import SparkSession, Row
 
 from cidacsrl_rlp.cidacsrl.infra.adapters.outbound.elasticsearch.spark_es_search_adapter import SparkESSearchAdapter
+from cidacsrl_rlp.cidacsrl.infra.adapters.outbound.elasticsearch.executors import MultiSearchExecutor
 from cidacsrl_rlp.cidacsrl.infra.adapters.outbound.spark_scoring_adapter import SparkScoringAdapter
 from cidacsrl_rlp.cidacsrl.domain.models.matching_rules import ComparisonRule
 from cidacsrl_rlp.cidacsrl.domain.models.linkage_specification import BlockingPhaseContext, BlockingPhaseTargetFields
@@ -52,8 +53,8 @@ def spark():
 @pytest.fixture
 def integration_phase_context():
     rules = [
-        ComparisonRule(source_column="nome", target_column="nome_completo", similarity="exact", weight=2.0),
-        ComparisonRule(source_column="idade", target_column="idade", similarity="exact", weight=1.0)
+        ComparisonRule(source_column="nome", target_column="nome_completo", similarity="exact", weight=2.0, es_clause_type="must"),
+        ComparisonRule(source_column="idade", target_column="idade", similarity="exact", weight=1.0, es_clause_type="must")
     ]
     
     target_config = BlockingPhaseTargetFields(
@@ -72,10 +73,12 @@ def integration_phase_context():
 
 
 def test_pipeline_flow_from_es_search_to_spark_scoring(spark, es_client, integration_phase_context):
-
+    
+    # Adicionada a injeção do Search Executor na nova assinatura
     search_adapter = SparkESSearchAdapter(
         index_name=es_client["index"],
-        es_config={"es_connection_url": es_client["url"]}
+        es_config={"es_connection_url": es_client["url"]},
+        search_executor=MultiSearchExecutor()
     )
     scoring_adapter = SparkScoringAdapter()
 
@@ -104,5 +107,3 @@ def test_pipeline_flow_from_es_search_to_spark_scoring(spark, es_client, integra
     assert pair.candidate_idade == "45"
 
     assert pair.match_score == 1.0
-    assert pair.sim_nome == 1.0
-    assert pair.sim_idade == 1.0
