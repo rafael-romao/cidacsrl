@@ -33,7 +33,7 @@ def bootstrap_elasticsearch_indexing(
     )
 
     try:        
-        ingestion_adapter = SparkDataIngestionAdapter(spark_session=spark_session, config=source_config)
+        ingestion_adapter = SparkDataIngestionAdapter(spark_session=spark_session, storage_config=source_config)
         indexing_adapter = SparkESIndexingAdapter(es_config=es_config)
 
         use_case = IndexDatasetUseCase(
