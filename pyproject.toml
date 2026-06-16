@@ -1,6 +1,6 @@
 [project]
-name = "cidacsrl-rlp"
-version = "0.1.0"
+name = "cidacsrl"
+version = "3.1.0"
 description = ""
 authors = [
     { name = "Rafael Romão", email = "leafaromao@gmail.com" }
@@ -36,7 +36,7 @@ default_section = "THIRDPARTY"
 skip = ["tests"]
 
 [tool.setuptools.packages.find]
-include = ["cidacsrl_rlp*"]
+include = ["cidacsrl*"]
 exclude = ["spark_packages*"]
 
 
@@ -69,6 +69,6 @@ requires = ["setuptools>=61.0", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project.urls]
-"Documentação" = "https://github.com/rafael-romao/cidacsrl-rlp/docs"
-"Código" = "https://github.com/rafael-romao/cidacsrl-rlp"
-"Bug Tracker" = "https://github.com/rafael-romao/cidacsrl-rlp/issues"
+"Documentação" = "https://github.com/rafael-romao/cidacsrl/docs"
+"Código" = "https://github.com/rafael-romao/cidacsrl"
+"Bug Tracker" = "https://github.com/rafael-romao/cidacsrl/issues"
