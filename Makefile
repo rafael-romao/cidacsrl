@@ -1,6 +1,6 @@
 # Configurações de Executáveis e Variáveis
 PYTHON     := python
-COMPOSE    := docker compose -f cidacsrl_rlp/tests/enviroment/docker-compose.yml
+COMPOSE    := docker compose -f core/tests/enviroment/docker-compose.yml
 SPARK_PKG  := spark_packages
 
 .PHONY: all build clean help env-check clean-docker prepare-dirs stop-all stop
@@ -14,7 +14,7 @@ all: help
 up: env-check
 	@echo "--> Subindo o ecossistema base de laboratório (Elasticsearch + Engine)..."
 	$(COMPOSE) --profile elasticsearch --profile runner up -d --remove-orphans
-	@echo "Aguardando Elasticsearch ficar saudável..."
+	@echo "Verificando disponibilidade do Elasticsearch..."
 	@timeout=60; \
 	while ! docker inspect --format='{{.State.Health.Status}}' cidacsrl_elasticsearch 2>/dev/null | grep -q healthy; do \
 		sleep 2; \
@@ -28,72 +28,31 @@ up: env-check
 	@echo "   - Elasticsearch : http://localhost:9200"
 
 up-es: env-check
-	@echo "--> Subindo apenas o serviço Elasticsearch..."
-	$(COMPOSE) --profile elasticsearch up -d --remove-orphans
-	@echo "Aguardando Elasticsearch ficar saudável..."
-	@timeout=60; \
-	while ! docker inspect --format='{{.State.Health.Status}}' cidacsrl_elasticsearch 2>/dev/null | grep -q healthy; do \
-		sleep 2; \
-		timeout=$$((timeout-2)); \
-		if [ $$timeout -le 0 ]; then \
-			echo "Elasticsearch não ficou saudável a tempo!"; \
-			exit 1; \
-		fi; \
-	done
-	@echo "\n✅ Elasticsearch pronto!"
-	@echo "   - Elasticsearch : http://localhost:9200"
-
-prepare-dirs:
-	@echo "--> Garantindo existência e permissões das pastas necessárias..."
-	mkdir -p ./tests/enviroment/.es_data ./tests/enviroment/logs/ ./tests/data/output
-	chmod -R 777 ./tests/enviroment/.es_data ./tests/enviroment/logs/ ./tests/data/
+	@echo "--> Subindo apenas o serviço do Elasticsearch..."
+	$(COMPOSE) up -d elasticsearch
 
 up-ui: env-check
-	@echo "--> Subindo laboratório completo com painéis de monitoramento (Kibana + Cerebro)..."
-	$(COMPOSE) --profile elasticsearch --profile runner --profile kibana --profile cerebro up -d --remove-orphans
-	@echo "\n✅ Laboratório Analítico pronto!"
-	@echo "   - Elasticsearch : http://localhost:9200"
-	@echo "   - Kibana        : http://localhost:5601"
-	@echo "   - Cerebro       : http://localhost:9000"
+	@echo "--> Subindo ferramentas de monitoria Visual (Cerebro)..."
+	$(COMPOSE) --profile ui up -d
 
 up-jupyter: env-check
-	@echo "--> Subindo o ecossistema completo incluindo o ambiente Jupyter Dev..."
-	$(COMPOSE) --profile jupyter up -d --remove-orphans
-	@echo "\n✅ Ambiente Jupyter pronto!"
-	@echo "   - Jupyter       : http://localhost:8888"
-	@echo "   - Elasticsearch : http://localhost:9200"
-	@echo "   - Cerebro       : http://localhost:9000"
+	@echo "--> Subindo ambiente interativo Jupyter Notebook..."
+	$(COMPOSE) --profile jupyter up -d
 
 down:
-	@echo "--> Derrubando os contêineres do laboratório e perfis ativos..."
-	$(COMPOSE) --profile elasticsearch --profile kibana --profile cerebro --profile runner --profile jupyter down
+	@echo "--> Derrubando os contêineres locais do laboratório..."
+	$(COMPOSE) --profile elasticsearch --profile runner --profile ui --profile jupyter down -v --remove-orphans
 
 restart: down up
 
-stop-all:
-	@echo "--> Parando todos os contêineres do laboratório (sem remover)..."
-	docker stop $$(docker ps -qa)
-
-stop-test-e2e:
-	@echo "--> Parando apenas o container cidacsrl_runner..."
-	docker stop cidacsrl_runner || echo "Container cidacsrl_runner não está em execução."
-	@echo "Container cidacsrl_runner parado."
-
-stop-jupyter:
-	@echo "--> Parando apenas o container cidacsrl_jupyter..."
-	docker stop cidacsrl_jupyter || echo "Container cidacsrl_jupyter não está em execução."
-	@echo "Container cidacsrl_jupyter parado."
-
 ps:
-	$(COMPOSE) --profile jupyter ps
-
-# ─── 2. MONITORAMENTO E LOGS ──────────────────────────────────────────────────
+	$(COMPOSE) ps
 
 logs:
-	$(COMPOSE) --profile jupyter --profile elasticsearch --profile cerebro --profile runner logs -f
+	$(COMPOSE) logs -f
 
 logs-engine:
-	$(COMPOSE) logs -f cidacsrl_runner
+	$(COMPOSE) logs -f engine-runner
 
 logs-es:
 	$(COMPOSE) logs -f elasticsearch
@@ -102,95 +61,117 @@ logs-cerebro:
 	$(COMPOSE) logs -f cerebro
 
 logs-jupyter:
-	$(COMPOSE) logs -f jupyter
+	$(COMPOSE) logs -f jupyter-notebook
 
 shell-engine:
-	$(COMPOSE) exec cidacsrl_runner bash
+	docker exec -it cidacsrl_runner bash
 
 shell-es:
-	$(COMPOSE) exec elasticsearch bash
+	docker exec -it cidacsrl_elasticsearch bash
 
 shell-jupyter:
-	$(COMPOSE) exec jupyter bash
+	docker exec -it cidacsrl_jupyter_notebook bash
 
-# ─── 3. EXECUÇÃO DE WORKFLOWS E PIPELINES E2E ─────────────────────────────────
+# ─── 2. EXECUÇÃO DE PIPELINES E TESTES ─────────────────────────────────────────
 
 run-e2e-pipeline: up
 	@echo "--> Disparando o Pipeline E2E Completo consumindo os samples de input..."
 	$(COMPOSE) exec cidacsrl_runner \
-		poetry run python -m cidacsrl_rlp.tests.e2e.run_e2e_pipeline
+		python core/tests/e2e/run_e2e_pipeline.py
 
 run-e2e-linkage-only: up
-	@echo "--> Disparando o Pipeline E2E apenas com linkage (índice já deve estar populado)..."
+	@echo "--> Disparando o Pipeline E2E apenas com linkage..."
 	$(COMPOSE) exec cidacsrl_runner \
-		poetry run python -m cidacsrl_rlp.tests.e2e.run_e2e_pipeline --skip-indexing
+		python core/tests/e2e/run_e2e_pipeline.py --skip-indexing
 
 run-e2e-auto: up
-	@echo "--> Disparando o Pipeline E2E com detecção automática de índice populado..."
+	@echo "--> Disparando o Pipeline E2E com detecção automática..."
 	$(COMPOSE) exec cidacsrl_runner \
-		poetry run python -m cidacsrl_rlp.tests.e2e.run_e2e_pipeline --auto-skip-indexing
-
-# ─── 4. AUTOMAÇÃO DA SUÍTE DE TESTES (PYTEST) ──────────────────────────────────
+		python core/tests/e2e/run_e2e_pipeline.py --auto-skip-indexing
 
 test: up
-	@echo "--> Executando toda a suíte de testes com isolamento síncrono da JVM..."
+	@echo "--> Executando toda a suíte de testes no ambiente global do contêiner..."
 	$(COMPOSE) exec cidacsrl_runner pytest -v
 
 test-integration: up
 	@echo "--> Executando apenas os testes de integração..."
-	$(COMPOSE) exec cidacsrl_runner pytest cidacsrl_rlp/tests/integration/ -v
+	$(COMPOSE) exec cidacsrl_runner pytest core/tests/integration/ -v
 
 test-unit: up
 	@echo "--> Executando apenas os testes unitários..."
-	$(COMPOSE) exec cidacsrl_runner pytest cidacsrl_rlp/tests/unit/ -v
+	$(COMPOSE) exec cidacsrl_runner pytest core/tests/unit/ -v
 
-# ─── 5. UTILITÁRIOS E BUILD DE ARTEFATOS ───────────────────────────────────────
+# ─── 3. COMPILAÇÃO, EMPACOTAMENTO E LIMPEZA ────────────────────────────────────
 
 build:
-	@echo "--> Construindo o pacote wheel do projeto..."
-	$(PYTHON) -m build
-	@echo "--> Preparando diretório de distribuição Spark para cluster físico..."
-	mkdir -p $(SPARK_PKG)
-	$(PYTHON) -m pip download . -d $(SPARK_PKG)/
-	cp dist/*.whl $(SPARK_PKG)/
-	@echo "\n✅ Artefatos compilados para deploy em '$(SPARK_PKG)/'"
+	@echo "--> Preparando empacotamento via Poetry..."
+	poetry build
 
-clean: down
-	@echo "--> Limpando artefatos locais, caches de teste e volumes..."
-	rm -rf build/ dist/ ./*.egg-info/ $(SPARK_PKG)/ .pytest_cache/ .htmlcov/ .coverage
-	find . -type f -name "*.pyc" -delete
-	find . -type d -name "__pycache__" -delete
-	@echo "⚠️  Nota: A pasta .es_data e data/ não foram removidas para preservar os índices e samples."
-	@echo "   Para limpá-las totalmente, execute: sudo rm -rf .es_data data/output"
+build-docker:
+	@echo "--> Reconstruindo TODAS as imagens do ecossistema (PIP Global + Profiles)..."
+	$(COMPOSE) --profile elasticsearch --profile runner --profile ui --profile jupyter build --no-cache
+	@echo "✅ Imagens reconstruídas com sucesso!"
 
-# ─── 6. LIMPEZA COMPLETA DO AMBIENTE DOCKER ─────────────────────────────────────
+clean:
+	@echo "--> Limpando arquivos temporários e binários locais..."
+	rm -rf dist/ .pytest_cache/ .coverage htmlcov/ .isort_cache/
+	
+	@echo "--> Limpando __pycache__ com permissões adequadas..."
+	@if docker ps --format '{{.Names}}' | grep -q "^cidacsrl_runner$$"; then \
+		echo "   [Docker ativo] Removendo via container (root)..."; \
+		docker exec -t cidacsrl_runner find . -type d -name "__pycache__" -exec rm -rf {} + 2>/dev/null || true; \
+	else \
+		echo "   [Docker inativo] Tentando remoção local (pode solicitar sudo se houver arquivos de root)..."; \
+		find . -type d -name "__pycache__" -exec rm -rf {} + 2>/dev/null || \
+		(echo "⚠️ Arquivos presos detectados! Executando com sudo para limpar resíduos do Docker..." && sudo find . -type d -name "__pycache__" -exec rm -rf {} +); \
+	fi
+	@echo "✅ Faxina concluída com sucesso!"
 
 clean-docker: down
-	@echo "--> Removendo volumes, redes e artefatos Docker associados ao ambiente..."
+	@echo "--> Removendo volumes e faxinando o ambiente Docker..."
 	$(COMPOSE) down -v --remove-orphans
-	docker volume prune -f
-	docker network prune -f
-	@echo "✅ Ambiente Docker limpo!"
+	docker system prune -f --volumes
+
+stop-cidacsrl-runner:
+	@echo "--> Parando container cidacsrl_runner..."
+	docker stop cidacsrl_runner || echo "Container cidacsrl_runner não está em execução."
+	@echo "Container cidacsrl_runner parado."
+
+stop-jupyter:
+	@echo "--> Parando container cidacsrl_jupyter..."
+	docker stop cidacsrl_jupyter || echo "Container cidacsrl_jupyter não está em execução."
+	@echo "Container cidacsrl_jupyter parado."
+
+stop-es:
+	@echo "--> Parando container cidacsrl_elasticsearch..."
+	docker stop cidacsrl_elasticsearch || echo "Container cidacsrl_elasticsearch não está em execução."
+	@echo "Container cidacsrl_elasticsearch parado."
+
+stop-all:
+	@echo "⚠️ Parando TODOS os contêineres em execução no Docker..."
+	docker stop $$(docker ps -a -q) 2>/dev/null || true
+
+# ─── 4. AUXILIARES INTERNOS ────────────────────────────────────────────────────
 
 env-check:
-	@command -v docker >/dev/null 2>&1 || (echo "❌ docker não encontrado no host" && exit 1)
-	@docker compose version >/dev/null 2>&1 || (echo "❌ docker compose não encontrado no host" && exit 1)
-	@echo "--> Dependências de infraestrutura validadas com sucesso."
+	@if [ ! -d "core/tests/enviroment" ]; then \
+		echo "❌ Erro: Diretório 'core/tests/enviroment' não encontrado. Certifique-se de estar na raiz do repositório."; \
+		exit 1; \
+	fi
 
 help:
-	@echo "========================================================================"
-	@echo "                CIDACS-RL ENGINE - LAB COMMANDS MARKET                  "
-	@echo "========================================================================"
-	@echo "Infraestrutura Local (Docker Compose):"
-	@echo "  make up                - Inicializa o laboratório padrão (ES, Kibana, Cerebro, Engine)"
-	@echo "  make up-es             - Sobe apenas o serviço Elasticsearch"
-	@echo "  make up-jupyter        - Inicializa o laboratório completo incluindo o Jupyter Dev"
-	@echo "  make down              - Para e remove todos os contêineres e perfis"
-	@echo "  make restart           - Reinicializa o ecossistema padrão"
-	@echo "  make ps                - Lista os serviços ativos no ecossistema"
-	@echo ""
-	@echo "Diagnóstico e Monitoramento:"
-	@echo "  make logs              - Acompanha o log consolidado de todos os serviços"
+	@echo "========================================================================="
+	@echo "                   CIDACS-RL ENGINE - LABORATÓRIO DE DESENVOLVIMENTO      "
+	@echo "========================================================================="
+	@echo "Comandos de Infraestrutura (Docker Compose):"
+	@echo "  make up                - Inicializa Elasticsearch + Runner Node (Recomendado)"
+	@echo "  make up-es             - Sobe estritamente o banco Elasticsearch"
+	@echo "  make up-ui             - Sobe Cerebro para inspeção visual de índices"
+	@echo "  make up-jupyter        - Abre servidor do Jupyter Notebook para análises"
+	@echo "  make down              - Desliga todos os serviços locais"
+	@echo "  make restart           - Reinicializa o ambiente"
+	@echo "  make ps                - Lista o status dos contêineres"
+	@echo "  make logs              - Exibe logs agregados de todos os serviços"
 	@echo "  make logs-jupyter      - Logs exclusivos do servidor Jupyter"
 	@echo "  make logs-engine       - Logs exclusivos da Engine de processamento"
 	@echo "  make shell-jupyter     - Abre terminal bash dentro do container Jupyter"
@@ -205,9 +186,7 @@ help:
 	@echo "  make test-unit         - Executa apenas as validações unitárias em memória"
 	@echo ""
 	@echo "Compilação e Faxina:"
-	@echo "  make build             - Prepara pacote Wheel e dependências para o cluster de prod"
-	@echo "  make clean             - Remove containers, redes e arquivos temporários de compilação"
+	@echo "  make build             - Prepara pacote Wheel e dependências via Poetry"
+	@echo "  make clean             - Remove arquivos temporários de compilação"
 	@echo "  make clean-docker      - Limpa volumes, redes e artefatos Docker do ambiente"
-	@echo "  make stop-all          - Para todos os contêineres. Use com cautela!"
-	@echo "  make stop-test-e2e     - Para apenas o container da Engine de Linkage"
-	@echo "========================================================================"
+	@echo "  make stop-all          - Para todos os contêineres do seu daemon Docker."
