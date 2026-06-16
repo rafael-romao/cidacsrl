@@ -2,20 +2,16 @@ import argparse
 import os
 import subprocess
 import sys
-import tempfile
 import yaml
 import logging
 from pathlib import Path
 from pyspark.sql import SparkSession
 from elasticsearch import Elasticsearch
-from urllib.parse import urlparse
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
 logger = logging.getLogger("CIDACS-RL-E2E")
 
 ES_URL = os.environ.get("CIDACSRL_ES_URL", "http://elasticsearch:9200")
-linkage_spec_file = "linkage_acidentes_obitos.yml"
-index_spec_file = "obitos_example_index.yml"
 
 
 def _tests_root() -> Path:
@@ -26,54 +22,9 @@ def _configs_root() -> Path:
     return _tests_root() / "configs"
 
 
-def _shared_configs_root() -> Path:
-    return _configs_root() / "shared"
-
-
-def _build_runtime_env_config() -> Path:
-    parsed_url = urlparse(ES_URL)
-    es_host = parsed_url.hostname or "localhost"
-    es_port = parsed_url.port or 9200
-
-    runtime_env = {
-            "storage": {
-                "source_path": str(_tests_root() / "data" / "input"),
-                "source_format": "parquet",
-                "output_path": str(_tests_root() / "data" / "output"),
-                "output_format": "parquet"
-            },
-            "execution": {
-                "audit_log_path": str(_tests_root() / "data" / "output" / "_audit"),
-                "partitioning": {
-                    "partition_column": "uf_internacao",
-                    "filter_partitions": ["BA", "SP", "BU"]
-                }
-            },
-            "specification": {
-                "indexing_path": str(_shared_configs_root() / index_spec_file),
-                "linkage_path": str(_shared_configs_root() / linkage_spec_file)
-            },
-            "spark": {
-                "spark_configs": {
-                    "spark.master": "local[*]",
-                    "spark.sql.shuffle.partitions": "2",
-                    "spark.ui.enabled": "false",
-                    "spark.jars.packages": "org.elasticsearch:elasticsearch-spark-30_2.12:9.1.8",
-                    "spark.port.maxRetries": "100"
-                }
-            },
-            "elasticsearch": {
-                "host": es_host,
-                "port": es_port,
-                "es_connection_url": ES_URL,
-                "wan_only": True,
-                "search_strategy": "multisearch" 
-            }
-        }
-    temp_file = tempfile.NamedTemporaryFile(mode="w", suffix=".yml", delete=False)
-    with temp_file:
-        yaml.safe_dump(runtime_env, temp_file, sort_keys=False)
-    return Path(temp_file.name)
+def _read_yaml(file_path: Path) -> dict:
+    with open(file_path) as f:
+        return yaml.safe_load(f)
 
 
 def _index_already_populated(index_name: str, expected_docs: int) -> bool:
@@ -95,13 +46,8 @@ def _index_already_populated(index_name: str, expected_docs: int) -> bool:
         return False
 
 
-def _read_index_spec(spec_path: Path) -> dict:
-    with open(spec_path) as f:
-        return yaml.safe_load(f)
-
-
 def run_indexing_step(runtime_env_path: Path) -> None:
-    logger.info("Passo 1/2: Disparando processo de Indexação em Massa (Bulk) no ES...")
+    logger.info(f"Passo 1/2: Disparando processo de Indexação em Massa (Bulk) no ES usando {runtime_env_path.name}...")
     result = subprocess.run(
         [
             "poetry", "run", "python", "-m", "cli", "indexing",
@@ -116,7 +62,7 @@ def run_indexing_step(runtime_env_path: Path) -> None:
 
 
 def run_linkage_step(runtime_env_path: Path) -> None:
-    logger.info("Passo 2/2: Disparando motor de Record Linkage das fontes Parquet...")
+    logger.info(f"Passo 2/2: Disparando motor de Record Linkage usando {runtime_env_path.name}...")
     result = subprocess.run(
         [
             "poetry", "run", "python", "-m", "cli", "linkage",
@@ -135,9 +81,9 @@ def verify_and_validate_e2e_results(
     linkage_spec_path: Path,
     base_output_path: Path,
 ) -> None:
-    logger.info("Iniciando varredura e validação pós-execução nos volumes compartilhados...")
-
-    index_spec = _read_index_spec(index_spec_path)
+    logger.info("Iniciando varredura e validação pós-execução nos volumes compartilhados...")   
+    
+    index_spec = _read_yaml(index_spec_path)
     index_name = index_spec["index_config"]["name"]
 
     # 1. Validação no Elasticsearch
@@ -148,9 +94,8 @@ def verify_and_validate_e2e_results(
     logger.info(f"Auditoria ES: Encontrados {total_docs} documentos no índice '{index_name}'.")
     assert total_docs > 0, f"Índice '{index_name}' está vazio após a execução."
 
-    # 2. Validação no Disco (Leitura adaptada à nova árvore profunda por projeto/job/unit/phase)
-    with open(linkage_spec_path) as f:
-        linkage_spec = yaml.safe_load(f)
+    # 2. Validação no Disco
+    linkage_spec = _read_yaml(linkage_spec_path)
 
     source_table = linkage_spec["source_table"]
     target_es_index = linkage_spec["target_es_index"]
@@ -188,10 +133,20 @@ def verify_and_validate_e2e_results(
 
         logger.info("Amostra dos Pares Identificados e Armazenados:")
         for i, row in enumerate(rows):
+            row_dict = row.asDict()
+            
+            # Extração agnóstica das chaves independentemente do domínio (Nascimento, Acidente, etc)
+            source_keys = [k for k in row_dict.keys() if k.startswith("source_") and not k.startswith("source_uf")]
+            candidate_keys = [k for k in row_dict.keys() if k.startswith("candidate_")]
+            
+            src_col = source_keys[0] if source_keys else "source_id"
+            cand_col = candidate_keys[0] if candidate_keys else "candidate_id"
+            
             logger.info(
-                f"  [Par #{i + 1}] Origem ID: {row.source_codigo_internacao} "
-                f"-> Candidato ES ID: {row.candidate_codigo_nascimento} "
-                f"| Score: {row.match_score} | Fase: {row.phase_match}"
+                f"  [Par #{i + 1}] Origem ({src_col}): {row_dict.get(src_col, 'N/A')} "
+                f"-> Candidato ES ({cand_col}): {row_dict.get(cand_col, 'N/A')} "
+                f"| Score: {row_dict.get('match_score', 'N/A')} "
+                f"| Fase: {row_dict.get('phase_match', 'N/A')}"
             )
             
     finally:
@@ -199,63 +154,81 @@ def verify_and_validate_e2e_results(
 
 
 def _parse_args() -> argparse.Namespace:
-    parser = argparse.ArgumentParser(description="CIDACS-RL E2E Pipeline Runner")
+    parser = argparse.ArgumentParser(description="CIDACS-RL E2E Pipeline Runner Agnóstico")
     parser.add_argument(
-        "--skip-indexing",
-        action="store_true",
-        help="Pula o passo de indexação. Útil quando o índice já está populado.",
+        "--env-name",
+        type=str,
+        required=True,
+        help="Nome do arquivo YAML de ambiente localizado na pasta configs (ex: linkage_acidentes_obitos_env.yml)",
     )
     parser.add_argument(
         "--skip-linkage",
         action="store_true",
-        help="Pula o passo de linkage. Útil para validar apenas a indexação.",
-    )
-    parser.add_argument(
-        "--auto-skip-indexing",
-        action="store_true",
-        help=(
-            "Verifica automaticamente se o índice já está populado e pula a "
-            "indexação se estiver. Comportamento idempotente."
-        ),
+        help="Pula o passo de linkage e sua validação de disco. Útil para executar apenas a indexação.",
     )
     return parser.parse_args()
 
 
 if __name__ == "__main__":
     args = _parse_args()
-    runtime_env_path = _build_runtime_env_config()
+    
+    # 1. Resolve o path do Env File passado pelo usuário/Makefile
+    env_filename = args.env_name if args.env_name.endswith((".yml", ".yaml")) else f"{args.env_name}.yml"
+    runtime_env_path = _configs_root() / env_filename
+    
+    if not runtime_env_path.exists():
+        logger.error(f"Arquivo de ambiente não encontrado: {runtime_env_path}")
+        sys.exit(1)
+
     try:
         logger.info("=========================================================================")
-        logger.info("               INICIANDO PIPELINE DE INTEGRAÇÃO FIM-A-FIM                ")
+        logger.info(f"       INICIANDO PIPELINE DE INTEGRAÇÃO FIM-A-FIM: {env_filename}       ")
         logger.info("=========================================================================")
 
-        index_spec_path = _shared_configs_root() / index_spec_file
-        linkage_spec_path = _shared_configs_root() / linkage_spec_file
+        # 2. Extrai os paths de especificação de dentro do arquivo de env selecionado
+        env_config = _read_yaml(runtime_env_path)
+        project_root = _tests_root().parent  # Assume que os caminhos no yaml são relativos à raiz do projeto
+        
+        
+        
+        # Resolve os caminhos
+        idx_path_str = env_config["specification"]["indexing_path"].lstrip("/")
+        lnk_path_str = env_config["specification"]["linkage_path"].lstrip("/")
 
-        # --- Passo 1: Indexação ---
-        skip_indexing = args.skip_indexing
-        if args.auto_skip_indexing and not skip_indexing:
-            index_spec = _read_index_spec(index_spec_path)
-            index_name = index_spec["index_config"]["name"]
-            skip_indexing = _index_already_populated(index_name, expected_docs=100)
+        index_spec_path = project_root / idx_path_str
+        linkage_spec_path = project_root / lnk_path_str
+
+        print(f"Ambiente selecionado: {env_filename}"
+              f"\n- Especificação de Indexação: {index_spec_path}"
+              f"\n- Especificação de Linkage: {linkage_spec_path}\n")
+
+        # --- Passo 1: Indexação  ---
+        index_spec = _read_yaml(index_spec_path)
+        index_name = index_spec["index_config"]["name"]
+        
+        # Assume que o índice já está populado se tiver mais de 100 documentos
+        skip_indexing = _index_already_populated(index_name, expected_docs=100)
 
         if skip_indexing:
-            logger.info("Passo 1/2: Indexação ignorada (--skip-indexing ou índice já populado).")
+            logger.info("Passo 1/2: Indexação ignorada (o índice já está devidamente populado).")
         else:
             run_indexing_step(runtime_env_path)
 
         # --- Passo 2: Linkage ---
         if args.skip_linkage:
-            logger.info("Passo 2/2: Linkage ignorado (--skip-linkage).")
+            logger.info("Passo 2/2: Linkage ignorado via flag (--skip-linkage).")
         else:
             run_linkage_step(runtime_env_path)
 
         # --- Passo 3: Validação ---
-        verify_and_validate_e2e_results(
-            index_spec_path=index_spec_path,
-            linkage_spec_path=linkage_spec_path,
-            base_output_path=_tests_root() / "data" / "output",
-        )
+        if not args.skip_linkage:
+            verify_and_validate_e2e_results(
+                index_spec_path=index_spec_path,
+                linkage_spec_path=linkage_spec_path,
+                base_output_path=_tests_root() / "data" / "output",
+            )
+        else:
+            logger.info("Atenção: Validação dos resultados em disco foi ignorada pois o Linkage não foi executado.")
 
         logger.info("=========================================================================")
         logger.info("     STATUS FINAL: SUCESSO")
@@ -265,8 +238,3 @@ if __name__ == "__main__":
     except Exception as e:
         logger.error(f"❌ Falha no Pipeline de Integração E2E: {e}")
         sys.exit(1)
-    finally:
-        try:
-            runtime_env_path.unlink(missing_ok=True)
-        except Exception:
-            pass

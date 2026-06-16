@@ -5,17 +5,17 @@ SPARK_PKG  := spark_packages
 
 .PHONY: all build clean help env-check clean-docker prepare-dirs stop-all stop generate-data
 .PHONY: up up-es up-ui up-jupyter down restart ps logs logs-engine logs-es logs-cerebro logs-jupyter shell-engine shell-es shell-jupyter
-.PHONY: test test-integration test-unit run-e2e-pipeline run-linkage-pipeline
+.PHONY: test test-integration test-unit run-e2e-pipeline run-e2e-indexing-only
 
 all: help
 
 # ─── 1. GERENCIAMENTO DO LABORATÓRIO E2E (DOCKER COMPOSE) ───────────────────────
 
 up: env-check
-	@echo "--> Subindo o ecossistema base de laboratório (Elasticsearch + Engine)..."
+	@echo "--> Subindo o ambiente de teste (Elasticsearch + Engine)..."
 	$(COMPOSE) --profile elasticsearch --profile runner up -d --remove-orphans
 	@echo "Verificando disponibilidade do Elasticsearch..."
-	@timeout=60; \
+	@timeout=90; \
 	while ! docker inspect --format='{{.State.Health.Status}}' cidacsrl_elasticsearch 2>/dev/null | grep -q healthy; do \
 		sleep 2; \
 		timeout=$$((timeout-2)); \
@@ -24,23 +24,29 @@ up: env-check
 			exit 1; \
 		fi; \
 	done
-	@echo "\n✅ Laboratório Core pronto!"
-	@echo "   - Elasticsearch : http://localhost:9200"
+	@echo "\n✅ Ambiente de teste disponível!"
+	@echo "\n- Elasticsearch rodando em: http://localhost:9200. Use 'make up-ui' para acessar o Cerebro."
+	@echo "\n- Use 'make run-e2e-pipeline ENV=<arquivo.yml>' para rodar o pipeline de teste completo."
+	@echo "\n- Use 'make up-jupyter' para subir o ambiente interativo Jupyter Notebook."
+	@echo "\n- Use 'make logs' para acompanhar os logs em tempo real."
+	@echo "\n- Use 'make down' para derrubar o ambiente quando terminar."
+	@echo "\n- Use 'make help' para ver todos os comandos disponíveis.\n"
 
 up-es: env-check
-	@echo "--> Subindo apenas o serviço do Elasticsearch..."
+	@echo "\n --> Subindo apenas o serviço do Elasticsearch..."
 	$(COMPOSE) up -d elasticsearch
 
 up-ui: env-check
-	@echo "--> Subindo ferramentas de monitoria Visual (Cerebro)..."
+	@echo "\n --> Subindo ferramentas de monitoria Visual (Cerebro)..."
 	$(COMPOSE) --profile ui up -d
 
 up-jupyter: env-check
-	@echo "--> Subindo ambiente interativo Jupyter Notebook..."
+	@echo "\n --> Subindo ambiente interativo Jupyter Notebook..."
+	@echo "Acessar via http://localhost:8888 (token disponível nos logs do container jupyter-notebook)"
 	$(COMPOSE) --profile jupyter up -d
 
 down:
-	@echo "--> Derrubando os contêineres locais do laboratório..."
+	@echo "--> Derrubando os contêineres locais do ambiente de teste..."
 	$(COMPOSE) --profile elasticsearch --profile runner --profile ui --profile jupyter down -v --remove-orphans
 
 restart: down up
@@ -52,7 +58,7 @@ logs:
 	$(COMPOSE) logs -f
 
 logs-engine:
-	$(COMPOSE) logs -f engine-runner
+	$(COMPOSE) logs -f runner
 
 logs-es:
 	$(COMPOSE) logs -f elasticsearch
@@ -75,34 +81,31 @@ shell-jupyter:
 # ─── 2. EXECUÇÃO DE PIPELINES E TESTES ─────────────────────────────────────────
 
 generate-data: up
-	@echo "--> A gerar bases de dados sintéticas (Faker) para os testes E2E..."
+	@echo "Gerando dados de teste..."
 	$(COMPOSE) exec cidacsrl_runner python core/tests/e2e/generate_e2e_data_acidentes.py
 
 run-e2e-pipeline: up
-	@echo "--> Disparando o Pipeline E2E Completo consumindo os samples de input..."
+	@if [ -z "$(ENV)" ]; then echo "❌ Erro: Variável ENV é obrigatória. Uso: make run-e2e-pipeline ENV=nome_do_arquivo.yml"; exit 1; fi
+	@echo "Pipeline executando: verificação de índice + linkage usando $(ENV)"
 	$(COMPOSE) exec cidacsrl_runner \
-		python core/tests/e2e/run_e2e_pipeline.py
+		python core/tests/e2e/run_e2e_pipeline.py --env-name $(ENV)
 
-run-e2e-linkage-only: up
-	@echo "--> Disparando o Pipeline E2E apenas com linkage..."
+run-e2e-indexing-only: up
+	@if [ -z "$(ENV)" ]; then echo "❌ Erro: Variável ENV é obrigatória. Uso: make run-e2e-indexing-only ENV=nome_do_arquivo.yml"; exit 1; fi
+	@echo "Pipeline executando apenas com indexação usando $(ENV)"
 	$(COMPOSE) exec cidacsrl_runner \
-		python core/tests/e2e/run_e2e_pipeline.py --skip-indexing
-
-run-e2e-auto: up
-	@echo "--> Disparando o Pipeline E2E com detecção automática..."
-	$(COMPOSE) exec cidacsrl_runner \
-		python core/tests/e2e/run_e2e_pipeline.py --auto-skip-indexing
+		python core/tests/e2e/run_e2e_pipeline.py --env-name $(ENV) --skip-linkage
 
 test: up
-	@echo "--> Executando toda a suíte de testes no ambiente global do contêiner..."
+	@echo "--> Executando toda a suíte de testes..."
 	$(COMPOSE) exec cidacsrl_runner pytest -v
 
 test-integration: up
-	@echo "--> Executando apenas os testes de integração..."
+	@echo "--> Executando testes de integração..."
 	$(COMPOSE) exec cidacsrl_runner pytest core/tests/integration/ -v
 
 test-unit: up
-	@echo "--> Executando apenas os testes unitários..."
+	@echo "--> Executando testes unitários..."
 	$(COMPOSE) exec cidacsrl_runner pytest core/tests/unit/ -v
 
 # ─── 3. COMPILAÇÃO, EMPACOTAMENTO E LIMPEZA ────────────────────────────────────
@@ -182,12 +185,11 @@ help:
 	@echo "  make shell-engine      - Abre terminal bash dentro do container Engine"
 	@echo ""
 	@echo "Execução de Pipelines e Testes:"
-	@echo "  make run-e2e-pipeline       - Roda a esteira fim-a-fim indexando e linkando os samples reais"
-	@echo "  make run-e2e-linkage-only   - Roda apenas o linkage (assume índice já populado)"
-	@echo "  make run-e2e-auto           - Roda o pipeline detectando automaticamente se reindexar"
-	@echo "  make test                   - Roda todos os testes (Unitários e Integração) via contêiner"
-	@echo "  make test-integration  - Executa apenas os testes da camada de integração"
-	@echo "  make test-unit         - Executa apenas as validações unitárias em memória"
+	@echo "  make run-e2e-pipeline ENV=<arquivo.yml>    - Roda a esteira fim-a-fim (pula indexação se já populado)"
+	@echo "  make run-e2e-indexing-only ENV=<arquivo.yml> - Roda apenas a indexação"
+	@echo "  make test                                  - Roda todos os testes (Unitários e Integração) via contêiner"
+	@echo "  make test-integration                      - Executa apenas os testes da camada de integração"
+	@echo "  make test-unit                             - Executa apenas as validações unitárias em memória"
 	@echo ""
 	@echo "Compilação e Faxina:"
 	@echo "  make build             - Prepara pacote Wheel e dependências via Poetry"
