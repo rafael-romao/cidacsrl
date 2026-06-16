@@ -101,7 +101,7 @@ def run_indexing_step(runtime_env_path: Path) -> None:
     logger.info("Passo 1/2: Disparando processo de Indexação em Massa (Bulk) no ES...")
     result = subprocess.run(
         [
-            "poetry", "run", "python", "-m", "cidacsrl_rlp.cli", "indexing",
+            "poetry", "run", "python", "-m", "cli", "indexing",
             "--env-config", str(runtime_env_path)
         ],
         check=False,
@@ -116,7 +116,7 @@ def run_linkage_step(runtime_env_path: Path) -> None:
     logger.info("Passo 2/2: Disparando motor de Record Linkage das fontes Parquet...")
     result = subprocess.run(
         [
-            "poetry", "run", "python", "-m", "cidacsrl_rlp.cli", "linkage",
+            "poetry", "run", "python", "-m", "cli", "linkage",
             "--env-config", str(runtime_env_path)
         ],
         check=False,
