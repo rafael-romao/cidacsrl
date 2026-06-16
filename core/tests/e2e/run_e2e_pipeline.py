@@ -14,6 +14,8 @@ logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(
 logger = logging.getLogger("CIDACS-RL-E2E")
 
 ES_URL = os.environ.get("CIDACSRL_ES_URL", "http://elasticsearch:9200")
+linkage_spec_file = "linkage_acidentes_obitos.yml"
+index_spec_file = "obitos_example_index.yml"
 
 
 def _tests_root() -> Path:
@@ -32,6 +34,7 @@ def _build_runtime_env_config() -> Path:
     parsed_url = urlparse(ES_URL)
     es_host = parsed_url.hostname or "localhost"
     es_port = parsed_url.port or 9200
+
     runtime_env = {
             "storage": {
                 "source_path": str(_tests_root() / "data" / "input"),
@@ -47,8 +50,8 @@ def _build_runtime_env_config() -> Path:
                 }
             },
             "specification": {
-                "indexing_path": str(_shared_configs_root() / "index_spec_local.yml"),
-                "linkage_path": str(_shared_configs_root() / "linkage_spec_local.yml")
+                "indexing_path": str(_shared_configs_root() / index_spec_file),
+                "linkage_path": str(_shared_configs_root() / linkage_spec_file)
             },
             "spark": {
                 "spark_configs": {
@@ -226,8 +229,8 @@ if __name__ == "__main__":
         logger.info("               INICIANDO PIPELINE DE INTEGRAÇÃO FIM-A-FIM                ")
         logger.info("=========================================================================")
 
-        index_spec_path = _shared_configs_root() / "index_spec_local.yml"
-        linkage_spec_path = _shared_configs_root() / "linkage_spec_local.yml"
+        index_spec_path = _shared_configs_root() / index_spec_file
+        linkage_spec_path = _shared_configs_root() / linkage_spec_file
 
         # --- Passo 1: Indexação ---
         skip_indexing = args.skip_indexing

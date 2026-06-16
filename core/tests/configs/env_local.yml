@@ -13,7 +13,7 @@ execution:
 
 specification:
   indexing_path: "/tests/configs/shared/index_spec_local.yml"
-  linkage_path: "/tests/configs/shared/linkage_spec_local.yml"
+  linkage_path: "/tests/configs/shared/linkage_internacao_nascimentos.yml"
 
 spark:
   spark_configs:
