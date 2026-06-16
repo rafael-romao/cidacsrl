@@ -3,7 +3,7 @@ PYTHON     := python
 COMPOSE    := docker compose -f core/tests/enviroment/docker-compose.yml
 SPARK_PKG  := spark_packages
 
-.PHONY: all build clean help env-check clean-docker prepare-dirs stop-all stop
+.PHONY: all build clean help env-check clean-docker prepare-dirs stop-all stop generate-data
 .PHONY: up up-es up-ui up-jupyter down restart ps logs logs-engine logs-es logs-cerebro logs-jupyter shell-engine shell-es shell-jupyter
 .PHONY: test test-integration test-unit run-e2e-pipeline run-linkage-pipeline
 
@@ -74,6 +74,10 @@ shell-jupyter:
 
 # ─── 2. EXECUÇÃO DE PIPELINES E TESTES ─────────────────────────────────────────
 
+generate-data: up
+	@echo "--> A gerar bases de dados sintéticas (Faker) para os testes E2E..."
+	$(COMPOSE) exec cidacsrl_runner python core/tests/e2e/generate_e2e_data_acidentes.py
+
 run-e2e-pipeline: up
 	@echo "--> Disparando o Pipeline E2E Completo consumindo os samples de input..."
 	$(COMPOSE) exec cidacsrl_runner \
@@ -109,7 +113,7 @@ build:
 
 build-docker:
 	@echo "--> Reconstruindo TODAS as imagens do ecossistema (PIP Global + Profiles)..."
-	$(COMPOSE) --profile elasticsearch --profile runner --profile ui --profile jupyter build --no-cache
+	$(COMPOSE) --profile elasticsearch --profile runner --profile ui --profile jupyter build
 	@echo "✅ Imagens reconstruídas com sucesso!"
 
 clean:
