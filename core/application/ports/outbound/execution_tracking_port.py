@@ -13,6 +13,11 @@ class ExecutionTrackingPort(ABC):
         pass
 
     @abstractmethod
+    def get_all_work_units(self, job_id: str) -> List[WorkUnitExecutionRecord]:
+        """Retorna todos os registros de execução de um job."""
+        pass
+
+    @abstractmethod
     def update_work_unit_status(
         self, 
         job_id: str, 

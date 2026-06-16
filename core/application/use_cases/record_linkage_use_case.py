@@ -36,7 +36,7 @@ class RecordLinkageUseCase:
 
     def execute(self, specification: SequentialLinkageSpecification, job_id: str, execution_config: Any) -> None:
         project_name = specification.linkage_project_name
-        logger.info(f"[{job_id}] Iniciando Linkage '{project_name}'.")
+        logger.info(f"[{job_id}] - Linkage '{project_name}' - Fonte: '{specification.source_table}' - Índice: '{specification.target_es_index}'.")
 
         
         work_stream = self.orchestrator.prepare_and_route(
@@ -44,13 +44,20 @@ class RecordLinkageUseCase:
             execution_config=execution_config
         )
 
-        work_units = list(work_stream)
-        total_units = len(work_units)
         
-        for completed_units, payload in work_stream:
+        total_units = len(self.tracking.get_all_work_units(job_id))
+        total_start_time = time.time()
+
+        for payload in work_stream:
+            all_units = self.tracking.get_all_work_units(job_id)
+            pending_count = len([u for u in all_units if u.status == WorkUnitStatus.PENDING])
             unit_start_time = time.time()
-            
-            self.tracking.log_work_unit_start(job_id, payload.unit_id, total_units - completed_units)
+
+            self.tracking.log_work_unit_start(
+                job_id, 
+                payload.unit_id, 
+                pending_count
+            )
            
             df_remaining = payload.dataframe
             total_unit_persisted = 0
@@ -58,25 +65,29 @@ class RecordLinkageUseCase:
 
             for phase_index, phase_context in enumerate(specification.build_blocking_phase_contexts(), start=1):
                 if not phase_context.enabled:
-                    continue
+                    continue                
                 
                 phase_start_time = time.time()
-                remaining_count = df_remaining.count()         
-
+                remaining_count = df_remaining.count()
+                
                 if remaining_count == 0:                    
                     break
                 
                 
-                candidates_df = self.get_candidates.get_candidates(df_remaining, phase_context)     
+                candidates_df = self.get_candidates.get_candidates(df_remaining, phase_context)
                 
-                scored_df = self.scoring.calculate_score(candidates_df, phase_context)                
+                
+                scored_df = self.scoring.calculate_score(candidates_df, phase_context)
+                
                 
                 matched_pairs = self.transformation.filter_matches_by_threshold(
                     dataset=scored_df, 
                     threshold=phase_context.strong_match_score_threshold
-                )               
+                )
                 
-                matched_pairs.cache()                
+               
+                matched_pairs.cache()
+                
                
                 phase_marked = self.transformation.add_phase_marker(matched_pairs, phase_context.phase_name)
                 
@@ -104,7 +115,8 @@ class RecordLinkageUseCase:
                     records_in=remaining_count,
                     records_out=df_remaining.count(),
                     duration=time.time() - phase_start_time
-                )         
+                )           
+
 
 
             
@@ -115,3 +127,8 @@ class RecordLinkageUseCase:
                 records_processed=total_unit_persisted
             )
             self.tracking.log_work_unit_completion(payload.unit_id, total_unit_persisted, time.time() - unit_start_time)
+
+            total_duration = time.time() - total_start_time
+            logger.info("=========================================================================")
+            logger.info(f" Tempo de Execução do Record Linkage: {total_duration:.2f}s")
+            logger.info("=========================================================================")

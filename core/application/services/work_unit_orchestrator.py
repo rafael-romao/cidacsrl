@@ -50,7 +50,7 @@ class WorkUnitOrchestrator:
 
         # 5. Recupera as fatias pendentes e as consome sob demanda (Lazy Loading)
         pending_records = self.tracking.get_pending_work_units(job_id)
-        logger.info(f"[{job_id}] Escopo de execução resolvido. Fatias pendentes de processamento: {len(pending_records)}")
+        logger.info(f"[{job_id}] Fatias pendentes de processamento: {len(pending_records)}")
 
         for record in pending_records:
             # Altera transicionalmente para PROCESSING imediatamente antes de ler os dados

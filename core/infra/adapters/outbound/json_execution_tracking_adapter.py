@@ -10,13 +10,14 @@ from core.domain.models.tracking.work_unit import WorkUnitExecutionRecord, WorkU
 logger = logging.getLogger("Adapter: JSON Execution Tracking")
 
 class JSONExecutionTrackingAdapter(ExecutionTrackingPort):
-    def __init__(self, tracking_directory: str):
+    def __init__(self, tracking_directory: str, project_name: str):
         self.tracking_directory = tracking_directory
-        if self.tracking_directory:
-            os.makedirs(self.tracking_directory, exist_ok=True)
+        self.project_name = project_name
+        self.project_path = os.path.join(self.tracking_directory, self.project_name)
+        os.makedirs(self.project_path, exist_ok=True)
 
     def _resolve_checkpoint_path(self, job_id: str) -> str:
-        return os.path.join(self.tracking_directory, f"{job_id}_state.json")
+        return os.path.join(self.project_path, f"{job_id}_state.json")
 
     def _read_raw_file(self, file_path: str) -> Dict[str, Any]:
         if not os.path.exists(file_path):
@@ -54,6 +55,17 @@ class JSONExecutionTrackingAdapter(ExecutionTrackingPort):
                 pending_records.append(record)
 
         return pending_records
+    
+    def get_all_work_units(self, job_id: str) -> List[WorkUnitExecutionRecord]:
+        file_path = self._resolve_checkpoint_path(job_id)
+        state_data = self._read_raw_file(file_path)
+        
+        
+        records = []
+        for unit_data in state_data.values():
+            records.append(WorkUnitExecutionRecord.from_dict(unit_data))
+            
+        return records
 
     def update_work_unit_status(
         self, 
@@ -102,7 +114,8 @@ class JSONExecutionTrackingAdapter(ExecutionTrackingPort):
         logger.info("└──────────────────────────────────────────────────────────┘")
 
     def log_phase_telemetry(self, phase_index: int, phase_name: str, records_in: int, records_out: int, duration: float) -> None:
-        logger.info(f"  ├── [Fase {phase_index}: {phase_name:<12}] -> Entrantes: {records_in:<5} | Links: {records_out:<4} | Duração: {duration:.2f}s")
+        logger.info(f"  ├── [Fase {phase_index}: {phase_name:<12}] -> Entrantes: {records_in:<5} | Pares: {records_out:<4} | Duração: {duration:.2f}s")
 
-    def log_work_unit_completion(self, unit_id: str, total_links: int, duration: float) -> None:
-        logger.info(f"  └── [Consolidado]   -> Total Links Gerados: {total_links:<4} | Tempo Total do Bloco: {duration:.2f}s\n")
+    def log_work_unit_completion(self, unit_id: str, total_pares: int, duration: float) -> None:
+        throughput = total_pares / duration if duration > 0 else 0
+        logger.info(f"  └── [Consolidado]   -> Total Pares Gerados: {total_pares:<4} | Tempo Total do Bloco: {duration:.2f}s | Throughput: {throughput:.2f} reg/s\n")

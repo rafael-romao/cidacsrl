@@ -73,7 +73,8 @@ def bootstrap_sequential_linkage(
     try:       
         
         tracking_adapter = JSONExecutionTrackingAdapter(
-            tracking_directory=execution_config.audit_log_path
+            tracking_directory=execution_config.audit_log_path,
+            project_name=linkage_spec.linkage_project_name
         )
 
         ingestion_adapter = SparkDataIngestionAdapter(

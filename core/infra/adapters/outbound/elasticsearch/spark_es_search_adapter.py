@@ -55,8 +55,7 @@ class SparkESSearchAdapter(GetCandidatesPort):
         # Resgata o tamanho limite do lote para a API _msearch (padrão 100)
         batch_size = config.get("msearch_batch_size", 100)
 
-        def partition_search(spark_partition_iterator):
-            print(f"Partition running on host: {socket.gethostname()}")
+        def partition_search(spark_partition_iterator):            
             es_client = get_es_client(config)
             
             if es_client is None:
