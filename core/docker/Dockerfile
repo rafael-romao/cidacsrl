@@ -1,100 +1,106 @@
-# Build do pacote Python
-FROM python:3.10-slim AS builder
+# ─── 1. BUILD DO PACOTE PYTHON (STAGE INICIAL) ────────────────────────────────
+FROM python:3.12-slim AS builder
 
 WORKDIR /build
 RUN pip install --no-cache-dir build
 
-COPY pyproject.toml ./
-COPY cidacsrl_rlp ./cidacsrl_rlp
+# Copia os manifestos do Poetry
+COPY pyproject.toml poetry.lock* ./
 
+# Copia os módulos mapeados diretamente na raiz do projeto
+COPY core ./core
+COPY cleaning ./cleaning
+COPY deduplicating ./deduplicating
+COPY cli.py ./cli.py
+COPY README.md ./README.md
+
+# Constrói o pacote Wheel usando o backend do Poetry configurado
 RUN python -m build && \
     mkdir -p spark_packages && \
     python -m pip download . -d spark_packages/ && \
     cp dist/*.whl spark_packages/
 
-# Download do JAR do Elasticsearch Spark Connector
-FROM python:3.10-slim AS es-jar-downloader
 
+# ─── 2. DOWNLOAD DOS JARS ADICIONAIS DE INFRAESTRUTURA ────────────────────────
+FROM python:3.12-slim AS es-jar-downloader
 RUN apt-get update && \
     apt-get install -y --no-install-recommends curl && \
     rm -rf /var/lib/apt/lists/*
-
 RUN curl -fL "https://repo1.maven.org/maven2/org/elasticsearch/elasticsearch-spark-30_2.12/9.2.8/elasticsearch-spark-30_2.12-9.2.8.jar" \
     -o /elasticsearch-spark-30_2.12-9.2.8.jar
 
-
-# Download do JAR do GraphFrames
-FROM python:3.10-slim AS graphframes-jar-downloader
-
+FROM python:3.12-slim AS graphframes-jar-downloader
 RUN apt-get update && \
     apt-get install -y --no-install-recommends curl && \
     rm -rf /var/lib/apt/lists/*
-
 RUN curl -fL "https://repos.spark-packages.org/graphframes/graphframes/0.8.2-spark3.2-s_2.12/graphframes-0.8.2-spark3.2-s_2.12.jar" \
-    -o /graphframes-0.8.2.jar
+    -o /graphframes-0.8.2-spark3.2-s_2.12.jar
 
 
-# Runtime Spark
-FROM apache/spark:3.5.8-python3 AS runtime-spark
-
+# ─── 3. AMBIENTE DE RUNTIME SPARK BASE (PYTHON 3.12) ──────────────────────────
+FROM apache/spark:3.5.0 AS runtime-spark
 USER root
-WORKDIR /app
 
-ENV PYTHONPATH=/app:$PYTHONPATH
-ENV PATH=/opt/spark/bin:$PATH
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    python3.12 \
+    python3-pip \
+    && rm -rf /var/lib/apt/lists/*
 
-COPY --from=builder /build/spark_packages /opt/spark/pyfiles
-RUN pip install --no-cache-dir /opt/spark/pyfiles/*.whl
+ENV PYSPARK_PYTHON=python3.12
+ENV PYSPARK_DRIVER_PYTHON=python3.12
 
-COPY cidacsrl_rlp/ ./cidacsrl_rlp/
-COPY pyproject.toml ./
-
-EXPOSE 4040
-USER spark
-
-
-# Runtime Spark + GraphFrames (deduplication)
-FROM runtime-spark AS runtime-spark-graphframes
-
-USER root
-COPY --from=graphframes-jar-downloader /graphframes-0.8.2.jar /opt/spark/jars/
+COPY --from=graphframes-jar-downloader /graphframes-0.8.2-spark3.2-s_2.12.jar /opt/spark/jars/
 RUN pip install --no-cache-dir graphframes
 USER spark
 
-# Runtime Spark + ES JAR (indexing, linkage)
-FROM runtime-spark AS runtime-spark-es
 
+# ─── 4. AMBIENTE DE RUNTIME SPARK + ELASTICSEARCH ─────────────────────────────
+FROM runtime-spark AS runtime-spark-es
 USER root
 COPY --from=es-jar-downloader /elasticsearch-spark-30_2.12-9.2.8.jar /opt/spark/jars/
 USER spark
 
 
-# Runner para Lab
-# Runner para desenvolvimento (com Poetry e dependências de dev)
+# ─── 5. RUNNER PARA DESENVOLVIMENTO LOCAL E TESTES (LAB - PIP GLOBAL) ─────────
 FROM python:3.12-slim AS runner-dev
 
 WORKDIR /app
 
-RUN apt-get update && apt-get install -y default-jdk procps curl
+# Instala dependências do sistema necessárias para rodar o Spark local em Java
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    default-jdk \
+    procps \
+    curl \
+    && rm -rf /var/lib/apt/lists/*
 
-COPY pyproject.toml poetry.lock* ./
-
-
+# Instala o Poetry apenas para ferramentas auxiliares se necessário, mas não para o ambiente
 RUN pip install --no-cache-dir poetry
 
+# Copia os manifestos para a raiz temporária do container
+COPY pyproject.toml poetry.lock* ./
 
-RUN poetry install --no-root
+# EXPORTAÇÃO E INSTALAÇÃO VIA PIP: 
+RUN poetry config virtualenvs.create false && \
+    poetry install --no-root --with dev,doc
 
+# Copia todo o código-fonte mapeado na raiz para o container
+COPY core ./core
+COPY cleaning ./cleaning
+COPY deduplicating ./deduplicating
+COPY cli.py ./cli.py
+COPY README.md ./README.md
 
-COPY . .
+# Instala o próprio projeto em modo editável via pip para registrar o mapeamento de pacotes
+RUN pip install -e .
 
+# Define a raiz /app como o escopo global de imports do Python
 ENV PYTHONPATH=/app
 
 CMD ["tail", "-f", "/dev/null"]
 
 
-# Jupyter
-FROM python:3.10-slim AS jupyter-dev
+# ─── 6. AMBIENTE INTERATIVO JUPYTER NOTEBOOK (LAB - PYTHON 3.12) ──────────────
+FROM python:3.12-slim AS jupyter-dev
 
 WORKDIR /app
 
@@ -106,24 +112,22 @@ ENV JAVA_HOME=/usr/lib/jvm/java-21-openjdk-amd64
 ENV PATH=$JAVA_HOME/bin:$PATH
 ENV PYTHONPATH=/app:$PYTHONPATH
 
+# Recupera o pacote wheel gerado no estágio builder
 COPY --from=builder /build/spark_packages /tmp/spark_packages
 
+# Instala as dependências de runtime e do ecossistema de análise interativa
 RUN pip install --no-cache-dir \
         /tmp/spark_packages/*.whl \
         jupyterlab \
         pyspark==3.5.8 && \
     rm -rf /tmp/spark_packages
 
-COPY cidacsrl_rlp/ ./cidacsrl_rlp/
-COPY pyproject.toml ./
-COPY --from=es-jar-downloader /elasticsearch-spark-30_2.12-9.2.8.jar /opt/spark/jars/
+# Copia os mesmos módulos para que fiquem disponíveis para import no Jupyter
+COPY core ./core
+COPY cleaning ./cleaning
+COPY deduplicating ./deduplicating
+COPY cli.py ./cli.py
 
 EXPOSE 8888
 
-CMD ["jupyter", "lab", \
-     "--ip=0.0.0.0", \
-     "--port=8888", \
-     "--no-browser", \
-     "--allow-root", \
-     "--ServerApp.token=''", \
-     "--ServerApp.password=''"]
+CMD ["jupyter", "lab", "--ip=0.0.0.0", "--port=8888", "--no-browser", "--allow-root", "--NotebookApp.token=''"]
