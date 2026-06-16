@@ -1,6 +1,9 @@
 import os
 from pathlib import Path
 import pytest
+from core.infra.configs.logging_config import configure_logging
+
+configure_logging()
 
 @pytest.fixture(scope="session")
 def test_paths():

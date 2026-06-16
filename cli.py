@@ -3,10 +3,11 @@ import logging
 import sys
 
 from core.infra.configs.loader import load_yaml
+from core.infra.configs.logging_config import configure_logging
 from core.infra.bootstrappers.indexing_bootstrapper import bootstrap_elasticsearch_indexing
 from core.infra.bootstrappers.linkage_bootstrapper import bootstrap_sequential_linkage
 
-logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s", handlers=[logging.StreamHandler(sys.stdout)])
+configure_logging()
 logger = logging.getLogger("CLI")
 
 def main():

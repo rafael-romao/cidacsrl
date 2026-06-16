@@ -8,7 +8,9 @@ from pathlib import Path
 from pyspark.sql import SparkSession
 from elasticsearch import Elasticsearch
 
-logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
+from core.infra.configs.logging_config import configure_logging
+
+configure_logging()
 logger = logging.getLogger("E2E Pipeline Runner")
 
 ES_URL = os.environ.get("CIDACSRL_ES_URL", "http://elasticsearch:9200")

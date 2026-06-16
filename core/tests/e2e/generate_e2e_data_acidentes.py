@@ -3,6 +3,11 @@ import random
 import pandas as pd
 from faker import Faker
 from pathlib import Path
+from core.infra.configs.logging_config import configure_logging
+
+configure_logging()
+logger = logging.getLogger("Script::DataGenerator")
+
 
 # Configurações iniciais
 NUM_RECORDS_TARGET = 10000  # Tamanho do índice do ES (Óbitos)
@@ -35,7 +40,7 @@ def introduce_noise(text: str) -> str:
 
 def generate_obitos(n_records: int) -> pd.DataFrame:
     """Gera a base de óbitos que será indexada no Elasticsearch."""
-    print(f"Gerando {n_records} registros para Óbitos (Index)...")
+    logger.info(f"Gerando {n_records} registros para Óbitos (Index)...")
     data = []
     for _ in range(n_records):
         data.append({
@@ -54,8 +59,8 @@ def generate_acidentes(df_obitos: pd.DataFrame, n_total: int, overlap_ratio: flo
     """Gera a base de acidentes com 70% de duplicatas (vítimas fatais) e 30% de sobreviventes (sem link)."""
     n_overlap = int(n_total * overlap_ratio)
     n_new = n_total - n_overlap
-    print(f"Gerando {n_total} registros para Acidentes (Source)...")
-    print(f" -> {n_overlap} baseados no Index (com ruído) e {n_new} novos Fakes (sobreviventes).")
+    logger.info(f"Gerando {n_total} registros para Acidentes (Source)...")
+    logger.info(f" -> {n_overlap} baseados no Index (com ruído) e {n_new} novos Fakes (sobreviventes).")
 
     # 1. Seleciona a amostra que será "linkada" (Vítimas que foram a óbito)
     df_overlap = df_obitos.sample(n=n_overlap, random_state=42).copy()
@@ -108,17 +113,17 @@ if __name__ == "__main__":
     
 
     # Check
-    print(f"Óbitos: {df_obitos.shape[0]} registros gerados.")
-    print(f"Acidentes: {df_acidentes.shape[0]} registros gerados.")
+    logger.info(f"Óbitos: {df_obitos.shape[0]} registros gerados.")
+    logger.info(f"Acidentes: {df_acidentes.shape[0]} registros gerados.")
 
     # Exportação em Parquet
     path_obitos = output_dir / "part-00000-obitos.parquet"
     path_acidentes = output_dir / "acidentes_example"
     
-    print(f"Salvando dados em {path_obitos} ")
+    logger.info(f"Salvando dados em {path_obitos} ")
     df_obitos.to_parquet(path_obitos, index=False)
     
-    print(f"Salvando dados em {path_acidentes} (particionado por uf_acidente)...")
+    logger.info(f"Salvando dados em {path_acidentes} (particionado por uf_acidente)...")
     df_acidentes.to_parquet(path_acidentes, partition_cols=["uf_acidente"], index=False)
     
-    print("✅ Bancos de Acidentes e Óbitos gerados com sucesso!")
+    logger.info("✅ Bancos de Acidentes e Óbitos gerados com sucesso!")
