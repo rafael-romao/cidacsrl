@@ -2,15 +2,15 @@ import pytest
 from unittest.mock import MagicMock, ANY
 from pyspark.sql import DataFrame
 
-from core.cidacsrl.application.use_cases.record_linkage_use_case import RecordLinkageUseCase
-from core.cidacsrl.application.services.work_unit_orchestrator import WorkUnitOrchestrator
-from core.cidacsrl.application.ports.outbound.data_persistence_port import DataPersistencePort
-from core.cidacsrl.application.ports.outbound.data_transformation_port import DataTransformationPort
-from core.cidacsrl.application.ports.outbound.get_candidates_port import GetCandidatesPort
-from core.cidacsrl.application.ports.outbound.scoring_port import ScoringPort
-from core.cidacsrl.application.ports.outbound.execution_tracking_port import ExecutionTrackingPort
-from core.cidacsrl.domain.models.linkage_specification import SequentialLinkageSpecification, BlockingPhaseContext
-from core.cidacsrl.domain.models.tracking.work_unit import WorkUnitPayload, WorkUnitStatus
+from core.application.use_cases.record_linkage_use_case import RecordLinkageUseCase
+from core.application.services.work_unit_orchestrator import WorkUnitOrchestrator
+from core.application.ports.outbound.data_persistence_port import DataPersistencePort
+from core.application.ports.outbound.data_transformation_port import DataTransformationPort
+from core.application.ports.outbound.get_candidates_port import GetCandidatesPort
+from core.application.ports.outbound.scoring_port import ScoringPort
+from core.domain.models.tracking.work_unit import WorkUnitPayload, WorkUnitStatus
+from core.application.ports.outbound.execution_tracking_port import ExecutionTrackingPort
+from core.domain.models.linkage_specification import SequentialLinkageSpecification, BlockingPhaseContext
 
 
 @pytest.fixture

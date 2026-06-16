@@ -3,7 +3,7 @@ from typing import List
 import pyspark.sql.functions as F
 from pyspark.sql import DataFrame
 
-from core.cidacsrl.application.ports.outbound.data_transformation_port import DataTransformationPort
+from core.application.ports.outbound.data_transformation_port import DataTransformationPort
 
 
 class SparkDataTransformationAdapter(DataTransformationPort):

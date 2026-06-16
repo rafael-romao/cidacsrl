@@ -1,7 +1,7 @@
 import pytest
 from unittest.mock import patch, Mock, ANY
-from core.cidacsrl.infra.bootstrappers.linkage_bootstrapper import bootstrap_sequential_linkage
-from core.cidacsrl.domain.models.linkage_specification import SequentialLinkageSpecification
+from core.infra.bootstrappers.linkage_bootstrapper import bootstrap_sequential_linkage
+from core.domain.models.linkage_specification import SequentialLinkageSpecification
 
 @pytest.fixture
 def mock_storage_config_data():

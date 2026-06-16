@@ -2,8 +2,8 @@ import logging
 from pathlib import Path
 from pyspark.sql import DataFrame
 
-from core.cidacsrl.application.ports.outbound.data_persistence_port import DataPersistencePort
-from core.cidacsrl.infra.configs.models.storage_config import OutputStorageConfig
+from core.application.ports.outbound.data_persistence_port import DataPersistencePort
+from core.infra.configs.models.storage_config import OutputStorageConfig
 
 logger = logging.getLogger(__name__)
 

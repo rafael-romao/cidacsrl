@@ -4,7 +4,7 @@ import time
 
 from pyspark.sql import SparkSession
 
-from core.cidacsrl_cleaning.infra.adapters.inbound.column_cleaner import ColumnCleanerPipeline
+from cleaning.cidacsrl_cleaning.infra.adapters.inbound.column_cleaner import ColumnCleanerPipeline
 from core.shared.infra.config_loader import (load_column_config,
                                             load_service_config,
                                             load_cleaning_workflow_config)

@@ -4,12 +4,12 @@ from typing import Dict, Any, Union, List
 from pathlib import Path
 
 
-from core.cidacsrl.infra.configs.models.storage_config import SourceStorageConfig, OutputStorageConfig
-from core.cidacsrl.infra.configs.models.execution_config import ExecutionConfig, DataPartitioningConfig
-from core.cidacsrl.infra.configs.models.indexed_dataset_filter import parse_indexed_dataset_filter
-from core.cidacsrl.domain.models.linkage_specification import SequentialLinkageSpecification
-from core.cidacsrl.infra.elasticsearch.models.service_config import ElasticsearchConfig
-from core.cidacsrl.domain.models.indexing_specification import DatasetIndexingSpecification
+from core.infra.configs.models.storage_config import SourceStorageConfig, OutputStorageConfig
+from core.infra.configs.models.execution_config import ExecutionConfig, DataPartitioningConfig
+from core.infra.configs.models.indexed_dataset_filter import parse_indexed_dataset_filter
+from core.domain.models.linkage_specification import SequentialLinkageSpecification
+from core.infra.elasticsearch.models.service_config import ElasticsearchConfig
+from core.domain.models.indexing_specification import DatasetIndexingSpecification
 
 logger = logging.getLogger(__name__)
 

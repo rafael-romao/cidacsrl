@@ -4,8 +4,8 @@ import logging
 from typing import List, Dict, Any
 from datetime import datetime
 
-from core.cidacsrl.application.ports.outbound.execution_tracking_port import ExecutionTrackingPort
-from core.cidacsrl.domain.models.tracking.work_unit import WorkUnitExecutionRecord, WorkUnitStatus
+from core.application.ports.outbound.execution_tracking_port import ExecutionTrackingPort
+from core.domain.models.tracking.work_unit import WorkUnitExecutionRecord, WorkUnitStatus
 
 logger = logging.getLogger(__name__)
 

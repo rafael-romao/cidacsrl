@@ -2,8 +2,8 @@ import json
 from pathlib import Path
 import pytest
 from datetime import datetime
-from core.cidacsrl.domain.models.tracking.work_unit import WorkUnitMetadata, WorkUnitStatus, WorkUnitStatus, WorkUnitExecutionRecord
-from core.cidacsrl.infra.adapters.outbound.json_execution_tracking_adapter import JSONExecutionTrackingAdapter
+from core.domain.models.tracking.work_unit import WorkUnitMetadata, WorkUnitStatus, WorkUnitStatus, WorkUnitExecutionRecord
+from core.infra.adapters.outbound.json_execution_tracking_adapter import JSONExecutionTrackingAdapter
 
 @pytest.fixture
 def tracking_dir(tmp_path):

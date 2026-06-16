@@ -1,9 +1,9 @@
-from core.cidacsrl.application.ports.outbound.data_ingestion_port import DataIngestionPort
-from core.cidacsrl.application.ports.outbound.data_persistence_port import DataPersistencePort
-from core.cidacsrl.application.ports.outbound.data_transformation_port import DataTransformationPort
-from core.cidacsrl.application.ports.outbound.get_candidates_port import GetCandidatesPort
-from core.cidacsrl.application.ports.outbound.scoring_port import ScoringPort
-from core.cidacsrl.domain.models.linkage_specification import SequentialLinkageSpecification
+from core.application.ports.outbound.data_ingestion_port import DataIngestionPort
+from core.application.ports.outbound.data_persistence_port import DataPersistencePort
+from core.application.ports.outbound.data_transformation_port import DataTransformationPort
+from core.application.ports.outbound.get_candidates_port import GetCandidatesPort
+from core.application.ports.outbound.scoring_port import ScoringPort
+from core.domain.models.linkage_specification import SequentialLinkageSpecification
 from pyspark.sql import DataFrame
 import pyspark.sql.functions as F
 import logging

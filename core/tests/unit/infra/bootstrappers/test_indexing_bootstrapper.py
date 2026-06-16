@@ -2,8 +2,8 @@ from unittest.mock import ANY, MagicMock, patch
 
 import pytest
 
-from core.cidacsrl.domain.models.indexing_specification import DatasetIndexingSpecification
-from core.cidacsrl.infra.bootstrappers.indexing_bootstrapper import bootstrap_elasticsearch_indexing
+from core.domain.models.indexing_specification import DatasetIndexingSpecification
+from core.infra.bootstrappers.indexing_bootstrapper import bootstrap_elasticsearch_indexing
 
 
 @pytest.fixture

@@ -4,8 +4,8 @@ from typing import List, Dict, Any, Optional
 import pyspark.sql.functions as F
 from pyspark.sql import SparkSession, DataFrame
 
-from core.cidacsrl.application.ports.outbound.data_ingestion_port import DataIngestionPort
-from core.cidacsrl.infra.configs.models.storage_config import SourceStorageConfig
+from core.application.ports.outbound.data_ingestion_port import DataIngestionPort
+from core.infra.configs.models.storage_config import SourceStorageConfig
 
 logger = logging.getLogger(__name__)
 

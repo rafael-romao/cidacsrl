@@ -1,8 +1,8 @@
 import logging
 from typing import Any, Dict
 
-from core.cidacsrl.infra.spark.spark_factory import create_spark_session
-from core.cidacsrl.infra.configs.loader import (
+from core.infra.spark.spark_factory import create_spark_session
+from core.infra.configs.loader import (
     parse_sequential_linkage_specification, 
     parse_es_config,
     parse_source_storage_config,
@@ -10,17 +10,17 @@ from core.cidacsrl.infra.configs.loader import (
     parse_execution_config
 )
 
-from core.cidacsrl.infra.adapters.outbound.elasticsearch.client import get_es_client, validate_elasticsearch_schema
-from core.cidacsrl.infra.adapters.outbound.spark_data_ingestion_adapter import SparkDataIngestionAdapter
-from core.cidacsrl.infra.adapters.outbound.spark_data_persistence_adapter import SparkDataPersistenceAdapter
-from core.cidacsrl.infra.adapters.outbound.spark_data_transformation_adapter import SparkDataTransformationAdapter
-from core.cidacsrl.infra.adapters.outbound.elasticsearch.spark_es_search_adapter import SparkESSearchAdapter
-from core.cidacsrl.infra.adapters.outbound.spark_scoring_adapter import SparkScoringAdapter
-from core.cidacsrl.infra.adapters.outbound.elasticsearch.executors import SingleSearchExecutor, MultiSearchExecutor
-from core.cidacsrl.infra.adapters.outbound.json_execution_tracking_adapter import JSONExecutionTrackingAdapter
+from core.infra.adapters.outbound.elasticsearch.client import get_es_client, validate_elasticsearch_schema
+from core.infra.adapters.outbound.spark_data_ingestion_adapter import SparkDataIngestionAdapter
+from core.infra.adapters.outbound.spark_data_persistence_adapter import SparkDataPersistenceAdapter
+from core.infra.adapters.outbound.spark_data_transformation_adapter import SparkDataTransformationAdapter
+from core.infra.adapters.outbound.elasticsearch.spark_es_search_adapter import SparkESSearchAdapter
+from core.infra.adapters.outbound.spark_scoring_adapter import SparkScoringAdapter
+from core.infra.adapters.outbound.elasticsearch.executors import SingleSearchExecutor, MultiSearchExecutor
+from core.infra.adapters.outbound.json_execution_tracking_adapter import JSONExecutionTrackingAdapter
 
-from core.cidacsrl.application.services.work_unit_orchestrator import WorkUnitOrchestrator
-from core.cidacsrl.application.use_cases.record_linkage_use_case import RecordLinkageUseCase
+from core.application.services.work_unit_orchestrator import WorkUnitOrchestrator
+from core.application.use_cases.record_linkage_use_case import RecordLinkageUseCase
 
 logger = logging.getLogger(__name__)
 

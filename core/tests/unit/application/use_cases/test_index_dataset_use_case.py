@@ -2,10 +2,10 @@ import pytest
 from unittest.mock import MagicMock
 from pyspark.sql import DataFrame
 
-from core.cidacsrl.application.use_cases.index_dataset_use_case import IndexDatasetUseCase
-from core.cidacsrl.application.ports.outbound.data_ingestion_port import DataIngestionPort
-from core.cidacsrl.application.ports.outbound.data_indexing_port import DataIndexingPort
-from core.cidacsrl.domain.models.indexing_specification import DatasetIndexingSpecification, IndexColumnConfig
+from core.application.use_cases.index_dataset_use_case import IndexDatasetUseCase
+from core.application.ports.outbound.data_ingestion_port import DataIngestionPort
+from core.application.ports.outbound.data_indexing_port import DataIndexingPort
+from core.domain.models.indexing_specification import DatasetIndexingSpecification, IndexColumnConfig
 
 
 # =========================================================================

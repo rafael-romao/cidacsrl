@@ -1,8 +1,8 @@
 import logging
 from typing import List, Dict, Any, Optional, Callable
 
-from core.cidacsrl.domain.models.matching_rules import ComparisonRule
-from core.cidacsrl.infra.configs.models.indexed_dataset_filter import IndexedDatasetFilterItem
+from core.domain.models.matching_rules import ComparisonRule
+from core.infra.configs.models.indexed_dataset_filter import IndexedDatasetFilterItem
 
 logger = logging.getLogger(__name__)
 

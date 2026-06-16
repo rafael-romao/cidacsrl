@@ -1,12 +1,12 @@
 from abc import ABC, abstractmethod
-from pyspark.sql import DataFrame
+from typing import Any
 
 class DataPersistencePort(ABC):
 
     @abstractmethod
     def save_phase_output(
         self, 
-        df: DataFrame, 
+        df: Any, 
         project_name: str, 
         job_id: str, 
         unit_id: str, 

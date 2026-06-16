@@ -1,6 +1,6 @@
 from abc import ABC, abstractmethod
-from pyspark.sql import DataFrame
-from core.cidacsrl.domain.models.indexing_specification import DatasetIndexingSpecification
+from typing import Any
+from core.domain.models.indexing_specification import DatasetIndexingSpecification
 
 class DataIndexingPort(ABC):
     @abstractmethod
@@ -8,5 +8,5 @@ class DataIndexingPort(ABC):
         pass
 
     @abstractmethod
-    def index_dataframe(self, df: DataFrame, spec: DatasetIndexingSpecification) -> None:
+    def index_dataframe(self, df: Any, spec: DatasetIndexingSpecification) -> None:
         pass

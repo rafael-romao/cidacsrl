@@ -1,5 +1,5 @@
 from typing import List, Dict, Any, Optional
-from core.cidacsrl.domain.models.tracking.work_unit import WorkUnitMetadata
+from core.domain.models.tracking.work_unit import WorkUnitMetadata
 
 class WorkUnitFactory:
     @staticmethod

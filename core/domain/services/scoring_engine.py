@@ -1,12 +1,12 @@
 import logging
 from typing import Dict, Any, List, Callable
 
-from core.cidacsrl.domain.services.similarity_functions import (
+from core.domain.services.similarity_functions import (
     jaro_winkler_score_func,
     hamming_score_func,
     exact_score_func
 )
-from core.cidacsrl.domain.models.matching_rules import ComparisonRule
+from core.domain.models.matching_rules import ComparisonRule
 
 logger = logging.getLogger(__name__)
 

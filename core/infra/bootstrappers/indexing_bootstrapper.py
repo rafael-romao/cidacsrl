@@ -1,14 +1,13 @@
-# cidacsrl_rlp/cidacsrl/infra/bootstrappers/indexing_bootstrapper.py
 import logging
 from typing import Any, Dict
 
-from core.cidacsrl.infra.spark.spark_factory import create_spark_session
-from core.cidacsrl.infra.configs.models.storage_config import SourceStorageConfig
-from core.cidacsrl.infra.configs.loader import parse_dataset_indexing_specification, parse_es_config
+from core.infra.spark.spark_factory import create_spark_session
+from core.infra.configs.models.storage_config import SourceStorageConfig
+from core.infra.configs.loader import parse_dataset_indexing_specification, parse_es_config
 
-from core.cidacsrl.infra.adapters.outbound.spark_data_ingestion_adapter import SparkDataIngestionAdapter
-from core.cidacsrl.infra.adapters.outbound.elasticsearch.spark_es_indexing_adapter import SparkESIndexingAdapter
-from core.cidacsrl.application.use_cases.index_dataset_use_case import IndexDatasetUseCase
+from core.infra.adapters.outbound.spark_data_ingestion_adapter import SparkDataIngestionAdapter
+from core.infra.adapters.outbound.elasticsearch.spark_es_indexing_adapter import SparkESIndexingAdapter
+from core.application.use_cases.index_dataset_use_case import IndexDatasetUseCase
 
 logger = logging.getLogger(__name__)
 

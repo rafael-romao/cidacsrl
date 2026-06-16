@@ -4,7 +4,7 @@ import pytest
 import sys
 from unittest.mock import patch, MagicMock
 
-from core.cli import main
+from cli import main
 
 @pytest.fixture
 def mock_env_yaml_content() -> dict:

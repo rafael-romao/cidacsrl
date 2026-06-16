@@ -1,13 +1,13 @@
 import logging
 from typing import Any
-from core.cidacsrl.domain.models.linkage_specification import SequentialLinkageSpecification
-from core.cidacsrl.domain.models.tracking.work_unit import WorkUnitStatus
-from core.cidacsrl.application.services.work_unit_orchestrator import WorkUnitOrchestrator
-from core.cidacsrl.application.ports.outbound.data_persistence_port import DataPersistencePort
-from core.cidacsrl.application.ports.outbound.data_transformation_port import DataTransformationPort
-from core.cidacsrl.application.ports.outbound.get_candidates_port import GetCandidatesPort
-from core.cidacsrl.application.ports.outbound.scoring_port import ScoringPort
-from core.cidacsrl.application.ports.outbound.execution_tracking_port import ExecutionTrackingPort
+from core.domain.models.linkage_specification import SequentialLinkageSpecification
+from core.domain.models.tracking.work_unit import WorkUnitStatus
+from core.application.services.work_unit_orchestrator import WorkUnitOrchestrator
+from core.application.ports.outbound.data_persistence_port import DataPersistencePort
+from core.application.ports.outbound.data_transformation_port import DataTransformationPort
+from core.application.ports.outbound.get_candidates_port import GetCandidatesPort
+from core.application.ports.outbound.scoring_port import ScoringPort
+from core.application.ports.outbound.execution_tracking_port import ExecutionTrackingPort
 
 logger = logging.getLogger(__name__)
 

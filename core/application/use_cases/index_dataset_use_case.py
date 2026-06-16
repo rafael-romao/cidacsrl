@@ -1,6 +1,6 @@
-from core.cidacsrl.application.ports.outbound.data_ingestion_port import DataIngestionPort
-from core.cidacsrl.application.ports.outbound.data_indexing_port import DataIndexingPort
-from core.cidacsrl.domain.models.indexing_specification import DatasetIndexingSpecification
+from core.application.ports.outbound.data_ingestion_port import DataIngestionPort
+from core.application.ports.outbound.data_indexing_port import DataIndexingPort
+from core.domain.models.indexing_specification import DatasetIndexingSpecification
 
 class IndexDatasetUseCase:
     def __init__(self, ingestion_port: DataIngestionPort, indexing_port: DataIndexingPort):

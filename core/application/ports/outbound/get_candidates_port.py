@@ -1,7 +1,7 @@
 from abc import ABC, abstractmethod
 from typing import Any
 
-from core.cidacsrl.domain.models.linkage_specification import BlockingPhaseContext
+from core.domain.models.linkage_specification import BlockingPhaseContext
 
 
 class GetCandidatesPort(ABC):

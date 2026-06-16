@@ -3,9 +3,9 @@ from typing import Dict, Any
 import pyspark.sql.functions as F
 from pyspark.sql.types import FloatType, StringType, StructField, StructType
 
-from core.cidacsrl.application.ports.outbound.scoring_port import ScoringPort
-from core.cidacsrl.domain.models.linkage_specification import BlockingPhaseContext
-from core.cidacsrl.domain.services.scoring_engine import calculate_pair_scores_and_similarities
+from core.application.ports.outbound.scoring_port import ScoringPort
+from core.domain.models.linkage_specification import BlockingPhaseContext
+from core.domain.services.scoring_engine import calculate_pair_scores_and_similarities
 
 
 class SparkScoringAdapter(ScoringPort):

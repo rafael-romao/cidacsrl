@@ -2,7 +2,7 @@ import pytest
 from unittest.mock import patch, mock_open
 from pathlib import Path
 
-from core.cidacsrl.infra.configs.loader import (
+from core.infra.configs.loader import (
     load_yaml,
     parse_source_storage_config,
     parse_output_storage_config,
@@ -14,10 +14,10 @@ from core.cidacsrl.infra.configs.loader import (
     load_dataset_indexing_specification
 )
 
-from core.cidacsrl.infra.configs.models.storage_config import SourceStorageConfig, OutputStorageConfig
-from core.cidacsrl.infra.configs.models.execution_config import ExecutionConfig
-from core.cidacsrl.domain.models.linkage_specification import SequentialLinkageSpecification
-from core.cidacsrl.domain.models.indexing_specification import DatasetIndexingSpecification
+from core.infra.configs.models.storage_config import SourceStorageConfig, OutputStorageConfig
+from core.infra.configs.models.execution_config import ExecutionConfig
+from core.domain.models.linkage_specification import SequentialLinkageSpecification
+from core.domain.models.indexing_specification import DatasetIndexingSpecification
 
 # =========================================================================
 # 1. FLUXO BASE DE LEITURA (load_yaml)

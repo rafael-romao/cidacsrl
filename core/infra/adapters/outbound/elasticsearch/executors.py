@@ -1,4 +1,4 @@
-from core.cidacsrl.application.ports.outbound.search_executor import SearchExecutor
+from core.application.ports.outbound.search_executor import SearchExecutor
 from typing import List, Dict
 
 

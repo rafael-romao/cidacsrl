@@ -1,11 +1,11 @@
 import logging
 from typing import Iterable, List
 
-from core.cidacsrl.application.ports.outbound.data_ingestion_port import DataIngestionPort
-from core.cidacsrl.application.ports.outbound.execution_tracking_port import ExecutionTrackingPort
-from core.cidacsrl.domain.models.tracking.work_unit_factory import WorkUnitFactory
-from core.cidacsrl.domain.models.tracking.work_unit import WorkUnitExecutionRecord, WorkUnitPayload, WorkUnitStatus
-from core.cidacsrl.infra.configs.models.execution_config import ExecutionConfig
+from core.application.ports.outbound.data_ingestion_port import DataIngestionPort
+from core.application.ports.outbound.execution_tracking_port import ExecutionTrackingPort
+from core.domain.models.tracking.work_unit_factory import WorkUnitFactory
+from core.domain.models.tracking.work_unit import WorkUnitExecutionRecord, WorkUnitPayload, WorkUnitStatus
+from core.infra.configs.models.execution_config import ExecutionConfig
 
 logger = logging.getLogger(__name__)
 

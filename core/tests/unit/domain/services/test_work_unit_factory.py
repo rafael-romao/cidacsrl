@@ -1,5 +1,5 @@
 import pytest
-from core.cidacsrl.domain.models.tracking.work_unit_factory import WorkUnitFactory
+from core.domain.models.tracking.work_unit_factory import WorkUnitFactory
 
 def test_create_execution_scope_global_when_no_partition_column():
     result = WorkUnitFactory.create_execution_scope(

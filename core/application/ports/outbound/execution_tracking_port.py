@@ -1,6 +1,6 @@
 from abc import ABC, abstractmethod
 from typing import List
-from core.cidacsrl.domain.models.tracking.work_unit import WorkUnitExecutionRecord, WorkUnitStatus
+from core.domain.models.tracking.work_unit import WorkUnitExecutionRecord, WorkUnitStatus
 
 class ExecutionTrackingPort(ABC):
     

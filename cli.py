@@ -2,9 +2,9 @@ import argparse
 import logging
 import sys
 
-from core.cidacsrl.infra.configs.loader import load_yaml
-from core.cidacsrl.infra.bootstrappers.indexing_bootstrapper import bootstrap_elasticsearch_indexing
-from core.cidacsrl.infra.bootstrappers.linkage_bootstrapper import bootstrap_sequential_linkage
+from core.infra.configs.loader import load_yaml
+from core.infra.bootstrappers.indexing_bootstrapper import bootstrap_elasticsearch_indexing
+from core.infra.bootstrappers.linkage_bootstrapper import bootstrap_sequential_linkage
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s", handlers=[logging.StreamHandler(sys.stdout)])
 logger = logging.getLogger("cidacsrl_cli")
