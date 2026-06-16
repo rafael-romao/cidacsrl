@@ -8,7 +8,7 @@ extra_target_fields:
 
 
 blocking_phases:
-  - phase_name: "fase_e2e_nome"
+  - phase_name: "fase_exata"
     enabled: true
     candidate_limit: 100
     strong_match_score_threshold: 0.99
@@ -28,7 +28,7 @@ blocking_phases:
         es_clause_type: "should"
         similarity: "exact"
         weight: 0.2
-  - phase_name: "fase_e2e_relaxada"
+  - phase_name: "fase_fuzzy"
     enabled: true
     candidate_limit: 100
     strong_match_score_threshold: 0.75

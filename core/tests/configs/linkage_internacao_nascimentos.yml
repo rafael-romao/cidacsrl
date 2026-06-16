@@ -12,8 +12,8 @@ execution:
     partition_column: "uf_internacao"
 
 specification:
-  indexing_path: "/tests/configs/shared/index_spec_local.yml"
-  linkage_path: "/tests/configs/shared/linkage_internacao_nascimentos.yml"
+  indexing_path: "/tests/configs/specifications/nascimentos_example_index.yml"
+  linkage_path: "/tests/configs/specifications/linkage_internacao_nascimentos.yml"
 
 spark:
   spark_configs:
@@ -24,8 +24,8 @@ spark:
     spark.port.maxRetries: "100"
 
 elasticsearch:
-  host: "localhost"
+  host: "elasticsearch"
   port: 9200
-  es_connection_url: "http://localhost:9200"
+  es_connection_url: "http://elasticsearch:9200"
   wan_only: true
   search_strategy: "multisearch"
