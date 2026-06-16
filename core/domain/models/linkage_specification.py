@@ -5,7 +5,7 @@ from typing import Any, Dict, Iterable, List, Optional
 from core.infra.configs.models.indexed_dataset_filter import IndexedDatasetFilterItem
 from core.domain.models.matching_rules import BlockingPhase, ComparisonRule
 
-logger = logging.getLogger(__name__)
+logger = logging.getLogger("Entity: LinkageSpecification")
 
 
 def _dedupe_fields(fields: Iterable[str]) -> List[str]:

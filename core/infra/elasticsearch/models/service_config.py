@@ -2,7 +2,7 @@ import logging
 from typing import TypedDict, NotRequired, Union, Tuple
 
 
-logger = logging.getLogger(__name__)
+logger = logging.getLogger("Entity: ElasticsearchConfig")
 
 
 class ElasticsearchConfig(TypedDict):

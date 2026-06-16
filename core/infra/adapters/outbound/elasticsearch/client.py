@@ -5,7 +5,7 @@ from typing import Any, Dict, Optional, Tuple, List, Union
 
 from elasticsearch import Elasticsearch, ConnectionError as ESConnectionError, AuthenticationException, AuthorizationException
 
-logger = logging.getLogger(__name__)
+logger = logging.getLogger("Adapter: Elasticsearch Client")
 
 # Global cache for Elasticsearch clients within the same Python process (e.g., a Spark executor).
 # Keyed by a string generated from essential connection parameters.

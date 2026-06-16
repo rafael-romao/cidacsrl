@@ -9,7 +9,7 @@ from core.infra.adapters.outbound.spark_data_ingestion_adapter import SparkDataI
 from core.infra.adapters.outbound.elasticsearch.spark_es_indexing_adapter import SparkESIndexingAdapter
 from core.application.use_cases.index_dataset_use_case import IndexDatasetUseCase
 
-logger = logging.getLogger(__name__)
+logger = logging.getLogger("Bootstrapper: Elasticsearch Indexing")
 
 def bootstrap_elasticsearch_indexing(
     storage_config_data: Dict[str, Any],

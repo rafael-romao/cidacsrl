@@ -8,7 +8,7 @@ from core.domain.services.similarity_functions import (
 )
 from core.domain.models.matching_rules import ComparisonRule
 
-logger = logging.getLogger(__name__)
+logger = logging.getLogger("Service: ScoringEngine")
 
 SIMILARITY_FUNCTION_MAP: Dict[str, Callable[[Any, Any], float]] = {
     "overlap": exact_score_func,

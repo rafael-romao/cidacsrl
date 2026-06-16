@@ -7,7 +7,7 @@ from pyspark.sql import SparkSession, DataFrame
 from core.application.ports.outbound.data_ingestion_port import DataIngestionPort
 from core.infra.configs.models.storage_config import SourceStorageConfig
 
-logger = logging.getLogger(__name__)
+logger = logging.getLogger("Adapter: SparkDataIngestionAdapter")
 
 class SparkDataIngestionAdapter(DataIngestionPort):
     def __init__(self, spark_session: SparkSession, storage_config: SourceStorageConfig):

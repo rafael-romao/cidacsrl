@@ -5,7 +5,7 @@ from pyspark.sql import DataFrame
 from core.application.ports.outbound.data_persistence_port import DataPersistencePort
 from core.infra.configs.models.storage_config import OutputStorageConfig
 
-logger = logging.getLogger(__name__)
+logger = logging.getLogger("Adapter: SparkDataPersistenceAdapter")
 
 class SparkDataPersistenceAdapter(DataPersistencePort):
     def __init__(self, output_config: OutputStorageConfig):

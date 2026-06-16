@@ -3,7 +3,7 @@
 import logging
 from typing import Any, Dict, List
 
-logger = logging.getLogger(__name__)
+logger = logging.getLogger("Adapter: Elasticsearch Response Parser")
 
 def extract_hits_from_es_response(
     single_es_response: Dict[str, Any],

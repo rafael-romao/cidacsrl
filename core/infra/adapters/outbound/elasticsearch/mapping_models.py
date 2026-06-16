@@ -2,7 +2,7 @@ import logging
 from dataclasses import dataclass, field
 from typing import List, Dict, Any, Optional, Literal
 
-logger = logging.getLogger(__name__)
+logger = logging.getLogger("Entity: Elasticsearch Mapping Models")
 
 @dataclass
 class ESColumnDefinition:

@@ -7,7 +7,7 @@ from core.domain.models.tracking.work_unit_factory import WorkUnitFactory
 from core.domain.models.tracking.work_unit import WorkUnitExecutionRecord, WorkUnitPayload, WorkUnitStatus
 from core.infra.configs.models.execution_config import ExecutionConfig
 
-logger = logging.getLogger(__name__)
+logger = logging.getLogger("Service: Orchestrator")
 
 class WorkUnitOrchestrator:
     """

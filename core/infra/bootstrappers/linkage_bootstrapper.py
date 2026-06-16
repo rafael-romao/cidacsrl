@@ -22,7 +22,7 @@ from core.infra.adapters.outbound.json_execution_tracking_adapter import JSONExe
 from core.application.services.work_unit_orchestrator import WorkUnitOrchestrator
 from core.application.use_cases.record_linkage_use_case import RecordLinkageUseCase
 
-logger = logging.getLogger(__name__)
+logger = logging.getLogger("Bootstrapper: Record Linkage")
 
 def bootstrap_sequential_linkage(
     storage_config_data: Dict[str, Any],    

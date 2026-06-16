@@ -14,7 +14,7 @@ from .client import get_es_client
 from .query_builder import ElasticsearchQueryBuilder
 from .response_parser import extract_hits_from_es_response
 
-logger = logging.getLogger(__name__)
+logger = logging.getLogger("Adapter: SparkESSearchAdapter")
 
 
 def chunked_iterator(iterable: Iterable[Any], size: int) -> Iterable[List[Any]]:

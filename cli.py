@@ -7,7 +7,7 @@ from core.infra.bootstrappers.indexing_bootstrapper import bootstrap_elasticsear
 from core.infra.bootstrappers.linkage_bootstrapper import bootstrap_sequential_linkage
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s", handlers=[logging.StreamHandler(sys.stdout)])
-logger = logging.getLogger("cidacsrl_cli")
+logger = logging.getLogger("CLI")
 
 def main():
     parser = argparse.ArgumentParser(description="CIDACS-RL Engine - Interface de Linha de Comando")

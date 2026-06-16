@@ -3,7 +3,7 @@ from typing import Any, Optional
 import jellyfish
 
 
-logger = logging.getLogger(__name__)
+logger = logging.getLogger("Service: SimilarityFunctions")
 
 
 def exact_score_func(s1: Any, s2: Any) -> float:

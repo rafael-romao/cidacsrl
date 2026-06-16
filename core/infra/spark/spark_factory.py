@@ -2,7 +2,7 @@ from pyspark.sql import SparkSession
 from typing import Dict, Any, Optional
 import logging
 
-logger = logging.getLogger(__name__)
+logger = logging.getLogger("Factory: SparkSessionFactory")
 
 def log_spark_configs(spark: SparkSession):
     """

@@ -6,7 +6,7 @@ from core.domain.models.indexing_specification import DatasetIndexingSpecificati
 from core.infra.adapters.outbound.elasticsearch.client import get_es_client
 from urllib.parse import urlparse
 
-logger = logging.getLogger(__name__)
+logger = logging.getLogger("Adapter: SparkESIndexingAdapter")
 
 class SparkESIndexingAdapter(DataIndexingPort):
     def __init__(self, es_config: Dict[str, Any]):

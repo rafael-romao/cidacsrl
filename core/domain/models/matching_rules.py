@@ -2,7 +2,7 @@ import logging
 from dataclasses import dataclass, field
 from typing import List, Optional, Dict, Any, Literal
 
-logger = logging.getLogger(__name__)
+logger = logging.getLogger("Entity: MatchingRules")
 
 
 @dataclass

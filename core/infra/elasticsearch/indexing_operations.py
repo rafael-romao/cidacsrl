@@ -9,7 +9,7 @@ from pyspark.sql import DataFrame
 from core.infra.adapters.outbound.elasticsearch.client import get_es_client
 from core.infra.adapters.outbound.elasticsearch.mapping_models import ESIndexDefinition
 
-logger = logging.getLogger(__name__)
+logger = logging.getLogger("Adapter: Elasticsearch Indexing Operations")
 
 
 def create_es_index_and_ingest_data(

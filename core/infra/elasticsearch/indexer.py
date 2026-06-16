@@ -7,7 +7,7 @@ from elasticsearch import Elasticsearch
 
 from core.infra.adapters.outbound.elasticsearch.client import get_es_client
 
-logger = logging.getLogger(__name__)
+logger = logging.getLogger("Adapter: Elasticsearch Indexer")
 
 
 class ElasticsearchIndexer:

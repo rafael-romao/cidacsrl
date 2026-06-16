@@ -9,7 +9,7 @@ from core.application.ports.outbound.get_candidates_port import GetCandidatesPor
 from core.application.ports.outbound.scoring_port import ScoringPort
 from core.application.ports.outbound.execution_tracking_port import ExecutionTrackingPort
 
-logger = logging.getLogger(__name__)
+logger = logging.getLogger("UseCase: Record Linkage")
 
 class RecordLinkageUseCase:
     """

@@ -7,7 +7,7 @@ from datetime import datetime
 from core.application.ports.outbound.execution_tracking_port import ExecutionTrackingPort
 from core.domain.models.tracking.work_unit import WorkUnitExecutionRecord, WorkUnitStatus
 
-logger = logging.getLogger(__name__)
+logger = logging.getLogger("Adapter: JSONExecutionTrackingAdapter")
 
 class JSONExecutionTrackingAdapter(ExecutionTrackingPort):
     def __init__(self, tracking_directory: str):

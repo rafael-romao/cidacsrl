@@ -11,7 +11,7 @@ from core.domain.models.linkage_specification import SequentialLinkageSpecificat
 from core.infra.elasticsearch.models.service_config import ElasticsearchConfig
 from core.domain.models.indexing_specification import DatasetIndexingSpecification
 
-logger = logging.getLogger(__name__)
+logger = logging.getLogger("Loader: Configuration Loader")
 
 def load_yaml(file_path: Union[str, Path]) -> Dict[str, Any]:
     """Carrega e valida um arquivo de configuração YAML base."""
