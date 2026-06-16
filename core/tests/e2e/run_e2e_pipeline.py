@@ -238,5 +238,5 @@ if __name__ == "__main__":
         sys.exit(0)
 
     except Exception as e:
-        logger.error(f"❌ Falha no Pipeline de Integração E2E: {e}")
+        logger.error(f"❌ Falha no pipeline: {e}")
         sys.exit(1)

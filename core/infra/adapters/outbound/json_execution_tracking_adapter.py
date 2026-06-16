@@ -7,7 +7,7 @@ from datetime import datetime
 from core.application.ports.outbound.execution_tracking_port import ExecutionTrackingPort
 from core.domain.models.tracking.work_unit import WorkUnitExecutionRecord, WorkUnitStatus
 
-logger = logging.getLogger("Adapter: JSONExecutionTrackingAdapter")
+logger = logging.getLogger("Adapter: JSON Execution Tracking")
 
 class JSONExecutionTrackingAdapter(ExecutionTrackingPort):
     def __init__(self, tracking_directory: str):
@@ -16,7 +16,7 @@ class JSONExecutionTrackingAdapter(ExecutionTrackingPort):
             os.makedirs(self.tracking_directory, exist_ok=True)
 
     def _resolve_checkpoint_path(self, job_id: str) -> str:
-        return os.path.join(self.tracking_directory, f"job_{job_id}_state.json")
+        return os.path.join(self.tracking_directory, f"{job_id}_state.json")
 
     def _read_raw_file(self, file_path: str) -> Dict[str, Any]:
         if not os.path.exists(file_path):
@@ -94,4 +94,15 @@ class JSONExecutionTrackingAdapter(ExecutionTrackingPort):
 
         current_state[unit_id] = updated_record.to_dict()
         self._write_raw_file(file_path, current_state)
-        logger.debug(f"[{job_id}] Unidade '{unit_id}' transicionada com sucesso para {status.value}.")
+        logger.debug(f"[{job_id}] Unidade '{unit_id}': {status.value}.")
+
+    def log_work_unit_start(self, job_id: str, unit_id: str, pending_count: int) -> None:
+        logger.info("┌──────────────────────────────────────────────────────────┐")
+        logger.info(f"│ PENDENTES: {pending_count:<3} | PROCESSANDO BLOCO: {unit_id:<21} │")
+        logger.info("└──────────────────────────────────────────────────────────┘")
+
+    def log_phase_telemetry(self, phase_index: int, phase_name: str, records_in: int, records_out: int, duration: float) -> None:
+        logger.info(f"  ├── [Fase {phase_index}: {phase_name:<12}] -> Entrantes: {records_in:<5} | Links: {records_out:<4} | Duração: {duration:.2f}s")
+
+    def log_work_unit_completion(self, unit_id: str, total_links: int, duration: float) -> None:
+        logger.info(f"  └── [Consolidado]   -> Total Links Gerados: {total_links:<4} | Tempo Total do Bloco: {duration:.2f}s\n")

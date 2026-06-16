@@ -28,7 +28,7 @@ class SparkDataIngestionAdapter(DataIngestionPort):
         return errors
 
     def discover_partitions(self, table_name: str, partition_column: str) -> List[str]:
-        logger.info(f"A realizar varredura dinâmica na coluna '{partition_column}' da tabela '{table_name}'...")
+        logger.info(f"Varrendo a coluna '{partition_column}' da tabela '{table_name}' para encontrar partições distintas.")
         try:
             path = self._resolve_source_path(table_name)
             raw_df = self.spark.read.format(self.storage_config.source_format).load(path)

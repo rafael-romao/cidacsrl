@@ -1,4 +1,5 @@
 import logging
+import time
 from typing import Any
 from core.domain.models.linkage_specification import SequentialLinkageSpecification
 from core.domain.models.tracking.work_unit import WorkUnitStatus
@@ -35,7 +36,7 @@ class RecordLinkageUseCase:
 
     def execute(self, specification: SequentialLinkageSpecification, job_id: str, execution_config: Any) -> None:
         project_name = specification.linkage_project_name
-        logger.info(f"[{job_id}] - Linkage '{project_name}' - Fonte: '{specification.source_table}' - Índice: '{specification.target_es_index}'.")
+        logger.info(f"[{job_id}] Iniciando Linkage '{project_name}'.")
 
         
         work_stream = self.orchestrator.prepare_and_route(
@@ -43,9 +44,13 @@ class RecordLinkageUseCase:
             execution_config=execution_config
         )
 
-        for payload in work_stream:
-            logger.info(f"[{job_id}] - Processando unidade de trabalho: {payload.unit_id}")
+        work_units = list(work_stream)
+        total_units = len(work_units)
+        
+        for completed_units, payload in work_stream:
+            unit_start_time = time.time()
             
+            self.tracking.log_work_unit_start(job_id, payload.unit_id, total_units - completed_units)
            
             df_remaining = payload.dataframe
             total_unit_persisted = 0
@@ -55,28 +60,23 @@ class RecordLinkageUseCase:
                 if not phase_context.enabled:
                     continue
                 
-                
-                remaining_count = df_remaining.count()
-                logger.info(f"[{job_id}] - [{payload.unit_id}] - Fase {phase_index}: ('{phase_context.phase_name}') - Registros entrantes: {remaining_count}")
-                if remaining_count == 0:
-                    logger.info(f"[{job_id}] - [{payload.unit_id}] - Fase {phase_index}: ('{phase_context.phase_name}') - Sem registros remanescentes, encerrando Linkage...")
+                phase_start_time = time.time()
+                remaining_count = df_remaining.count()         
+
+                if remaining_count == 0:                    
                     break
                 
                 
-                candidates_df = self.get_candidates.get_candidates(df_remaining, phase_context)
+                candidates_df = self.get_candidates.get_candidates(df_remaining, phase_context)     
                 
-                
-                scored_df = self.scoring.calculate_score(candidates_df, phase_context)
-                
+                scored_df = self.scoring.calculate_score(candidates_df, phase_context)                
                 
                 matched_pairs = self.transformation.filter_matches_by_threshold(
                     dataset=scored_df, 
                     threshold=phase_context.strong_match_score_threshold
-                )
+                )               
                 
-               
-                matched_pairs.cache()
-                
+                matched_pairs.cache()                
                
                 phase_marked = self.transformation.add_phase_marker(matched_pairs, phase_context.phase_name)
                 
@@ -96,7 +96,15 @@ class RecordLinkageUseCase:
                     records_to_exclude=matched_pairs,
                     join_key=specification.id_source_table
                 )
-                df_remaining.cache()           
+                df_remaining.cache()
+
+                self.tracking.log_phase_telemetry(
+                    phase_index=phase_index,
+                    phase_name=phase_context.phase_name,
+                    records_in=remaining_count,
+                    records_out=df_remaining.count(),
+                    duration=time.time() - phase_start_time
+                )         
 
 
             
@@ -106,4 +114,4 @@ class RecordLinkageUseCase:
                 status=WorkUnitStatus.COMPLETED,
                 records_processed=total_unit_persisted
             )
-            logger.info(f"[{job_id}] - [{payload.unit_id}] - Bloco consolidado e finalizado com {total_unit_persisted} links.")
+            self.tracking.log_work_unit_completion(payload.unit_id, total_unit_persisted, time.time() - unit_start_time)

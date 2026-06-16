@@ -7,7 +7,7 @@ def configure_logging() -> None:
         logging.root.removeHandler(handler)
 
     log_format = "%(asctime)s | %(levelname)-5s | %(name)s | %(message)s"
-    date_format = "%H:%M:%S"
+    date_format ='%Y-%m-%d %H:%M:%S'
 
     
     env_log_level = os.environ.get("LOG_LEVEL", "INFO").upper()

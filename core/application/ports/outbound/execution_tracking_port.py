@@ -22,3 +22,18 @@ class ExecutionTrackingPort(ABC):
         error_message: str = None
     ) -> None:        
         pass
+
+    @abstractmethod
+    def log_work_unit_start(self, job_id: str, unit_id: str, pending_count: int) -> None:
+        """Imprime o cabeçalho estruturado de início de um bloco de trabalho."""
+        pass
+
+    @abstractmethod
+    def log_phase_telemetry(self, phase_index: int, phase_name: str, records_in: int, records_out: int, duration: float) -> None:
+        """Registra a telemetria detalhada de uma fase concluída."""
+        pass
+
+    @abstractmethod
+    def log_work_unit_completion(self, unit_id: str, total_links: int, duration: float) -> None:
+        """Imprime o encerramento consolidado do bloco de trabalho."""
+        pass

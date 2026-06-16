@@ -23,7 +23,8 @@ class SparkDataPersistenceAdapter(DataPersistencePort):
         absolute_target_path = base_path / project_name / job_id / unit_id / phase_name
         
         target_path_str = str(absolute_target_path)
-        logger.info(f"Gravando fase '{phase_name}' de linkage em: {target_path_str}")
+        logger.info(f"Gravando fase '{phase_name}'")
+        logger.debug(f"Gravando fase '{phase_name}' de linkage em: {target_path_str}")
         
         df.write.format(self.config.output_format).mode("overwrite").save(target_path_str)
         return df.count()
