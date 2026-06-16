@@ -63,8 +63,8 @@ services:
 
   cidacsrl_runner:
     build:
-      context: ../../..
-      dockerfile: cidacsrl_rlp/docker/Dockerfile
+      context: ../../../
+      dockerfile: core/docker/Dockerfile
       target: runner-dev
     profiles: ["runner"]
     container_name: cidacsrl_runner
@@ -72,11 +72,11 @@ services:
       elasticsearch:
         condition: service_healthy
     volumes:
-      - ../../..:/app
+      - ../../../:/app
       - ./../../tests:/app/tests
       - shared_storage:/mnt/storage
     environment:
-      - PYTHONPATH=/app:/app/cidacsrl_rlp
+      - PYTHONPATH=/app
     working_dir: /app
     networks:
       - cidacsrl_network
@@ -85,14 +85,14 @@ services:
   jupyter:
     profiles: ["jupyter"]
     build:
-      context: ../../..
-      dockerfile: cidacsrl_rlp/docker/Dockerfile
+      context: ../../../
+      dockerfile: core/docker/Dockerfile
       target: jupyter-dev
     container_name: cidacsrl_jupyter
     ports:
       - "8888:8888"
     volumes:
       - ../notebooks:/app/notebooks
-      - ./:/app/cidacsrl_rlp
+      - ./:/app
       - ./tests/data:/app/data
-      - ./tests/config:/app/cidacsrl_rlp/configs
+      - ./tests/config:/app/configs
