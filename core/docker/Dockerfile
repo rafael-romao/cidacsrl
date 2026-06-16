@@ -61,17 +61,24 @@ COPY --from=es-jar-downloader /elasticsearch-spark-30_2.12-9.2.8.jar /opt/spark/
 USER spark
 
 
-# ─── 5. RUNNER PARA DESENVOLVIMENTO LOCAL E TESTES (LAB - PIP GLOBAL) ─────────
-FROM python:3.12-slim AS runner-dev
-
+# ─── 5. IMAGEM BASE PARA LABORATÓRIO (COMPARTILHADA) ──────────────────────────
+FROM python:3.12-slim AS lab-base
 WORKDIR /app
 
-# Instala dependências do sistema necessárias para rodar o Spark local em Java
+# Instala o JRE headless (mais leve) e utilitários comuns ao Runner e ao Jupyter
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    default-jdk \
+    openjdk-21-jre-headless \
     procps \
     curl \
     && rm -rf /var/lib/apt/lists/*
+
+ENV JAVA_HOME=/usr/lib/jvm/java-21-openjdk-amd64
+ENV PATH=$JAVA_HOME/bin:$PATH
+ENV PYTHONPATH=/app:$PYTHONPATH
+
+
+# ─── 6. RUNNER PARA DESENVOLVIMENTO LOCAL E TESTES (LAB - PIP GLOBAL) ─────────
+FROM lab-base AS runner-dev
 
 # Instala o Poetry apenas para ferramentas auxiliares se necessário, mas não para o ambiente
 RUN pip install --no-cache-dir poetry
@@ -93,24 +100,11 @@ COPY README.md ./README.md
 # Instala o próprio projeto em modo editável via pip para registrar o mapeamento de pacotes
 RUN pip install -e .
 
-# Define a raiz /app como o escopo global de imports do Python
-ENV PYTHONPATH=/app
-
 CMD ["tail", "-f", "/dev/null"]
 
 
-# ─── 6. AMBIENTE INTERATIVO JUPYTER NOTEBOOK (LAB - PYTHON 3.12) ──────────────
-FROM python:3.12-slim AS jupyter-dev
-
-WORKDIR /app
-
-RUN apt-get update && \
-    apt-get install -y --no-install-recommends openjdk-21-jdk-headless && \
-    rm -rf /var/lib/apt/lists/*
-
-ENV JAVA_HOME=/usr/lib/jvm/java-21-openjdk-amd64
-ENV PATH=$JAVA_HOME/bin:$PATH
-ENV PYTHONPATH=/app:$PYTHONPATH
+# ─── 7. AMBIENTE INTERATIVO JUPYTER NOTEBOOK (LAB - PYTHON 3.12) ──────────────
+FROM lab-base AS jupyter-dev
 
 # Recupera o pacote wheel gerado no estágio builder
 COPY --from=builder /build/spark_packages /tmp/spark_packages
