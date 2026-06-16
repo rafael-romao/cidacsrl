@@ -1,18 +1,17 @@
 [project]
 name = "cidacsrl"
-version = "3.1.0"
-description = ""
+version = "3.1.0a1"
+description = "CIDACS-RL Record Linkage Engine"
 authors = [
     { name = "Rafael Romão", email = "leafaromao@gmail.com" }
 ]
 maintainers = [
   { name = "Rafael Romão", email = "leafaromao@gmail.com" },
 ]
-
 keywords = ["record linkage", "cidacsrl", "pyspark", "elasticsearch"]
-
 readme = "README.md"
 requires-python = ">=3.9"
+
 dependencies = [
     "elasticsearch>=9.1.0",
     "pyyaml>=6.0.2",
@@ -28,36 +27,27 @@ classifiers = [
     "Programming Language :: Python :: 3.12",
 ]
 
-[tool.isort]
-profile = "black"
-line_length = 79
-known_third_party = ["elasticsearch", "pyspark", "jellyfish", "blue"]
-default_section = "THIRDPARTY"
-skip = ["tests"]
+[project.urls]
+"Documentação" = "https://github.com/rafael-romao/cidacsrl/docs"
+"Código" = "https://github.com/rafael-romao/cidacsrl"
+"Bug Tracker" = "https://github.com/rafael-romao/cidacsrl/issues"
 
-[tool.setuptools.packages.find]
-include = ["cidacsrl*"]
-exclude = ["spark_packages*"]
-
+[tool.poetry]
+requires-poetry = ">=2.0.0"
+packages = [
+    { include = "core", from = "." },
+    { include = "cleaning", from = "." },
+    { include = "deduplicating", from = "." },
+    { include = "cli.py", from = "." }
+]
 
 [tool.poetry.group.dev.dependencies]
 pytest = "^8.4.1"
 pytest-cov = "^6.2.1"
-elasticsearch = "^9.1.0"
-pyspark = "^3.4.0"
-jellyfish = "^1.2.0"
 blue = "^0.9.1"
 isort = "^6.0.1"
 testcontainers = "^4.0.0"
 ipykernel = "^6.29.4"
-
-[tool.pytest.ini_options]
-markers = [
-    "unit: Testes unitarios de logica pura e dominio.",
-    "integration: Testes de integracao que dependem de Spark ou ES(Docker).",
-    "e2e: Testes ponta a ponta do pipeline completo de linkage."
-]
-
 
 [tool.poetry.group.doc.dependencies]
 mkdocs-material = "^9.6.15"
@@ -65,10 +55,19 @@ mkdocstrings = "^0.29.1"
 mkdocstrings-python = "^1.16.12"
 
 [build-system]
-requires = ["setuptools>=61.0", "wheel"]
-build-backend = "setuptools.build_meta"
+requires = ["poetry-core>=2.0.0"]
+build-backend = "poetry.core.masonry.api"
 
-[project.urls]
-"Documentação" = "https://github.com/rafael-romao/cidacsrl/docs"
-"Código" = "https://github.com/rafael-romao/cidacsrl"
-"Bug Tracker" = "https://github.com/rafael-romao/cidacsrl/issues"
+[tool.isort]
+profile = "black"
+line_length = 79
+known_third_party = ["elasticsearch", "pyspark", "jellyfish", "blue"]
+default_section = "THIRDPARTY"
+skip = ["tests"]
+
+[tool.pytest.ini_options]
+markers = [
+    "unit: Testes unitarios de logica pura e dominio.",
+    "integration: Testes de integracao que dependem de Spark ou ES(Docker).",
+    "e2e: Testes ponta a ponta do pipeline completo de linkage."
+]
