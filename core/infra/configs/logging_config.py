@@ -1,20 +1,22 @@
 import logging
 import sys
+import os
 
-def configure_logging(level: int = logging.INFO) -> None:
-    """
-    Configura o formato global de logs para a aplicação.
-    Aplica formatação compacta e alinhada para facilitar a leitura no console.
-    """
-    # Remove configurações prévias se o método for chamado múltiplas vezes
+def configure_logging() -> None:
     for handler in logging.root.handlers[:]:
         logging.root.removeHandler(handler)
 
     log_format = "%(asctime)s | %(levelname)-5s | %(name)s | %(message)s"
-    date_format = '%Y-%m-%d %H:%M:%S'
+    date_format = "%H:%M:%S"
+
+    
+    env_log_level = os.environ.get("LOG_LEVEL", "INFO").upper()
+    
+    level_mapping = logging.getLevelNamesMapping()
+    numeric_level = level_mapping.get(env_log_level, logging.INFO)
 
     logging.basicConfig(
-        level=level,
+        level=numeric_level,
         format=log_format,
         datefmt=date_format,
         handlers=[logging.StreamHandler(sys.stdout)]
