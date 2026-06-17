@@ -1,47 +1,40 @@
+import os
 import pytest
-from testcontainers.elasticsearch import ElasticSearchContainer
 from elasticsearch import Elasticsearch
 from pyspark.sql import SparkSession, Row
 
 from core.infra.adapters.outbound.elasticsearch.spark_es_search_adapter import SparkESSearchAdapter
+from core.infra.adapters.outbound.elasticsearch.executors import MultiSearchExecutor
 from core.domain.models.matching_rules import ComparisonRule
 from core.domain.models.linkage_specification import BlockingPhaseContext, BlockingPhaseTargetFields
 
 
 @pytest.fixture(scope="module")
 def es_container():
-    container = ElasticSearchContainer("elasticsearch:9.1.8")
-    container.with_env("discovery.type", "single-node")
-    container._wait_strategy.with_startup_timeout(600).with_poll_interval(2)
-
-    container.start()
-    try:
-        host = container.get_container_host_ip()
-        port = container.get_exposed_port(9200)
-        yield f"http://{host}:{port}"
-    finally:
-        container.stop()
+    yield os.environ.get("CIDACSRL_ES_URL", "http://localhost:9200")
 
 
 @pytest.fixture(scope="module")
 def es_client(es_container):
     client = Elasticsearch(es_container)
     index_name = "pacientes_teste"
-    
+
     client.options(ignore_status=400).indices.create(index=index_name)
-    
+
     docs = [
         {"id_nacional": "1", "nome_completo": "João Silva", "data_nascimento": "1990-01-01", "sexo": "M"},
         {"id_nacional": "2", "nome_completo": "Maria Oliveira", "data_nascimento": "1985-05-10", "sexo": "F"},
         {"id_nacional": "3", "nome_completo": "Joãozinho da Silva", "data_nascimento": "1990-01-01", "sexo": "M"}
     ]
-    
+
     for doc in docs:
         client.index(index=index_name, id=doc["id_nacional"], document=doc)
-        
+
     client.indices.refresh(index=index_name)
-    
-    return {"url": es_container, "index": index_name}
+
+    yield {"url": es_container, "index": index_name}
+
+    client.options(ignore_status=[400, 404]).indices.delete(index=index_name)
 
 
 @pytest.fixture(scope="module")
@@ -84,8 +77,9 @@ def search_adapter(es_client):
     config_dict = {"es_connection_url": es_client["url"]}
     return SparkESSearchAdapter(
         es_config=config_dict,
-        index_name=es_client["index"]
-        )
+        index_name=es_client["index"],
+        search_executor=MultiSearchExecutor()
+    )
 
 
 def test_get_candidates_successfully_retrieves_records(spark, search_adapter, real_phase_context):

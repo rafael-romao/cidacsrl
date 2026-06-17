@@ -77,6 +77,8 @@ services:
       - shared_storage:/mnt/storage
     environment:
       - PYTHONPATH=/app
+      - CIDACSRL_ES_URL=http://elasticsearch:9200
+      - PYSPARK_SUBMIT_ARGS=--packages org.elasticsearch:elasticsearch-spark-30_2.12:9.1.8 pyspark-shell
     working_dir: /app
     networks:
       - cidacsrl_network

@@ -98,13 +98,16 @@ run-e2e-indexing-only: up
 	$(COMPOSE) exec cidacsrl_runner \
 		python core/tests/e2e/run_e2e_pipeline.py --env-name $(ENV) --skip-linkage
 
+ES_CONNECTOR_PKG := org.elasticsearch:elasticsearch-spark-30_2.12:9.1.8
+PYSPARK_ENV     := -e CIDACSRL_ES_URL=http://elasticsearch:9200 -e "PYSPARK_SUBMIT_ARGS=--packages $(ES_CONNECTOR_PKG) pyspark-shell"
+
 test: up
 	@echo "--> Executando toda a suíte de testes..."
-	$(COMPOSE) exec cidacsrl_runner pytest -v
+	$(COMPOSE) exec $(PYSPARK_ENV) cidacsrl_runner pytest core/tests/ -v
 
 test-integration: up
 	@echo "--> Executando testes de integração..."
-	$(COMPOSE) exec cidacsrl_runner pytest core/tests/integration/ -m integration -v
+	$(COMPOSE) exec $(PYSPARK_ENV) cidacsrl_runner pytest core/tests/integration/ -m integration -v
 
 test-unit: up
 	@echo "--> Executando testes unitários..."

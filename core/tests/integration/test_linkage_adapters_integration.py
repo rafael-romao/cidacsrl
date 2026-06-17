@@ -1,5 +1,5 @@
+import os
 import pytest
-from testcontainers.elasticsearch import ElasticSearchContainer
 from elasticsearch import Elasticsearch
 from pyspark.sql import SparkSession, Row
 
@@ -14,10 +14,7 @@ pytestmark = pytest.mark.integration
 
 @pytest.fixture
 def es_container():
-    with ElasticSearchContainer("elasticsearch:9.1.8") as es:
-        host = es.get_container_host_ip()
-        port = es.get_exposed_port(9200)
-        yield f"http://{host}:{port}"
+    yield os.environ.get("CIDACSRL_ES_URL", "http://localhost:9200")
 
 
 @pytest.fixture
@@ -31,12 +28,15 @@ def es_client(es_container):
         {"id_nacional": "100", "nome_completo": "Carlos Rocha", "idade": 45, "sexo": "M"},
         {"id_nacional": "200", "nome_completo": "Carla Rocha", "idade": 42, "sexo": "F"}
     ]
-    
+
     for doc in docs:
         client.index(index=index_name, id=doc["id_nacional"], document=doc)
-        
+
     client.indices.refresh(index=index_name)
-    return {"url": es_container, "index": index_name}
+
+    yield {"url": es_container, "index": index_name}
+
+    client.options(ignore_status=[400, 404]).indices.delete(index=index_name)
 
 @pytest.fixture(scope="module")
 def spark():
