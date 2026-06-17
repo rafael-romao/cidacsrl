@@ -9,6 +9,21 @@ os.environ.setdefault(
 )
 
 
+@pytest.fixture(scope="session", autouse=True)
+def require_elasticsearch():
+    """Aborta a sessão se o Elasticsearch não estiver acessível."""
+    from elasticsearch import Elasticsearch
+
+    url = os.environ.get("CIDACSRL_ES_URL", "http://localhost:9200")
+    client = Elasticsearch(url, request_timeout=5)
+    if not client.ping():
+        pytest.exit(
+            f"\n❌ Elasticsearch não está respondendo em {url}.\n"
+            "   Execute 'make up' para subir o ambiente antes de rodar os testes de integração.\n",
+            returncode=2,
+        )
+
+
 @pytest.fixture(scope="module", autouse=True)
 def force_spark_context_teardown():
     yield
