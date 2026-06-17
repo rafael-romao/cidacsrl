@@ -5,6 +5,7 @@ id_target_table: "codigo_obito"
 
 extra_target_fields:
   - "causa_basica"
+  - "data_obito"
 
 
 blocking_phases:
@@ -44,7 +45,7 @@ blocking_phases:
         similarity: "jaro_winkler"
         es_clause_type: "should"
         is_fuzzy: true
-        weight: 0.3
+        weight: 0.2
       - source_column: "data_nascimento"
         target_column: "data_nascimento"
         es_clause_type: "should"
@@ -57,6 +58,11 @@ blocking_phases:
         weight: 0.1
       - source_column: "municipio_acidente"
         target_column: "municipio_obito"
+        es_clause_type: "should"
+        similarity: "exact"
+        weight: 0.1
+      - source_column: "data_acidente"
+        target_column: "data_obito"
         es_clause_type: "should"
         similarity: "exact"
         weight: 0.1

@@ -5,11 +5,9 @@ storage:
   output_format: "parquet"
 
 execution:
-  sample_fraction: 0.1
-  sample_seed: 42
   audit_log_path: "tests/data/audit_logs"
-  partitioning:
-    partition_column: "uf_acidente"
+  # partitioning:
+  #   partition_column: "uf_acidente"
 
 specification:
   indexing_path: "tests/configs/specifications/obitos_example_index.yml"
