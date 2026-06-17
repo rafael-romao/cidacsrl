@@ -3,9 +3,9 @@ from testcontainers.elasticsearch import ElasticSearchContainer
 from elasticsearch import Elasticsearch
 from pyspark.sql import SparkSession, Row
 
-from core.cidacsrl.infra.adapters.outbound.elasticsearch.spark_es_search_adapter import SparkESSearchAdapter
-from core.cidacsrl.domain.models.matching_rules import ComparisonRule
-from core.cidacsrl.domain.models.linkage_specification import BlockingPhaseContext, BlockingPhaseTargetFields
+from core.infra.adapters.outbound.elasticsearch.spark_es_search_adapter import SparkESSearchAdapter
+from core.domain.models.matching_rules import ComparisonRule
+from core.domain.models.linkage_specification import BlockingPhaseContext, BlockingPhaseTargetFields
 
 
 @pytest.fixture(scope="module")

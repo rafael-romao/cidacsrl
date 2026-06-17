@@ -1,7 +1,7 @@
 import os
 import pytest
 from unittest.mock import patch, MagicMock
-from core.cidacsrl.infra.bootstrappers.linkage_bootstrapper import bootstrap_sequential_linkage
+from core.infra.bootstrappers.linkage_bootstrapper import bootstrap_sequential_linkage
 
 @pytest.fixture
 def setup_integration_payloads(tmp_path):
@@ -17,9 +17,9 @@ def setup_integration_payloads(tmp_path):
     # Dicionário de Storage (Ambiente)
     storage_payload = {
         "source_path": str(data_input_dir),
-        "output_data_path": str(data_output_dir),
+        "output_path": str(data_output_dir),
         "source_format": "parquet",
-        "output_data_format": "parquet"
+        "output_format": "parquet"
     }
 
     # Dicionário da Especificação de Linkage
@@ -77,9 +77,10 @@ def setup_integration_payloads(tmp_path):
 def test_bootstrap_sequential_linkage_execution(setup_integration_payloads):
     payloads = setup_integration_payloads    
     
-    with patch("cidacsrl_rlp.cidacsrl.infra.bootstrappers.linkage_bootstrapper.get_es_client", return_value=True), \
-         patch("cidacsrl_rlp.cidacsrl.infra.adapters.outbound.elasticsearch.spark_es_search_adapter.SparkESSearchAdapter.get_candidates", return_value=MagicMock()), \
-         patch("cidacsrl_rlp.cidacsrl.infra.adapters.outbound.spark_data_ingestion_adapter.SparkDataIngestionAdapter.check_health", return_value=[]):
+    with patch("core.infra.bootstrappers.linkage_bootstrapper.get_es_client", return_value=MagicMock()), \
+         patch("core.infra.bootstrappers.linkage_bootstrapper.validate_elasticsearch_schema"), \
+         patch("core.infra.bootstrappers.linkage_bootstrapper.RecordLinkageUseCase") as mock_uc_class, \
+         patch("core.infra.adapters.outbound.spark_data_ingestion_adapter.SparkDataIngestionAdapter.check_health", return_value=[]):
         
         try:
             bootstrap_sequential_linkage(
@@ -91,3 +92,8 @@ def test_bootstrap_sequential_linkage_execution(setup_integration_payloads):
             )
         except Exception as e:
             pytest.fail(f"O bootstrapper falhou ao ser executado com os payloads segregados: {e}")
+
+    mock_uc_class.return_value.execute.assert_called_once()
+    call_kwargs = mock_uc_class.return_value.execute.call_args.kwargs
+    assert call_kwargs["job_id"] == "job_test_integration"
+    assert call_kwargs["specification"].source_table == "nascimentos_integracao"

@@ -104,11 +104,11 @@ test: up
 
 test-integration: up
 	@echo "--> Executando testes de integração..."
-	$(COMPOSE) exec cidacsrl_runner pytest core/tests/integration/ -v
+	$(COMPOSE) exec cidacsrl_runner pytest core/tests/integration/ -m integration -v
 
 test-unit: up
 	@echo "--> Executando testes unitários..."
-	$(COMPOSE) exec cidacsrl_runner pytest core/tests/unit/ -v
+	$(COMPOSE) exec cidacsrl_runner pytest core/tests/unit/ -m unit -v
 
 test-unit-dedup:
 	@echo "--> Executando testes unitários do módulo deduplicating (local)..."

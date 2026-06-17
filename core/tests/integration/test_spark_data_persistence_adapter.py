@@ -1,8 +1,8 @@
 import pytest
 from pathlib import Path
 from pyspark.sql import SparkSession, Row
-from core.cidacsrl.infra.adapters.outbound.spark_data_persistence_adapter import SparkDataPersistenceAdapter
-from core.cidacsrl.infra.configs.models.storage_config import OutputStorageConfig
+from core.infra.adapters.outbound.spark_data_persistence_adapter import SparkDataPersistenceAdapter
+from core.infra.configs.models.storage_config import OutputStorageConfig
 
 
 @pytest.fixture(scope="module")

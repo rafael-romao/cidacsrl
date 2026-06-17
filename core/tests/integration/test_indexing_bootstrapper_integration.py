@@ -1,6 +1,6 @@
 from unittest.mock import MagicMock, patch
 
-from core.cidacsrl.infra.bootstrappers.indexing_bootstrapper import bootstrap_elasticsearch_indexing
+from core.infra.bootstrappers.indexing_bootstrapper import bootstrap_elasticsearch_indexing
 
 
 def test_bootstrap_elasticsearch_indexing_execution(test_paths):
@@ -46,10 +46,10 @@ def test_bootstrap_elasticsearch_indexing_execution(test_paths):
         captured["index_name"] = spec.index_config.name
 
     with patch(
-        "cidacsrl_rlp.cidacsrl.infra.adapters.outbound.elasticsearch.spark_es_indexing_adapter.get_es_client",
+        "core.infra.adapters.outbound.elasticsearch.spark_es_indexing_adapter.get_es_client",
         return_value=fake_es_client,
     ), patch(
-        "cidacsrl_rlp.cidacsrl.infra.adapters.outbound.elasticsearch.spark_es_indexing_adapter.SparkESIndexingAdapter.index_dataframe",
+        "core.infra.adapters.outbound.elasticsearch.spark_es_indexing_adapter.SparkESIndexingAdapter.index_dataframe",
         autospec=True,
         side_effect=capture_index_dataframe,
     ):

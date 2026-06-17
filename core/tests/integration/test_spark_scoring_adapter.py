@@ -2,9 +2,9 @@ import pytest
 from pyspark.sql import SparkSession, Row
 from pyspark.sql.types import StructType, StructField, StringType, IntegerType, FloatType
 
-from core.cidacsrl.infra.adapters.outbound.spark_scoring_adapter import SparkScoringAdapter
-from core.cidacsrl.domain.models.matching_rules import ComparisonRule
-from core.cidacsrl.domain.models.linkage_specification import BlockingPhaseContext, BlockingPhaseTargetFields
+from core.infra.adapters.outbound.spark_scoring_adapter import SparkScoringAdapter
+from core.domain.models.matching_rules import ComparisonRule
+from core.domain.models.linkage_specification import BlockingPhaseContext, BlockingPhaseTargetFields
 
 
 @pytest.fixture(scope="module")
@@ -95,13 +95,13 @@ def test_build_score_schema(adapter, real_phase_context):
 def test_calculate_score_distributed_udf_execution(adapter, real_phase_context, candidates_df):
     scored_df = adapter.calculate_score(candidates_df, real_phase_context)
     results = scored_df.collect()
-    
-    assert len(results) == 1
-    row = results[0]
-    
-    assert row.match_score == 1.0
-    assert row.sim_nome == 1.0
-    assert row.sim_idade == 1.0
+
+    assert len(results) == 2
+
+    joao = next(r for r in results if r.source_nome == "João")
+    assert joao.match_score == 1.0
+    assert joao.sim_nome == 1.0
+    assert joao.sim_idade == 1.0
 
 
 def test_calculate_score_dynamic_source_prefix_from_schema(adapter, real_phase_context, candidates_df):

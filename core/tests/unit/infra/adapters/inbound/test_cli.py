@@ -6,41 +6,9 @@ from unittest.mock import patch, MagicMock
 
 from cli import main
 
-@pytest.fixture
-def mock_env_yaml_content() -> dict:
-    """Mimetiza a estrutura unificada e limpa do novo env_local.yml."""
-    return {
-        "storage": {
-            "source_path": "tests/data/input",
-            "source_format": "parquet",
-            "output_path": "tests/data/output",
-            "output_format": "parquet"
-        },
-        "execution": {
-            "sample_fraction": 0.1,
-            "sample_seed": 42
-        },
-        "specification": {
-            "indexing_path": "tests/configs/specifications/indexing_default.yml",
-            "linkage_path": "tests/configs/specifications/linkage_default.yml"
-        },
-        "spark": {
-            "spark_configs": {"spark.master": "local[*]"}
-        },
-        "elasticsearch": {
-            "es_connection_url": "http://localhost:9200",
-            "search_strategy": "multisearch"
-        }
-    }
 
-@pytest.fixture
-def mock_spec_yaml_content() -> dict:
-    """Mimetiza as regras de negócio abstratas de um arquivo de especificação."""
-    return {"source_table": "tabela_origem", "target_es_index": "indice_destino"}
-
-
-@patch("cidacsrl_rlp.cli.load_yaml")
-@patch("cidacsrl_rlp.cli.bootstrap_sequential_linkage")
+@patch("cli.load_yaml")
+@patch("cli.bootstrap_sequential_linkage")
 def test_cli_executa_linkage_com_especificacao_explicita(
     mock_bootstrap_linkage,
     mock_load_yaml,
@@ -75,8 +43,8 @@ def test_cli_executa_linkage_com_especificacao_explicita(
     )
 
 
-@patch("cidacsrl_rlp.cli.load_yaml")
-@patch("cidacsrl_rlp.cli.bootstrap_sequential_linkage")
+@patch("cli.load_yaml")
+@patch("cli.bootstrap_sequential_linkage")
 def test_cli_executa_linkage_buscando_specification_path_do_env_yaml(
     mock_bootstrap_linkage,
     mock_load_yaml,
@@ -112,8 +80,8 @@ def test_cli_executa_linkage_buscando_specification_path_do_env_yaml(
     )
 
 
-@patch("cidacsrl_rlp.cli.load_yaml")
-@patch("cidacsrl_rlp.cli.bootstrap_elasticsearch_indexing")
+@patch("cli.load_yaml")
+@patch("cli.bootstrap_elasticsearch_indexing")
 def test_cli_executa_indexing_com_sucesso(
     mock_bootstrap_indexing,
     mock_load_yaml,

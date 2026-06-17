@@ -2,8 +2,20 @@ import os
 from pathlib import Path
 import pytest
 from core.infra.configs.logging_config import configure_logging
+from unittest.mock import MagicMock
 
 configure_logging()
+
+
+def pytest_collection_modifyitems(items):
+    for item in items:
+        path_str = str(item.fspath)
+        if "/unit/" in path_str:
+            item.add_marker(pytest.mark.unit)
+        elif "/integration/" in path_str:
+            item.add_marker(pytest.mark.integration)
+        elif "/e2e/" in path_str:
+            item.add_marker(pytest.mark.e2e)
 
 @pytest.fixture(scope="session")
 def test_paths():
@@ -18,31 +30,6 @@ def test_paths():
         "linkage_spec_e2e": tests_root / "configs" / "linkage_spec_e2e.yml",
     }
 
-@pytest.fixture(scope="module", autouse=True)
-def force_spark_context_teardown():
-    """
-    Roda automaticamente ao final de CADA arquivo de teste do projeto.
-    Força a JVM do Spark a fechar de verdade, garantindo que o próximo
-    arquivo consiga carregar seus próprios JARs (como o do Elasticsearch).
-    """
-    yield  # Deixa o arquivo de teste rodar completamente
-    
-    # Executado imediatamente APÓS o último teste do módulo finalizar
-    try:
-        from pyspark import SparkContext
-        from pyspark.sql import SparkSession
-        
-        # 1. Captura a sessão ativa de alto nível se houver e encerra
-        active_session = SparkSession.getActiveSession()
-        if active_session:
-            active_session.stop()
-            
-        # 2. Desliga o motor físico da JVM de forma síncrona
-        if SparkContext._active_spark_context is not None:
-            SparkContext._active_spark_context.stop()
-            
-    except ImportError:
-        pass
 
 @pytest.fixture(scope="session")
 def es_url() -> str:
@@ -60,3 +47,35 @@ def storage_config_data(test_paths) -> dict:
         "source_data_format": "parquet",
         "output_data_format": "parquet",
     }
+
+
+@pytest.fixture
+def mock_env_yaml_content() -> dict:
+    return {
+        "storage": {
+            "source_path": "tests/data/input",
+            "source_format": "parquet",
+            "output_path": "tests/data/output",
+            "output_format": "parquet"
+        },
+        "execution": {
+            "sample_fraction": 0.1,
+            "sample_seed": 42
+        },
+        "specification": {
+            "indexing_path": "tests/configs/specifications/indexing_default.yml",
+            "linkage_path": "tests/configs/specifications/linkage_default.yml"
+        },
+        "spark": {
+            "spark_configs": {"spark.master": "local[*]"}
+        },
+        "elasticsearch": {
+            "es_connection_url": "http://localhost:9200",
+            "search_strategy": "multisearch"
+        }
+    }
+
+
+@pytest.fixture
+def mock_spec_yaml_content() -> dict:
+    return {"source_table": "tabela_origem", "target_es_index": "indice_destino"}

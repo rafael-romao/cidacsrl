@@ -151,7 +151,7 @@ def test_load_sequential_linkage_specification_integration():
             }
         ]
     }
-    with patch("cidacsrl_rlp.cidacsrl.infra.configs.loader.load_yaml", return_value=mock_linkage_spec):
+    with patch("core.infra.configs.loader.load_yaml", return_value=mock_linkage_spec):
         result = load_sequential_linkage_specification("any_path.yml")
         assert isinstance(result, SequentialLinkageSpecification)
         assert result.source_table == "internacao_example"
@@ -219,7 +219,7 @@ def test_load_dataset_indexing_specification_integration():
         "index_config": {"name": "nascimentos_test"},
         "index_columns": [{"name": "id", "type": "keyword"}]
     }
-    with patch("cidacsrl_rlp.cidacsrl.infra.configs.loader.load_yaml", return_value=mock_yaml_data):
+    with patch("core.infra.configs.loader.load_yaml", return_value=mock_yaml_data):
         result = load_dataset_indexing_specification("any_path.yml")
         assert isinstance(result, DatasetIndexingSpecification)
         assert result.index_config.name == "nascimentos_test"

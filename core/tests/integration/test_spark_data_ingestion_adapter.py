@@ -2,8 +2,8 @@ import pytest
 from pathlib import Path
 from pyspark.sql import SparkSession
 
-from core.cidacsrl.infra.adapters.outbound.spark_data_ingestion_adapter import SparkDataIngestionAdapter
-from core.cidacsrl.infra.configs.models.storage_config import SourceStorageConfig
+from core.infra.adapters.outbound.spark_data_ingestion_adapter import SparkDataIngestionAdapter
+from core.infra.configs.models.storage_config import SourceStorageConfig
 
 @pytest.fixture(scope="module")
 def local_spark():

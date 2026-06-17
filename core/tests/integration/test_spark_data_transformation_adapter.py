@@ -1,6 +1,6 @@
 import pytest
 from pyspark.sql import SparkSession, Row
-from core.cidacsrl.infra.adapters.outbound.spark_data_transformation_adapter import SparkDataTransformationAdapter
+from core.infra.adapters.outbound.spark_data_transformation_adapter import SparkDataTransformationAdapter
 
 @pytest.fixture(scope="module")
 def spark():
