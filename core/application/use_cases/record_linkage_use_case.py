@@ -73,13 +73,13 @@ class RecordLinkageUseCase:
                 if remaining_count == 0:                    
                     break
                 
-                
+                # Busca de Candidatos para a fase atual
                 candidates_df = self.get_candidates.get_candidates(df_remaining, phase_context)
                 
-                
+                # Candidatos encontrados são pontuados com base nas regras de scoring definidas para a fase
                 scored_df = self.scoring.calculate_score(candidates_df, phase_context)
                 
-                
+                # Filtra os pares de registros com base no limiar de confiança definido para a fase
                 matched_pairs = self.transformation.filter_matches_by_threshold(
                     dataset=scored_df, 
                     threshold=phase_context.strong_match_score_threshold
@@ -88,9 +88,10 @@ class RecordLinkageUseCase:
                
                 matched_pairs.cache()
                 
-               
+                # Adiciona a coluna com o nome da fase que gerou o par de registros
                 phase_marked = self.transformation.add_phase_marker(matched_pairs, phase_context.phase_name)
                 
+                # Salva os pares de registros encontrados para a fase atual
                 records_saved = self.persistence.save_phase_output(
                     df=phase_marked,
                     project_name=project_name,
@@ -101,7 +102,7 @@ class RecordLinkageUseCase:
                 
                 total_unit_persisted += records_saved
 
-                
+                # Remove os registros já pareados com alta confiança do dataset principal para as fases subsequentes
                 df_remaining = self.transformation.exclude_records(
                     primary_dataset=df_remaining,
                     records_to_exclude=matched_pairs,
@@ -113,7 +114,7 @@ class RecordLinkageUseCase:
                     phase_index=phase_index,
                     phase_name=phase_context.phase_name,
                     records_in=remaining_count,
-                    records_out=df_remaining.count(),
+                    records_out=records_saved,
                     duration=time.time() - phase_start_time
                 )           
 
@@ -126,9 +127,10 @@ class RecordLinkageUseCase:
                 status=WorkUnitStatus.COMPLETED,
                 records_processed=total_unit_persisted
             )
-            self.tracking.log_work_unit_completion(payload.unit_id, total_unit_persisted, time.time() - unit_start_time)
-
-            total_duration = time.time() - total_start_time
-            logger.info("=========================================================================")
-            logger.info(f" Tempo de Execução do Record Linkage: {total_duration:.2f}s")
-            logger.info("=========================================================================")
+            self.tracking.log_work_unit_completion(total_unit_persisted, f"{remaining_count-records_saved}", time.time() - unit_start_time)
+        
+        
+        total_duration = time.time() - total_start_time
+        logger.info("=========================================================================")
+        logger.info(f" TEMPO DE EXECUÇÃO DO RECORD LINKAGE: {total_duration:.2f}s | BLOCOS: {total_units}")
+        logger.info("=========================================================================")

@@ -37,12 +37,15 @@ class JSONExecutionTrackingAdapter(ExecutionTrackingPort):
         file_path = self._resolve_checkpoint_path(job_id)
         
         if os.path.exists(file_path):
-            logger.info(f"[{job_id}] - Arquivo de checkpoint existente localizado em '{file_path}'. Processo marcado para reinício a partir do estado salvo.")
+            logger.info(f"[{job_id}] - O JOB será reiniciado a partir do último estado válido.")
+            logger.debug(f"[{job_id}] - Arquivo de checkpoint existente localizado em '{file_path}'.O JOB será reiniciado a partir do último estado válido.")
             return
 
-        logger.info(f"[{job_id}] - Criando novo arquivo  '{file_path}'...")
+       
+        logger.debug(f"[{job_id}] - Criando novo arquivo em '{file_path}'")
         initial_state = {record.unit_id: record.to_dict() for record in work_units}
         self._write_raw_file(file_path, initial_state)
+        logger.info(f"[{job_id}] - Arquivo de checkpoint criado.")
 
     def get_pending_work_units(self, job_id: str) -> List[WorkUnitExecutionRecord]:
         file_path = self._resolve_checkpoint_path(job_id)
@@ -109,13 +112,19 @@ class JSONExecutionTrackingAdapter(ExecutionTrackingPort):
         logger.debug(f"[{job_id}] Unidade '{unit_id}': {status.value}.")
 
     def log_work_unit_start(self, job_id: str, unit_id: str, pending_count: int) -> None:
-        logger.info("┌──────────────────────────────────────────────────────────┐")
-        logger.info(f"│ PENDENTES: {pending_count:<3} | PROCESSANDO BLOCO: {unit_id:<21} │")
-        logger.info("└──────────────────────────────────────────────────────────┘")
+
+        if unit_id == "global":
+            logger.info("=========================================================================")
+            logger.info(f"│ {job_id:<10} |             PROCESSANDO EM UM ÚNICO BLOCO             │")
+            logger.info("=========================================================================")
+        else:  
+            logger.info("┌───────────────────────────────────────────────────────────────────────┐")
+            logger.info(f"│ {job_id:<10} | PENDENTES: {pending_count:<3} |  BLOCO: {unit_id:<35} │")
+            logger.info("└───────────────────────────────────────────────────────────────────────┘")
 
     def log_phase_telemetry(self, phase_index: int, phase_name: str, records_in: int, records_out: int, duration: float) -> None:
         logger.info(f"  ├── [Fase {phase_index}: {phase_name:<12}] -> Entrantes: {records_in:<5} | Pares: {records_out:<4} | Duração: {duration:.2f}s")
 
-    def log_work_unit_completion(self, unit_id: str, total_pares: int, duration: float) -> None:
+    def log_work_unit_completion(self, total_pares: int, remaining: int, duration: float) -> None:
         throughput = total_pares / duration if duration > 0 else 0
-        logger.info(f"  └── [Consolidado]   -> Total Pares Gerados: {total_pares:<4} | Tempo Total do Bloco: {duration:.2f}s | Throughput: {throughput:.2f} reg/s\n")
+        logger.info(f"  └── [Consolidado]   -> Total Pares Gerados: {total_pares:<4} | Registros restantes: {remaining:<4} | Tempo Total do Bloco: {duration:.2f}s | Throughput: {throughput:.2f} reg/s\n")
