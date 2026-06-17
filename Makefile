@@ -2,10 +2,12 @@
 PYTHON     := python
 COMPOSE    := docker compose -f core/tests/enviroment/docker-compose.yml
 SPARK_PKG  := spark_packages
+VENV_PYTHON := $(shell poetry env list --full-path 2>/dev/null | awk 'NR==1{print $$1}')/bin/python
 
 .PHONY: all build clean help env-check clean-docker prepare-dirs stop-all stop generate-data
 .PHONY: up up-es up-ui up-jupyter down restart ps logs logs-engine logs-es logs-cerebro logs-jupyter shell-engine shell-es shell-jupyter
 .PHONY: test test-integration test-unit run-e2e-pipeline run-e2e-indexing-only
+.PHONY: test-unit-dedup run-e2e-dedup
 
 all: help
 
@@ -108,6 +110,16 @@ test-unit: up
 	@echo "--> Executando testes unitários..."
 	$(COMPOSE) exec cidacsrl_runner pytest core/tests/unit/ -v
 
+test-unit-dedup:
+	@echo "--> Executando testes unitários do módulo deduplicating (local)..."
+	@if [ -z "$(VENV_PYTHON)" ]; then echo "❌ Erro: virtualenv Poetry não encontrado em ~/.cache/pypoetry/virtualenvs/"; exit 1; fi
+	$(VENV_PYTHON) -m pytest deduplicating/tests/unit/ -v --tb=short -m unit
+
+run-e2e-dedup:
+	@echo "--> Executando pipeline E2E de deduplicação com dados locais de teste..."
+	@if [ -z "$(VENV_PYTHON)" ]; then echo "❌ Erro: virtualenv Poetry não encontrado em ~/.cache/pypoetry/virtualenvs/"; exit 1; fi
+	$(VENV_PYTHON) deduplicating/tests/e2e/run_e2e_deduplication.py $(if $(CONFIG),--config-path $(CONFIG),)
+
 # ─── 3. COMPILAÇÃO, EMPACOTAMENTO E LIMPEZA ────────────────────────────────────
 
 build:
@@ -190,6 +202,11 @@ help:
 	@echo "  make test                                  - Roda todos os testes (Unitários e Integração) via contêiner"
 	@echo "  make test-integration                      - Executa apenas os testes da camada de integração"
 	@echo "  make test-unit                             - Executa apenas as validações unitárias em memória"
+	@echo ""
+	@echo "Deduplicação (local, sem Docker):"
+	@echo "  make test-unit-dedup                       - Testes unitários do módulo deduplicating (venv local)"
+	@echo "  make run-e2e-dedup                         - Pipeline E2E de deduplicação com dados locais de teste"
+	@echo "  make run-e2e-dedup CONFIG=<path.yml>       - Pipeline E2E com config customizado"
 	@echo ""
 	@echo "Compilação e Faxina:"
 	@echo "  make build             - Prepara pacote Wheel e dependências via Poetry"
