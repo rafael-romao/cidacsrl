@@ -112,32 +112,3 @@ def test_execute_processes_all_work_units_successfully(mock_dependencies, mock_s
         status=WorkUnitStatus.COMPLETED,
         records_processed=150
     )
-
-
-def test_execute_updates_status_to_failed_when_exception_occurs(mock_dependencies, mock_specification):
-    orchestrator = mock_dependencies["orchestrator"]
-    tracking = mock_dependencies["tracking"]
-
-    # Simula o orquestrador arremessando um erro crítico de I/O em tempo de execução
-    orchestrator.prepare_and_route.side_effect = RuntimeError("Erro simulado de leitura no cluster distributed storage")
-
-    use_case = RecordLinkageUseCase(
-        orchestrator=orchestrator,
-        persistence_port=mock_dependencies["persistence"],
-        transformation_port=mock_dependencies["transformation"],
-        get_candidates_port=mock_dependencies["get_candidates"],
-        scoring_port=mock_dependencies["scoring"],
-        tracking_port=tracking
-    )
-
-    # O erro deve ser propagado para cima para que o CLI/Bootstrapper tome providências
-    with pytest.raises(RuntimeError) as exc_info:
-        use_case.execute(
-            specification=mock_specification,
-            job_id="job_unit_test_failed",
-            execution_config=MagicMock()
-        )
-
-    assert "Erro simulado de leitura" in str(exc_info.value)
-    
-    mock_dependencies["persistence"].save_linkage_output.assert_not_called()

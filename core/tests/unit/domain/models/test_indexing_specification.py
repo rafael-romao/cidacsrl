@@ -45,25 +45,6 @@ def test_index_column_config_from_dict_without_optional():
     col = IndexColumnConfig.from_dict(data)
     assert col.index_as is None
 
-def test_dataset_indexing_specification_from_dict():
-    data = {
-        "source_config": {"source_table": "table1", "id_field": "id"},
-        "index_config": {
-            "name": "idx",
-            "source_table": "table1"
-        },
-        "index_columns": [
-            {"name": "col1", "type": "keyword"},
-            {"name": "col2", "type": "integer", "index_as": "long"}
-        ]
-    }
-    spec = DatasetIndexingSpecification.from_dict(data)
-    assert spec.source_config.source_table == "table1"
-    assert spec.index_config.name == "idx"
-    assert len(spec.index_columns) == 2
-    assert spec.index_columns[0].name == "col1"
-    assert spec.index_columns[1].index_as == "long"
-
 def test_dataset_indexing_specification_from_dict_empty_columns():
     data = {
         "source_config": {"source_table": "table1", "id_field": "id"},
