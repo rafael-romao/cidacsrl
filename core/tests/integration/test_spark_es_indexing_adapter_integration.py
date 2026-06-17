@@ -19,35 +19,17 @@ def es_container():
 
 @pytest.fixture(scope="module")
 def spark():
-    import glob
     from pyspark.sql import SparkSession
-    from pyspark import SparkContext
 
-    existing = SparkSession.getActiveSession()
-    if existing:
-        existing.stop()
-    if SparkContext._active_spark_context is not None:
-        SparkContext._active_spark_context.stop()
-
-    # Usa o JAR já resolvido pelo Ivy para evitar que o getOrCreate de uma sessão
-    # reaproveitada ignore o spark.jars.packages.
-    ivy_jar = next(
-        iter(glob.glob("/root/.ivy2/cache/org.elasticsearch/elasticsearch-spark-30_2.12/jars/elasticsearch-spark-30_2.12-*.jar")),
-        ""
-    )
-    builder = SparkSession.builder \
+    session = SparkSession.builder \
         .master("local[2]") \
         .appName("cidacsrl-test-es-indexing-integration") \
         .config("spark.ui.showConsoleProgress", "false") \
         .config("spark.ui.enabled", "false") \
         .config("spark.port.maxRetries", "100") \
         .config("spark.sql.shuffle.partitions", "2") \
-        .config("spark.jars.packages", "org.elasticsearch:elasticsearch-spark-30_2.12:9.1.8")
+        .getOrCreate()
 
-    if ivy_jar:
-        builder = builder.config("spark.jars", ivy_jar)
-
-    session = builder.getOrCreate()
     yield session
     session.stop()
 

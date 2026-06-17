@@ -1,4 +1,12 @@
+import os
 import pytest
+
+# Garante que o conector Spark-ES esteja no classpath de QUALQUER SparkContext
+# criado nesta suíte — deve ser definido antes do primeiro SparkContext.init().
+os.environ.setdefault(
+    "PYSPARK_SUBMIT_ARGS",
+    "--packages org.elasticsearch:elasticsearch-spark-30_2.12:9.1.8 pyspark-shell",
+)
 
 
 @pytest.fixture(scope="module", autouse=True)
