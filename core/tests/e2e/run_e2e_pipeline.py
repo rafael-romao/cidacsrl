@@ -7,6 +7,7 @@ import logging
 from pathlib import Path
 from pyspark.sql import SparkSession
 from elasticsearch import Elasticsearch
+import pyarrow.dataset as ds
 
 from core.infra.configs.logging_config import configure_logging
 
@@ -27,6 +28,15 @@ def _configs_root() -> Path:
 def _read_yaml(file_path: Path) -> dict:
     with open(file_path) as f:
         return yaml.safe_load(f)
+
+
+def _count_source_records(source_path: Path, source_table: str) -> int:
+    table_path = source_path / source_table
+    if not table_path.exists():
+        logger.warning(f"Caminho de origem não encontrado: {table_path}. Usando threshold mínimo.")
+        return 0
+    dataset = ds.dataset(str(table_path), format="parquet")
+    return dataset.count_rows()
 
 
 def _index_already_populated(index_name: str, expected_docs: int) -> bool:
@@ -83,16 +93,15 @@ def verify_and_validate_e2e_results(
     linkage_spec_path: Path,
     base_output_path: Path,
 ) -> None:
-    logger.info("Iniciando varredura e validação pós-execução nos volumes compartilhados...")   
-    
+    logger.info("Iniciando varredura e validação pós-execução nos volumes compartilhados...")
+
     index_spec = _read_yaml(index_spec_path)
     index_name = index_spec["index_config"]["name"]
 
     # 1. Validação no Elasticsearch
     es = Elasticsearch(ES_URL)
     es.indices.refresh(index=index_name)
-    res = es.search(index=index_name, query={"match_all": {}})
-    total_docs = res["hits"]["total"]["value"]
+    total_docs = es.count(index=index_name)["count"]
     logger.info(f"Auditoria ES: Encontrados {total_docs} documentos no índice '{index_name}'.")
     assert total_docs > 0, f"Índice '{index_name}' está vazio após a execução."
 
@@ -101,21 +110,29 @@ def verify_and_validate_e2e_results(
 
     source_table = linkage_spec["source_table"]
     target_es_index = linkage_spec["target_es_index"]
-    
-    # Determina deterministicamente o nome do projeto de acordo com a regra de negócio do domínio
+
     project_dir_name = f"linkage_{source_table}_{target_es_index}"
     project_output_path = base_output_path / project_dir_name
 
     logger.info(f"Varrendo os resultados consolidados na árvore do projeto: {project_output_path}")
     assert project_output_path.exists(), f"Erro Crítico: Pasta do projeto de linkage não foi criada: {project_output_path}"
 
-    # Localiza dinamicamente as pastas de jobs geradas dentro do projeto
-    job_dirs = [p for p in project_output_path.iterdir() if p.is_dir() and p.name.startswith("job_")]
-    assert job_dirs, f"Erro Crítico: Nenhuma pasta de execução de Job válida encontrada em {project_output_path}"
-    
-    # Seleciona o diretório do Job mais recente gerado pelo teste corrente
-    active_job_path = max(job_dirs, key=lambda p: p.stat().st_mtime)
-    logger.info(f"Execução ativa detectada para auditoria de dados: {active_job_path.name}")
+    # Localiza as pastas de fases geradas (estrutura Hive: project/phase_match=phase_name/...)
+    phase_dirs = [p for p in project_output_path.iterdir() if p.is_dir() and not p.name.startswith(".")]
+    assert phase_dirs, f"Erro Crítico: Nenhuma pasta de fase válida encontrada em {project_output_path}"
+
+    # Cross-check: todas as fases habilitadas no spec devem ter produzido output
+    expected_phases = {
+        p["phase_name"] for p in linkage_spec.get("blocking_phases", []) if p.get("enabled", True)
+    }
+    found_phases = {
+        p.name.split("=", 1)[1] if "=" in p.name else p.name
+        for p in phase_dirs
+    }
+    missing_phases = expected_phases - found_phases
+    assert not missing_phases, f"Erro Crítico: Fases habilitadas sem output em disco: {missing_phases}"
+
+    logger.info(f"Fases detectadas para auditoria: {sorted(found_phases)}")
 
     spark = (
         SparkSession.builder
@@ -125,32 +142,32 @@ def verify_and_validate_e2e_results(
     )
 
     try:
-        all_phases_df = spark.read.parquet(f"{active_job_path}/*/*")
-        
+        all_phases_df = spark.read.option("mergeSchema", "true").parquet(str(project_output_path))
+
         total_links = all_phases_df.count()
         rows = all_phases_df.limit(5).collect()
-        
+
         logger.info(f"Auditoria Disco: Total de pares linkados gerados pelo motor: {total_links}")
         assert total_links > 0, "O pipeline rodou, mas nenhum par de matching foi gerado após a filtragem."
 
         logger.info("Amostra dos Pares Identificados e Armazenados:")
         for i, row in enumerate(rows):
             row_dict = row.asDict()
-            
+
             # Extração agnóstica das chaves independentemente do domínio (Nascimento, Acidente, etc)
             source_keys = [k for k in row_dict.keys() if k.startswith("source_") and not k.startswith("source_uf")]
             candidate_keys = [k for k in row_dict.keys() if k.startswith("candidate_")]
-            
+
             src_col = source_keys[0] if source_keys else "source_id"
             cand_col = candidate_keys[0] if candidate_keys else "candidate_id"
-            
+
             logger.info(
                 f"  [Par #{i + 1}] Origem ({src_col}): {row_dict.get(src_col, 'N/A')} "
                 f"-> Candidato ES ({cand_col}): {row_dict.get(cand_col, 'N/A')} "
                 f"| Score: {row_dict.get('match_score', 'N/A')} "
                 f"| Fase: {row_dict.get('phase_match', 'N/A')}"
             )
-            
+
     finally:
         spark.stop()
 
@@ -168,16 +185,20 @@ def _parse_args() -> argparse.Namespace:
         action="store_true",
         help="Pula o passo de linkage e sua validação de disco. Útil para executar apenas a indexação.",
     )
+    parser.add_argument(
+        "--validate-only",
+        action="store_true",
+        help="Pula indexação e linkage; executa apenas a validação dos resultados já existentes em disco e ES.",
+    )
     return parser.parse_args()
 
 
 if __name__ == "__main__":
     args = _parse_args()
-    
-    # 1. Resolve o path do Env File passado pelo usuário/Makefile
+
     env_filename = args.env_name if args.env_name.endswith((".yml", ".yaml")) else f"{args.env_name}.yml"
     runtime_env_path = _configs_root() / env_filename
-    
+
     if not runtime_env_path.exists():
         logger.error(f"Arquivo de ambiente não encontrado: {runtime_env_path}")
         sys.exit(1)
@@ -187,50 +208,53 @@ if __name__ == "__main__":
         logger.info(f"       INICIANDO PIPELINE DE INTEGRAÇÃO FIM-A-FIM: {env_filename}       ")
         logger.info("=========================================================================")
 
-        # 2. Extrai os paths de especificação de dentro do arquivo de env selecionado
         env_config = _read_yaml(runtime_env_path)
-        project_root = _tests_root().parent  # Assume que os caminhos no yaml são relativos à raiz do projeto
-        
-        
-        
-        # Resolve os caminhos
+        project_root = _tests_root().parent
+
         idx_path_str = env_config["specification"]["indexing_path"].lstrip("/")
         lnk_path_str = env_config["specification"]["linkage_path"].lstrip("/")
 
         index_spec_path = project_root / idx_path_str
         linkage_spec_path = project_root / lnk_path_str
 
-        print(f"Ambiente selecionado: {env_filename}"
-              f"\n- Especificação de Indexação: {index_spec_path}"
-              f"\n- Especificação de Linkage: {linkage_spec_path}\n")
+        logger.info(
+            f"Ambiente selecionado: {env_filename}"
+            f"\n- Especificação de Indexação: {index_spec_path}"
+            f"\n- Especificação de Linkage: {linkage_spec_path}"
+        )
 
-        # --- Passo 1: Indexação  ---
-        index_spec = _read_yaml(index_spec_path)
-        index_name = index_spec["index_config"]["name"]
-        
-        # Assume que o índice já está populado se tiver mais de 100 documentos
-        skip_indexing = _index_already_populated(index_name, expected_docs=100)
-
-        if skip_indexing:
-            logger.info("Passo 1/2: Indexação ignorada (o índice já está devidamente populado).")
+        if args.validate_only:
+            logger.info("Modo --validate-only: indexação e linkage serão ignorados.")
         else:
-            run_indexing_step(runtime_env_path)
+            # --- Passo 1: Indexação ---
+            index_spec = _read_yaml(index_spec_path)
+            index_name = index_spec["index_config"]["name"]
+            source_table = index_spec["source_config"]["source_table"]
+            source_path = project_root / env_config["storage"]["source_path"].lstrip("/")
+            expected_docs = _count_source_records(source_path, source_table)
 
-        # --- Passo 2: Linkage ---
-        if args.skip_linkage:
-            logger.info("Passo 2/2: Linkage ignorado via flag (--skip-linkage).")
-        else:
-            run_linkage_step(runtime_env_path)
+            skip_indexing = expected_docs > 0 and _index_already_populated(index_name, expected_docs=expected_docs)
+
+            if skip_indexing:
+                logger.info("Passo 1/2: Indexação ignorada (o índice já está devidamente populado).")
+            else:
+                run_indexing_step(runtime_env_path)
+
+            # --- Passo 2: Linkage ---
+            if args.skip_linkage:
+                logger.info("Passo 2/2: Linkage ignorado via flag (--skip-linkage).")
+            else:
+                run_linkage_step(runtime_env_path)
 
         # --- Passo 3: Validação ---
-        if not args.skip_linkage:
+        if args.skip_linkage and not args.validate_only:
+            logger.info("Atenção: Validação dos resultados em disco foi ignorada pois o Linkage não foi executado.")
+        else:
             verify_and_validate_e2e_results(
                 index_spec_path=index_spec_path,
                 linkage_spec_path=linkage_spec_path,
                 base_output_path=_tests_root() / "data" / "output",
             )
-        else:
-            logger.info("Atenção: Validação dos resultados em disco foi ignorada pois o Linkage não foi executado.")
 
         logger.info("=========================================================================")
         logger.info("     STATUS FINAL: SUCESSO")
@@ -238,5 +262,5 @@ if __name__ == "__main__":
         sys.exit(0)
 
     except Exception as e:
-        logger.error(f"❌ Falha no pipeline: {e}")
+        logger.exception(f"❌ Falha no pipeline: {e}")
         sys.exit(1)
