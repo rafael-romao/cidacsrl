@@ -39,6 +39,6 @@ class ExecutionTrackingPort(ABC):
         pass
 
     @abstractmethod
-    def log_work_unit_completion(self, unit_id: str, total_links: int, duration: float) -> None:
+    def log_work_unit_completion(self, total_links: int, remaining: int, duration: float) -> None:
         """Imprime o encerramento consolidado do bloco de trabalho."""
         pass
