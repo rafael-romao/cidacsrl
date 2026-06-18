@@ -13,6 +13,7 @@ class SparkDataIngestionAdapter(DataIngestionPort):
     def __init__(self, spark_session: SparkSession, storage_config: SourceStorageConfig):
         self.spark = spark_session
         self.storage_config = storage_config
+        self._partition_cache: Dict[str, List[str]] = {}
 
     def _resolve_source_path(self, table_name: str) -> str:
         return os.path.join(self.storage_config.source_path, table_name)
@@ -28,18 +29,41 @@ class SparkDataIngestionAdapter(DataIngestionPort):
         return errors
 
     def discover_partitions(self, table_name: str, partition_column: str) -> List[str]:
+        cache_key = f"{table_name}:{partition_column}"
+        if cache_key in self._partition_cache:
+            logger.debug(f"Partições de '{table_name}/{partition_column}' recuperadas do cache.")
+            return self._partition_cache[cache_key]
+
         logger.info(f"Varrendo a coluna '{partition_column}' da tabela '{table_name}' para encontrar partições distintas.")
         try:
             path = self._resolve_source_path(table_name)
-            raw_df = self.spark.read.format(self.storage_config.source_format).load(path)
-            
-            distinct_rows = raw_df.select(partition_column).distinct().collect()
-            discovered = [str(row[partition_column]) for row in distinct_rows if row[partition_column] is not None]
-            
-            return sorted(discovered)
+            schema = self.spark.read.format(self.storage_config.source_format).load(path).schema
+
+            if partition_column not in schema.fieldNames():
+                raise ValueError(
+                    f"Coluna de particionamento '{partition_column}' não encontrada na tabela '{table_name}'. "
+                    f"Colunas disponíveis: {schema.fieldNames()}"
+                )
+
+            distinct_rows = (
+                self.spark.read.format(self.storage_config.source_format)
+                .load(path)
+                .select(partition_column)
+                .distinct()
+                .collect()
+            )
+            discovered = sorted(
+                str(row[partition_column])
+                for row in distinct_rows
+                if row[partition_column] is not None
+            )
+
+            logger.info(f"[{table_name}] {len(discovered)} partições detectadas em '{partition_column}'.")
+            self._partition_cache[cache_key] = discovered
+            return discovered
         except Exception as e:
             logger.error(f"Erro ao computar partições dinâmicas via Spark distinct: {e}")
-            raise e
+            raise
 
     def read_all(self, table_name: str) -> DataFrame:
         path = self._resolve_source_path(table_name)

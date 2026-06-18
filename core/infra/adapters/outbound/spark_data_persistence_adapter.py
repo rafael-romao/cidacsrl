@@ -26,5 +26,9 @@ class SparkDataPersistenceAdapter(DataPersistencePort):
         logger.info(f"Escrevendo resultados da fase: '{phase_name}'")
         logger.debug(f"Escrevendo resultados da fase '{phase_name}' em: {target_path_str}")
         
-        df.write.format(self.config.output_format).mode("overwrite").save(target_path_str)
-        return df.count()
+        df.cache()
+        try:
+            df.write.format(self.config.output_format).mode("overwrite").save(target_path_str)
+            return df.count()
+        finally:
+            df.unpersist()

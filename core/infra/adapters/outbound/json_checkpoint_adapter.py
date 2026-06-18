@@ -40,6 +40,20 @@ class JSONCheckpointAdapter(CheckpointPort):
         if os.path.exists(file_path):
             logger.info(f"[{job_id}] - O JOB será reiniciado a partir do último estado válido.")
             logger.debug(f"[{job_id}] - Arquivo de checkpoint existente em '{file_path}'.")
+
+            current_state = self._read_raw_file(file_path)
+            interrupted = [
+                uid for uid, data in current_state.items()
+                if data.get("status") == WorkUnitStatus.PROCESSING.value
+            ]
+            if interrupted:
+                for uid in interrupted:
+                    current_state[uid]["status"] = WorkUnitStatus.PENDING.value
+                    current_state[uid]["started_at"] = None
+                self._write_raw_file(file_path, current_state)
+                logger.warning(
+                    f"[{job_id}] {len(interrupted)} unidade(s) interrompidas resetadas para PENDING: {interrupted}"
+                )
             return
 
         logger.debug(f"[{job_id}] - Criando novo arquivo em '{file_path}'")
@@ -52,9 +66,9 @@ class JSONCheckpointAdapter(CheckpointPort):
         raw_state = self._read_raw_file(file_path)
 
         return [
-            WorkUnitExecutionRecord.from_dict(unit_data)
+            record
             for unit_data in raw_state.values()
-            if WorkUnitExecutionRecord.from_dict(unit_data).status != WorkUnitStatus.COMPLETED
+            if (record := WorkUnitExecutionRecord.from_dict(unit_data)).status != WorkUnitStatus.COMPLETED
         ]
 
     def get_all_work_units(self, job_id: str) -> List[WorkUnitExecutionRecord]:
