@@ -31,8 +31,8 @@ deduplication:
     config = load_deduplicate_workflow_config(path)
 
     assert isinstance(config, DeduplicateWorkflowConfig)
-    assert config.storage.source_path == "data/linked.parquet"
-    assert config.storage.output_path == "data/deduped.parquet"
+    assert config.source_storage.source_path == "data/linked.parquet"
+    assert config.output_storage.output_path == "data/deduped.parquet"
     assert config.deduplication_spec.id_source_column == "id_table"
     assert config.deduplication_spec.id_target_column == "candidate_id_table"
     assert config.spark_configs == {"spark.master": "local[*]"}

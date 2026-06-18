@@ -2,13 +2,13 @@ import logging
 from typing import Any
 
 from deduplicating.application.ports.outbound.data_reader_port import DataReaderPort
-from deduplicating.infra.configs.models.deduplicate_workflow_config import DeduplicateStorageConfig
+from core.infra.configs.models.storage_config import SourceStorageConfig
 
 logger = logging.getLogger("Adapter: SparkDataReader")
 
 
 class SparkDataReaderAdapter(DataReaderPort):
-    def __init__(self, spark: Any, storage: DeduplicateStorageConfig):
+    def __init__(self, spark: Any, storage: SourceStorageConfig):
         self._spark = spark
         self._storage = storage
 

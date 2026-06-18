@@ -2,13 +2,13 @@ import logging
 from typing import Any
 
 from deduplicating.application.ports.outbound.data_persistence_port import DataPersistencePort
-from deduplicating.infra.configs.models.deduplicate_workflow_config import DeduplicateStorageConfig
+from core.infra.configs.models.storage_config import OutputStorageConfig
 
 logger = logging.getLogger("Adapter: SparkDataPersistence")
 
 
 class SparkDataPersistenceAdapter(DataPersistencePort):
-    def __init__(self, storage: DeduplicateStorageConfig):
+    def __init__(self, storage: OutputStorageConfig):
         self._storage = storage
 
     def save(self, df: Any) -> None:

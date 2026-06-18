@@ -39,7 +39,7 @@ def load_deduplicate_workflow_config(path: Union[str, Path]) -> DeduplicateWorkf
     config = DeduplicateWorkflowConfig.from_dict(data)
     logger.info(
         f"Configuração carregada — "
-        f"source='{config.storage.source_path}', "
-        f"output='{config.storage.output_path}'."
+        f"source='{config.source_storage.source_path}', "
+        f"output='{config.output_storage.output_path}'."
     )
     return config

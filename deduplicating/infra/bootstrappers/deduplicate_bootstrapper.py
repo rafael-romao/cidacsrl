@@ -28,9 +28,9 @@ def bootstrap_deduplication(config: DeduplicateWorkflowConfig) -> None:
         spark_config=config.spark_configs,
         checkpoint_dir=_CHECKPOINT_DIR,
     ) as spark:
-        reader = SparkDataReaderAdapter(spark=spark, storage=config.storage)
+        reader = SparkDataReaderAdapter(spark=spark, storage=config.source_storage)
         graph_processor = GraphFramesAdapter()
-        persistence = SparkDataPersistenceAdapter(storage=config.storage)
+        persistence = SparkDataPersistenceAdapter(storage=config.output_storage)
 
         use_case = DeduplicateUseCase(
             reader=reader,

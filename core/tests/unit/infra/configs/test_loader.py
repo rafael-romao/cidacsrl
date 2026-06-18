@@ -80,7 +80,7 @@ def test_parse_output_storage_config_success():
     assert result.output_format == "csv"
 
 def test_parse_storage_config_missing_node_raises_error():
-    with pytest.raises(ValueError, match="está vazio ou ausente"):
+    with pytest.raises(ValueError, match="'source_path' é obrigatório"):
         parse_source_storage_config({})
 
 def test_parse_execution_config_completo():

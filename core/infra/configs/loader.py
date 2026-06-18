@@ -42,29 +42,11 @@ def load_yaml(file_path: Union[str, Path]) -> Dict[str, Any]:
 
 
 def parse_source_storage_config(data: Dict[str, Any]) -> SourceStorageConfig:
-    """
-    Traduz o sub-bloco 'storage' para o contrato estrito de LEITURA de dados.
-    """
-    if not data:
-        raise ValueError("O bloco de configuração de armazenamento ('storage') está vazio ou ausente.")
-        
-    return SourceStorageConfig(
-        source_path=data.get("source_path"),
-        source_format=data.get("source_format", "parquet")
-    )
+    return SourceStorageConfig.from_dict(data)
 
 
 def parse_output_storage_config(data: Dict[str, Any]) -> OutputStorageConfig:
-    """
-    Traduz o sub-bloco 'storage' para o contrato estrito de PERSISTÊNCIA de dados.
-    """
-    if not data:
-        raise ValueError("O bloco de configuração de armazenamento ('storage') está vazio ou ausente.")
-        
-    return OutputStorageConfig(
-        output_path=data.get("output_path"),
-        output_format=data.get("output_format", "parquet")
-    )
+    return OutputStorageConfig.from_dict(data)
 
 
 def parse_execution_config(data: Dict[str, Any]) -> ExecutionConfig:

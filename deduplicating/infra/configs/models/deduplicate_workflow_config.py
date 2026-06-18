@@ -1,29 +1,8 @@
 from dataclasses import dataclass, field
 from typing import Any, Dict
 
+from core.infra.configs.models.storage_config import SourceStorageConfig, OutputStorageConfig
 from deduplicating.application.domain.models.deduplication_specification import DeduplicationSpecification
-
-
-@dataclass(frozen=True)
-class DeduplicateStorageConfig:
-    """Contrato de I/O para o workflow de deduplicação."""
-    source_path: str
-    output_path: str
-    source_format: str = "parquet"
-    output_format: str = "parquet"
-
-    @classmethod
-    def from_dict(cls, data: Dict[str, Any]) -> "DeduplicateStorageConfig":
-        if not data.get("source_path"):
-            raise ValueError("O bloco 'storage' requer 'source_path'.")
-        if not data.get("output_path"):
-            raise ValueError("O bloco 'storage' requer 'output_path'.")
-        return cls(
-            source_path=data["source_path"],
-            output_path=data["output_path"],
-            source_format=data.get("source_format", "parquet"),
-            output_format=data.get("output_format", "parquet"),
-        )
 
 
 @dataclass(frozen=True)
@@ -51,7 +30,8 @@ class DeduplicateWorkflowConfig:
           id_target_column: "candidate_id_table"
           output_group_id_column: "cidacs_cluster_id"
     """
-    storage: DeduplicateStorageConfig
+    source_storage: SourceStorageConfig
+    output_storage: OutputStorageConfig
     deduplication_spec: DeduplicationSpecification
     app_name: str = "CIDACS-RL Deduplication"
     spark_configs: Dict[str, Any] = field(default_factory=dict)
@@ -72,7 +52,8 @@ class DeduplicateWorkflowConfig:
         spark_configs = data.get("spark", {}).get("spark_configs", {})
 
         return cls(
-            storage=DeduplicateStorageConfig.from_dict(storage_data),
+            source_storage=SourceStorageConfig.from_dict(storage_data),
+            output_storage=OutputStorageConfig.from_dict(storage_data),
             deduplication_spec=DeduplicationSpecification.from_dict(dedup_data),
             app_name=data.get("app_name", "CIDACS-RL Deduplication"),
             spark_configs=spark_configs,
