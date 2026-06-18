@@ -1,10 +1,11 @@
 import pytest
-from unittest.mock import MagicMock
+from unittest.mock import MagicMock, ANY
 
 from deduplicating.application.domain.models.deduplication_specification import DeduplicationSpecification
 from deduplicating.application.ports.outbound.data_reader_port import DataReaderPort
 from deduplicating.application.ports.outbound.graph_processing_port import GraphProcessingPort
 from deduplicating.application.ports.outbound.data_persistence_port import DataPersistencePort
+from deduplicating.application.ports.outbound.deduplication_telemetry_port import DeduplicationTelemetryPort
 from deduplicating.application.use_cases.deduplicate_use_case import DeduplicateUseCase
 
 pytestmark = pytest.mark.unit
@@ -25,6 +26,7 @@ def mock_ports():
         MagicMock(spec=DataReaderPort),
         MagicMock(spec=GraphProcessingPort),
         MagicMock(spec=DataPersistencePort),
+        MagicMock(spec=DeduplicationTelemetryPort),
     )
 
 
@@ -43,15 +45,19 @@ def chained_dataframes():
     return df_pairs, df_clusters, df_joined, df_dropped, df_renamed
 
 
+def _make_use_case(mock_ports):
+    reader, graph_processor, persistence, telemetry = mock_ports
+    return DeduplicateUseCase(reader, graph_processor, persistence, telemetry)
+
+
 def test_execute_calls_all_ports_in_order(spec, mock_ports, chained_dataframes):
-    reader, graph_processor, persistence = mock_ports
+    reader, graph_processor, persistence, telemetry = mock_ports
     df_pairs, df_clusters, _, _, df_renamed = chained_dataframes
 
     reader.read_linked_pairs.return_value = df_pairs
     graph_processor.find_clusters.return_value = df_clusters
 
-    use_case = DeduplicateUseCase(reader, graph_processor, persistence)
-    use_case.execute(spec)
+    _make_use_case(mock_ports).execute(spec)
 
     reader.read_linked_pairs.assert_called_once()
     graph_processor.find_clusters.assert_called_once()
@@ -59,13 +65,13 @@ def test_execute_calls_all_ports_in_order(spec, mock_ports, chained_dataframes):
 
 
 def test_execute_passes_spec_columns_to_graph_processor(spec, mock_ports, chained_dataframes):
-    reader, graph_processor, persistence = mock_ports
+    reader, graph_processor, persistence, _ = mock_ports
     df_pairs, df_clusters, _, _, _ = chained_dataframes
 
     reader.read_linked_pairs.return_value = df_pairs
     graph_processor.find_clusters.return_value = df_clusters
 
-    DeduplicateUseCase(reader, graph_processor, persistence).execute(spec)
+    _make_use_case(mock_ports).execute(spec)
 
     graph_processor.find_clusters.assert_called_once_with(
         df_pairs=df_pairs,
@@ -75,48 +81,65 @@ def test_execute_passes_spec_columns_to_graph_processor(spec, mock_ports, chaine
 
 
 def test_execute_drops_id_column_after_join(spec, mock_ports, chained_dataframes):
-    reader, graph_processor, persistence = mock_ports
+    reader, graph_processor, persistence, _ = mock_ports
     df_pairs, df_clusters, df_joined, _, _ = chained_dataframes
 
     reader.read_linked_pairs.return_value = df_pairs
     graph_processor.find_clusters.return_value = df_clusters
 
-    DeduplicateUseCase(reader, graph_processor, persistence).execute(spec)
+    _make_use_case(mock_ports).execute(spec)
 
     df_joined.drop.assert_called_once_with("id")
 
 
 def test_execute_renames_cluster_id_to_spec_output_column(spec, mock_ports, chained_dataframes):
-    reader, graph_processor, persistence = mock_ports
+    reader, graph_processor, persistence, _ = mock_ports
     df_pairs, df_clusters, _, df_dropped, _ = chained_dataframes
 
     reader.read_linked_pairs.return_value = df_pairs
     graph_processor.find_clusters.return_value = df_clusters
 
-    DeduplicateUseCase(reader, graph_processor, persistence).execute(spec)
+    _make_use_case(mock_ports).execute(spec)
 
     df_dropped.withColumnRenamed.assert_called_once_with("cluster_id", "grupo_id")
 
 
+def test_execute_emits_telemetry_events(spec, mock_ports, chained_dataframes):
+    reader, graph_processor, persistence, telemetry = mock_ports
+    df_pairs, df_clusters, _, _, _ = chained_dataframes
+
+    reader.read_linked_pairs.return_value = df_pairs
+    graph_processor.find_clusters.return_value = df_clusters
+
+    _make_use_case(mock_ports).execute(spec)
+
+    telemetry.log_deduplication_start.assert_called_once_with(
+        id_source="id_origem", id_target="id_destino", output_col="grupo_id"
+    )
+    telemetry.log_pairs_loaded.assert_called_once_with(duration=ANY)
+    telemetry.log_clusters_found.assert_called_once_with(duration=ANY)
+    telemetry.log_deduplication_completion.assert_called_once_with(total_duration=ANY)
+
+
 def test_execute_propagates_reader_exception(spec, mock_ports):
-    reader, graph_processor, persistence = mock_ports
+    reader, graph_processor, persistence, _ = mock_ports
     reader.read_linked_pairs.side_effect = RuntimeError("falha de leitura")
 
     with pytest.raises(RuntimeError, match="falha de leitura"):
-        DeduplicateUseCase(reader, graph_processor, persistence).execute(spec)
+        _make_use_case(mock_ports).execute(spec)
 
     graph_processor.find_clusters.assert_not_called()
     persistence.save.assert_not_called()
 
 
 def test_execute_propagates_graph_processor_exception(spec, mock_ports, chained_dataframes):
-    reader, graph_processor, persistence = mock_ports
+    reader, graph_processor, persistence, _ = mock_ports
     df_pairs, _, _, _, _ = chained_dataframes
 
     reader.read_linked_pairs.return_value = df_pairs
     graph_processor.find_clusters.side_effect = RuntimeError("falha no grafo")
 
     with pytest.raises(RuntimeError, match="falha no grafo"):
-        DeduplicateUseCase(reader, graph_processor, persistence).execute(spec)
+        _make_use_case(mock_ports).execute(spec)
 
     persistence.save.assert_not_called()

@@ -41,6 +41,7 @@ def spark_context(mock_spark):
 
 
 @patch(f"{_MODULE}.DeduplicateUseCase")
+@patch(f"{_MODULE}.FormattedLogDeduplicationTelemetryAdapter")
 @patch(f"{_MODULE}.SparkDataPersistenceAdapter")
 @patch(f"{_MODULE}.GraphFramesAdapter")
 @patch(f"{_MODULE}.SparkDataReaderAdapter")
@@ -50,6 +51,7 @@ def test_bootstrap_wires_all_adapters_and_executes(
     mock_reader_cls,
     mock_graph_cls,
     mock_persistence_cls,
+    mock_telemetry_cls,
     mock_use_case_cls,
     workflow_config,
     mock_spark,
@@ -69,10 +71,12 @@ def test_bootstrap_wires_all_adapters_and_executes(
     mock_reader_cls.assert_called_once_with(spark=mock_spark, storage=workflow_config.source_storage)
     mock_graph_cls.assert_called_once_with()
     mock_persistence_cls.assert_called_once_with(storage=workflow_config.output_storage)
+    mock_telemetry_cls.assert_called_once_with()
     mock_use_case_cls.assert_called_once_with(
         reader=mock_reader_cls.return_value,
         graph_processor=mock_graph_cls.return_value,
         persistence=mock_persistence_cls.return_value,
+        telemetry=mock_telemetry_cls.return_value,
     )
     mock_use_case.execute.assert_called_once_with(spec=workflow_config.deduplication_spec)
 

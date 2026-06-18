@@ -5,6 +5,7 @@ from deduplicating.infra.configs.models.deduplicate_workflow_config import Dedup
 from deduplicating.infra.adapters.outbound.spark_data_reader_adapter import SparkDataReaderAdapter
 from deduplicating.infra.adapters.outbound.graphframes_adapter import GraphFramesAdapter
 from deduplicating.infra.adapters.outbound.spark_data_persistence_adapter import SparkDataPersistenceAdapter
+from deduplicating.infra.adapters.outbound.formatted_log_deduplication_telemetry_adapter import FormattedLogDeduplicationTelemetryAdapter
 from deduplicating.application.use_cases.deduplicate_use_case import DeduplicateUseCase
 
 logger = logging.getLogger("Bootstrapper: Deduplication")
@@ -31,11 +32,13 @@ def bootstrap_deduplication(config: DeduplicateWorkflowConfig) -> None:
         reader = SparkDataReaderAdapter(spark=spark, storage=config.source_storage)
         graph_processor = GraphFramesAdapter()
         persistence = SparkDataPersistenceAdapter(storage=config.output_storage)
+        telemetry = FormattedLogDeduplicationTelemetryAdapter()
 
         use_case = DeduplicateUseCase(
             reader=reader,
             graph_processor=graph_processor,
             persistence=persistence,
+            telemetry=telemetry,
         )
 
         use_case.execute(spec=config.deduplication_spec)

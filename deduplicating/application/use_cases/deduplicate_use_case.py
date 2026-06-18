@@ -5,6 +5,7 @@ from deduplicating.application.domain.models.deduplication_specification import 
 from deduplicating.application.ports.outbound.data_reader_port import DataReaderPort
 from deduplicating.application.ports.outbound.graph_processing_port import GraphProcessingPort
 from deduplicating.application.ports.outbound.data_persistence_port import DataPersistencePort
+from deduplicating.application.ports.outbound.deduplication_telemetry_port import DeduplicationTelemetryPort
 
 logger = logging.getLogger("UseCase: Deduplication")
 
@@ -27,29 +28,32 @@ class DeduplicateUseCase:
         reader: DataReaderPort,
         graph_processor: GraphProcessingPort,
         persistence: DataPersistencePort,
+        telemetry: DeduplicationTelemetryPort,
     ):
         self.reader = reader
         self.graph_processor = graph_processor
         self.persistence = persistence
+        self.telemetry = telemetry
 
     def execute(self, spec: DeduplicationSpecification) -> None:
-        logger.info(
-            f"Iniciando deduplicação — "
-            f"id_source='{spec.id_source_column}', "
-            f"id_target='{spec.id_target_column}', "
-            f"output_group_col='{spec.output_group_id_column}'."
+        total_start = time.time()
+        self.telemetry.log_deduplication_start(
+            id_source=spec.id_source_column,
+            id_target=spec.id_target_column,
+            output_col=spec.output_group_id_column,
         )
-        start = time.time()
 
+        step_start = time.time()
         df_pairs = self.reader.read_linked_pairs()
-        logger.info("Pares linkados carregados.")
+        self.telemetry.log_pairs_loaded(duration=time.time() - step_start)
 
+        step_start = time.time()
         df_clusters = self.graph_processor.find_clusters(
             df_pairs=df_pairs,
             id_source_column=spec.id_source_column,
             id_target_column=spec.id_target_column,
         )
-        logger.info("Componentes conectados calculados.")
+        self.telemetry.log_clusters_found(duration=time.time() - step_start)
 
         df_result = (
             df_pairs
@@ -60,4 +64,4 @@ class DeduplicateUseCase:
 
         self.persistence.save(df_result)
 
-        logger.info(f"Deduplicação concluída em {time.time() - start:.2f}s.")
+        self.telemetry.log_deduplication_completion(total_duration=time.time() - total_start)
