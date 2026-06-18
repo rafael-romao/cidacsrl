@@ -65,66 +65,96 @@ class RecordLinkageUseCase:
             remaining_count = 0
             records_saved = 0
 
-            for phase_index, phase_context in enumerate(specification.build_blocking_phase_contexts(), start=1):
-                if not phase_context.enabled:
-                    continue
+            try:
+                for phase_index, phase_context in enumerate(specification.build_blocking_phase_contexts(), start=1):
+                    if not phase_context.enabled:
+                        self.telemetry.log_phase_skipped(job_id, payload.unit_id, phase_index, phase_context.phase_name)
+                        continue
 
-                phase_start_time = time.time()
-                remaining_count = df_remaining.count()
+                    phase_start_time = time.time()
+                    remaining_count = df_remaining.count()
 
-                if remaining_count == 0:
-                    break
+                    if remaining_count == 0:
+                        self.telemetry.log_phase_exhausted(job_id, payload.unit_id, phase_index, phase_context.phase_name)
+                        break
 
-                candidates_df = self.get_candidates.get_candidates(df_remaining, phase_context)
-                scored_df = self.scoring.calculate_score(candidates_df, phase_context)
-                matched_pairs = self.transformation.filter_matches_by_threshold(
-                    dataset=scored_df,
-                    threshold=phase_context.strong_match_score_threshold
-                )
+                    # Sub-fase: Busca ES — materializa via .count() para capturar duração real da rede
+                    search_start = time.time()
+                    candidates_df = self.get_candidates.get_candidates(df_remaining, phase_context)
+                    candidates_df.cache()
+                    candidates_found = candidates_df.count()
+                    search_duration = time.time() - search_start
 
-                matched_pairs.cache()
+                    # Sub-fase: Score + Filtro (lazy) — materializado junto com a persistência
+                    scored_df = self.scoring.calculate_score(candidates_df, phase_context)
+                    matched_pairs = self.transformation.filter_matches_by_threshold(
+                        dataset=scored_df,
+                        threshold=phase_context.strong_match_score_threshold
+                    )
+                    matched_pairs.cache()
 
-                phase_marked = self.transformation.add_phase_marker(matched_pairs, phase_context.phase_name)
+                    phase_marked = self.transformation.add_phase_marker(matched_pairs, phase_context.phase_name)
 
-                records_saved = self.persistence.save_phase_output(
-                    df=phase_marked,
-                    project_name=project_name,
+                    # Sub-fase: Persistência — materializa scoring+filtro+escrita
+                    persist_start = time.time()
+                    records_saved = self.persistence.save_phase_output(
+                        df=phase_marked,
+                        project_name=project_name,
+                        job_id=job_id,
+                        unit_id=payload.unit_id,
+                        phase_name=phase_context.phase_name
+                    )
+                    persist_duration = time.time() - persist_start
+
+                    total_unit_persisted += records_saved
+
+                    df_remaining = self.transformation.exclude_records(
+                        primary_dataset=df_remaining,
+                        records_to_exclude=matched_pairs,
+                        join_key=specification.id_source_table
+                    )
+                    df_remaining.cache()
+
+                    self.telemetry.log_phase_telemetry(
+                        job_id=job_id,
+                        unit_id=payload.unit_id,
+                        phase_index=phase_index,
+                        phase_name=phase_context.phase_name,
+                        records_in=remaining_count,
+                        candidates_found=candidates_found,
+                        records_out=records_saved,
+                        duration=time.time() - phase_start_time,
+                        search_duration=search_duration,
+                        persist_duration=persist_duration,
+                    )
+
+                self.checkpoint.update_work_unit_status(
                     job_id=job_id,
                     unit_id=payload.unit_id,
-                    phase_name=phase_context.phase_name
+                    status=WorkUnitStatus.COMPLETED,
+                    records_processed=total_unit_persisted,
                 )
-
-                total_unit_persisted += records_saved
-
-                df_remaining = self.transformation.exclude_records(
-                    primary_dataset=df_remaining,
-                    records_to_exclude=matched_pairs,
-                    join_key=specification.id_source_table
-                )
-                df_remaining.cache()
-
-                self.telemetry.log_phase_telemetry(
+                self.telemetry.log_work_unit_completion(
                     job_id=job_id,
                     unit_id=payload.unit_id,
-                    phase_index=phase_index,
-                    phase_name=phase_context.phase_name,
-                    records_in=remaining_count,
-                    records_out=records_saved,
-                    duration=time.time() - phase_start_time,
+                    total_links=total_unit_persisted,
+                    remaining=remaining_count - records_saved,
+                    duration=time.time() - unit_start_time,
                 )
 
-            self.checkpoint.update_work_unit_status(
-                job_id=job_id,
-                unit_id=payload.unit_id,
-                status=WorkUnitStatus.COMPLETED,
-                records_processed=total_unit_persisted,
-            )
-            self.telemetry.log_work_unit_completion(
-                job_id=job_id,
-                unit_id=payload.unit_id,
-                total_links=total_unit_persisted,
-                remaining=remaining_count - records_saved,
-                duration=time.time() - unit_start_time,
-            )
+            except Exception as e:
+                self.checkpoint.update_work_unit_status(
+                    job_id=job_id,
+                    unit_id=payload.unit_id,
+                    status=WorkUnitStatus.FAILED,
+                    error_message=str(e),
+                )
+                self.telemetry.log_work_unit_failure(
+                    job_id=job_id,
+                    unit_id=payload.unit_id,
+                    error_message=str(e),
+                    duration=time.time() - unit_start_time,
+                )
+                raise
 
         self.telemetry.log_job_completion(job_id, total_units, time.time() - total_start_time)

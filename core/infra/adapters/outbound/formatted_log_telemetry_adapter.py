@@ -22,6 +22,15 @@ class FormattedLogTelemetryAdapter(TelemetryPort):
             logger.info(f"│ {job_id:<10} | PENDENTES: {pending_count:<3} |  BLOCO: {unit_id:<35} │")
             logger.info("└───────────────────────────────────────────────────────────────────────┘")
 
+    def log_phase_skipped(self, job_id: str, unit_id: str, phase_index: int, phase_name: str) -> None:
+        logger.info(f"  ├── [Fase {phase_index}: {phase_name:<12}] PULADA (desabilitada)")
+
+    def log_phase_exhausted(self, job_id: str, unit_id: str, phase_index: int, phase_name: str) -> None:
+        logger.info(
+            f"  ├── [Fase {phase_index}: {phase_name:<12}] ENCERRADA antecipadamente "
+            f"(sem registros restantes antes de '{phase_name}')"
+        )
+
     def log_phase_telemetry(
         self,
         job_id: str,
@@ -29,12 +38,16 @@ class FormattedLogTelemetryAdapter(TelemetryPort):
         phase_index: int,
         phase_name: str,
         records_in: int,
+        candidates_found: int,
         records_out: int,
         duration: float,
+        search_duration: float,
+        persist_duration: float,
     ) -> None:
         logger.info(
-            f"  ├── [Fase {phase_index}: {phase_name:<12}] -> "
-            f"Entrantes: {records_in:<5} | Pares: {records_out:<4} | Duração: {duration:.2f}s"
+            f"  ├── [Fase {phase_index}: {phase_name:<12}] "
+            f"Entrantes: {records_in:<5} | Candidatos: {candidates_found:<6} | Pares: {records_out:<4} | "
+            f"Busca: {search_duration:.2f}s | Persist: {persist_duration:.2f}s | Total: {duration:.2f}s"
         )
 
     def log_work_unit_completion(
@@ -44,7 +57,14 @@ class FormattedLogTelemetryAdapter(TelemetryPort):
         logger.info(
             f"  └── [Consolidado]   -> Total Pares Gerados: {total_links:<4} | "
             f"Registros restantes: {remaining:<4} | Tempo Total do Bloco: {duration:.2f}s | "
-            f"Throughput: {throughput:.2f} reg/s\n"
+            f"Throughput: {throughput:.2f} pares/s\n"
+        )
+
+    def log_work_unit_failure(
+        self, job_id: str, unit_id: str, error_message: str, duration: float
+    ) -> None:
+        logger.error(
+            f"  └── [FALHA] Bloco '{unit_id}' | Duração: {duration:.2f}s | Erro: {error_message}"
         )
 
     def log_job_completion(self, job_id: str, total_units: int, duration: float) -> None:

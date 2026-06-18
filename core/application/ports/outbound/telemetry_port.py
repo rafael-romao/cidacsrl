@@ -12,6 +12,14 @@ class TelemetryPort(ABC):
         pass
 
     @abstractmethod
+    def log_phase_skipped(self, job_id: str, unit_id: str, phase_index: int, phase_name: str) -> None:
+        pass
+
+    @abstractmethod
+    def log_phase_exhausted(self, job_id: str, unit_id: str, phase_index: int, phase_name: str) -> None:
+        pass
+
+    @abstractmethod
     def log_phase_telemetry(
         self,
         job_id: str,
@@ -19,14 +27,23 @@ class TelemetryPort(ABC):
         phase_index: int,
         phase_name: str,
         records_in: int,
+        candidates_found: int,
         records_out: int,
         duration: float,
+        search_duration: float,
+        persist_duration: float,
     ) -> None:
         pass
 
     @abstractmethod
     def log_work_unit_completion(
         self, job_id: str, unit_id: str, total_links: int, remaining: int, duration: float
+    ) -> None:
+        pass
+
+    @abstractmethod
+    def log_work_unit_failure(
+        self, job_id: str, unit_id: str, error_message: str, duration: float
     ) -> None:
         pass
 

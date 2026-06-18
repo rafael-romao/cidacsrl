@@ -134,8 +134,11 @@ def test_execute_processes_all_work_units_successfully(mock_dependencies, mock_s
         phase_index=1,
         phase_name="fase_teste_unitario",
         records_in=10,
+        candidates_found=ANY,
         records_out=150,
         duration=ANY,
+        search_duration=ANY,
+        persist_duration=ANY,
     )
     telemetry.log_work_unit_completion.assert_called_once_with(
         job_id="job_unit_test_001",
@@ -145,3 +148,58 @@ def test_execute_processes_all_work_units_successfully(mock_dependencies, mock_s
         duration=ANY,
     )
     telemetry.log_job_completion.assert_called_once_with("job_unit_test_001", ANY, ANY)
+
+
+def test_execute_emits_failure_telemetry_and_reraises_on_exception(mock_dependencies, mock_specification):
+    orchestrator = mock_dependencies["orchestrator"]
+    persistence = mock_dependencies["persistence"]
+    transformation = mock_dependencies["transformation"]
+    get_candidates = mock_dependencies["get_candidates"]
+    scoring = mock_dependencies["scoring"]
+    checkpoint = mock_dependencies["checkpoint"]
+    telemetry = mock_dependencies["telemetry"]
+
+    df_raw = MagicMock(spec=DataFrame)
+    df_raw.count.return_value = 10
+
+    payload = WorkUnitPayload(unit_id="uf_RJ", dataframe=df_raw)
+    orchestrator.prepare_and_route.return_value = [payload]
+    checkpoint.get_all_work_units.return_value = [MagicMock(status=WorkUnitStatus.PENDING)]
+
+    get_candidates.get_candidates.side_effect = RuntimeError("ES unreachable")
+
+    use_case = RecordLinkageUseCase(
+        orchestrator=orchestrator,
+        persistence_port=persistence,
+        transformation_port=transformation,
+        get_candidates_port=get_candidates,
+        scoring_port=scoring,
+        checkpoint_port=checkpoint,
+        telemetry_port=telemetry,
+    )
+
+    with pytest.raises(RuntimeError, match="ES unreachable"):
+        use_case.execute(
+            specification=mock_specification,
+            job_id="job_failure_test",
+            execution_config=MagicMock()
+        )
+
+    # Checkpoint marcado como FAILED com a mensagem de erro
+    checkpoint.update_work_unit_status.assert_called_once_with(
+        job_id="job_failure_test",
+        unit_id="uf_RJ",
+        status=WorkUnitStatus.FAILED,
+        error_message="ES unreachable",
+    )
+
+    # Telemetria de falha emitida
+    telemetry.log_work_unit_failure.assert_called_once_with(
+        job_id="job_failure_test",
+        unit_id="uf_RJ",
+        error_message="ES unreachable",
+        duration=ANY,
+    )
+
+    # Telemetria de conclusão NÃO deve ser emitida em caso de falha
+    telemetry.log_work_unit_completion.assert_not_called()
