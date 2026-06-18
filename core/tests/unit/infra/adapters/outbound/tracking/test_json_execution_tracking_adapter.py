@@ -1,9 +1,8 @@
 import json
 from pathlib import Path
 import pytest
-from datetime import datetime
 from core.domain.models.tracking.work_unit import WorkUnitMetadata, WorkUnitStatus, WorkUnitExecutionRecord
-from core.infra.adapters.outbound.json_execution_tracking_adapter import JSONExecutionTrackingAdapter
+from core.infra.adapters.outbound.json_checkpoint_adapter import JSONCheckpointAdapter
 
 PROJECT_NAME = "test_project"
 
@@ -13,7 +12,7 @@ def tracking_dir(tmp_path):
 
 @pytest.fixture
 def adapter(tracking_dir):
-    return JSONExecutionTrackingAdapter(tracking_directory=str(tracking_dir), project_name=PROJECT_NAME)
+    return JSONCheckpointAdapter(tracking_directory=str(tracking_dir), project_name=PROJECT_NAME)
 
 @pytest.fixture
 def project_dir(tracking_dir):
@@ -93,7 +92,6 @@ def test_update_work_unit_status_transitions_correctly(adapter, project_dir):
     work_units = [WorkUnitExecutionRecord(unit_id="uf_BA", status=WorkUnitStatus.PENDING, filters={"uf": "BA"})]
 
     adapter.initialize_job_state(job_id, work_units)
-
     adapter.update_work_unit_status(job_id, "uf_BA", WorkUnitStatus.PROCESSING)
 
     checkpoint_file = project_dir / f"{job_id}_state.json"

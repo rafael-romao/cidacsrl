@@ -7,10 +7,12 @@ from core.application.ports.outbound.data_persistence_port import DataPersistenc
 from core.application.ports.outbound.data_transformation_port import DataTransformationPort
 from core.application.ports.outbound.get_candidates_port import GetCandidatesPort
 from core.application.ports.outbound.scoring_port import ScoringPort
-from core.application.ports.outbound.execution_tracking_port import ExecutionTrackingPort
+from core.application.ports.outbound.checkpoint_port import CheckpointPort
+from core.application.ports.outbound.telemetry_port import TelemetryPort
 from core.infra.configs.models.execution_config import ExecutionConfig
 
 logger = logging.getLogger("UseCase: Record Linkage")
+
 
 class RecordLinkageUseCase:
     """
@@ -25,39 +27,37 @@ class RecordLinkageUseCase:
         transformation_port: DataTransformationPort,
         get_candidates_port: GetCandidatesPort,
         scoring_port: ScoringPort,
-        tracking_port: ExecutionTrackingPort
+        checkpoint_port: CheckpointPort,
+        telemetry_port: TelemetryPort,
     ):
         self.orchestrator = orchestrator
         self.persistence = persistence_port
         self.transformation = transformation_port
         self.get_candidates = get_candidates_port
         self.scoring = scoring_port
-        self.tracking = tracking_port
+        self.checkpoint = checkpoint_port
+        self.telemetry = telemetry_port
 
     def execute(self, specification: SequentialLinkageSpecification, job_id: str, execution_config: ExecutionConfig) -> None:
         project_name = specification.linkage_project_name
         logger.info(f"[{job_id}] - Linkage '{project_name}' - Fonte: '{specification.source_table}' - Índice: '{specification.target_es_index}'.")
 
-        
         work_stream = self.orchestrator.prepare_and_route(
             table_name=specification.source_table,
             execution_config=execution_config
         )
 
-        
-        all_units = self.tracking.get_all_work_units(job_id)
+        all_units = self.checkpoint.get_all_work_units(job_id)
         total_units = len(all_units)
         pending_count = len([u for u in all_units if u.status == WorkUnitStatus.PENDING])
         total_start_time = time.time()
 
+        self.telemetry.log_job_start(job_id, project_name, total_units)
+
         for payload in work_stream:
             unit_start_time = time.time()
 
-            self.tracking.log_work_unit_start(
-                job_id,
-                payload.unit_id,
-                pending_count
-            )
+            self.telemetry.log_work_unit_start(job_id, payload.unit_id, pending_count)
             pending_count -= 1
 
             df_remaining = payload.dataframe
@@ -103,24 +103,28 @@ class RecordLinkageUseCase:
                 )
                 df_remaining.cache()
 
-                self.tracking.log_phase_telemetry(
+                self.telemetry.log_phase_telemetry(
+                    job_id=job_id,
+                    unit_id=payload.unit_id,
                     phase_index=phase_index,
                     phase_name=phase_context.phase_name,
                     records_in=remaining_count,
                     records_out=records_saved,
-                    duration=time.time() - phase_start_time
+                    duration=time.time() - phase_start_time,
                 )
 
-            self.tracking.update_work_unit_status(
+            self.checkpoint.update_work_unit_status(
                 job_id=job_id,
                 unit_id=payload.unit_id,
                 status=WorkUnitStatus.COMPLETED,
-                records_processed=total_unit_persisted
+                records_processed=total_unit_persisted,
             )
-            self.tracking.log_work_unit_completion(total_unit_persisted, remaining_count - records_saved, time.time() - unit_start_time)
-        
-        
-        total_duration = time.time() - total_start_time
-        logger.info("=========================================================================")
-        logger.info(f" TEMPO DE EXECUÇÃO DO RECORD LINKAGE: {total_duration:.2f}s | BLOCOS: {total_units}")
-        logger.info("=========================================================================")
+            self.telemetry.log_work_unit_completion(
+                job_id=job_id,
+                unit_id=payload.unit_id,
+                total_links=total_unit_persisted,
+                remaining=remaining_count - records_saved,
+                duration=time.time() - unit_start_time,
+            )
+
+        self.telemetry.log_job_completion(job_id, total_units, time.time() - total_start_time)

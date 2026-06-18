@@ -17,7 +17,8 @@ from core.infra.adapters.outbound.spark_data_transformation_adapter import Spark
 from core.infra.adapters.outbound.elasticsearch.spark_es_search_adapter import SparkESSearchAdapter
 from core.infra.adapters.outbound.spark_scoring_adapter import SparkScoringAdapter
 from core.infra.adapters.outbound.elasticsearch.executors import SingleSearchExecutor, MultiSearchExecutor
-from core.infra.adapters.outbound.json_execution_tracking_adapter import JSONExecutionTrackingAdapter
+from core.infra.adapters.outbound.json_checkpoint_adapter import JSONCheckpointAdapter
+from core.infra.adapters.outbound.formatted_log_telemetry_adapter import FormattedLogTelemetryAdapter
 
 from core.application.services.work_unit_orchestrator import WorkUnitOrchestrator
 from core.application.use_cases.record_linkage_use_case import RecordLinkageUseCase
@@ -70,10 +71,11 @@ def bootstrap_sequential_linkage(
         spark_config=spark_config_data.get("spark_configs", {})
     ) as spark_session:
 
-        tracking_adapter = JSONExecutionTrackingAdapter(
+        checkpoint_adapter = JSONCheckpointAdapter(
             tracking_directory=execution_config.audit_log_path,
             project_name=linkage_spec.linkage_project_name
         )
+        telemetry_adapter = FormattedLogTelemetryAdapter()
 
         ingestion_adapter = SparkDataIngestionAdapter(
             spark_session=spark_session,
@@ -101,7 +103,7 @@ def bootstrap_sequential_linkage(
 
         orchestrator = WorkUnitOrchestrator(
             ingestion_port=ingestion_adapter,
-            tracking_port=tracking_adapter
+            checkpoint_port=checkpoint_adapter
         )
 
         use_case = RecordLinkageUseCase(
@@ -110,7 +112,8 @@ def bootstrap_sequential_linkage(
             transformation_port=transformation_adapter,
             get_candidates_port=search_adapter,
             scoring_port=scoring_adapter,
-            tracking_port=tracking_adapter
+            checkpoint_port=checkpoint_adapter,
+            telemetry_port=telemetry_adapter,
         )
 
         use_case.execute(

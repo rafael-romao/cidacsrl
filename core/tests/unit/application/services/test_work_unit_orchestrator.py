@@ -27,8 +27,8 @@ def test_prepare_and_route_uses_configured_partitions_without_scanning_disk():
     mock_tracking.get_pending_work_units.return_value = [mock_record_ba, mock_record_sp]
 
     # Instanciação do componente sob teste
-    orchestrator = WorkUnitOrchestrator(ingestion_port=mock_ingestion, tracking_port=mock_tracking)
-    
+    orchestrator = WorkUnitOrchestrator(ingestion_port=mock_ingestion, checkpoint_port=mock_tracking)
+
     # Consome o gerador (work stream)
     payloads = list(orchestrator.prepare_and_route(table_name="internacao_example", execution_config=config))
 
@@ -81,8 +81,8 @@ def test_prepare_and_route_triggers_dynamic_discovery_when_partitions_list_is_em
     mock_record_rj = WorkUnitExecutionRecord(unit_id="uf_internacao_RJ", filters={"uf_internacao": "RJ"})
     mock_tracking.get_pending_work_units.return_value = [mock_record_ba, mock_record_sp, mock_record_rj]
 
-    orchestrator = WorkUnitOrchestrator(ingestion_port=mock_ingestion, tracking_port=mock_tracking)
-    
+    orchestrator = WorkUnitOrchestrator(ingestion_port=mock_ingestion, checkpoint_port=mock_tracking)
+
     payloads = list(orchestrator.prepare_and_route(table_name="internacao_example", execution_config=config))
 
     # Asserções de Descoberta Dinâmica

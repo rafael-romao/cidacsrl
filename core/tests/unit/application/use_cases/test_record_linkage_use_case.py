@@ -8,8 +8,9 @@ from core.application.ports.outbound.data_persistence_port import DataPersistenc
 from core.application.ports.outbound.data_transformation_port import DataTransformationPort
 from core.application.ports.outbound.get_candidates_port import GetCandidatesPort
 from core.application.ports.outbound.scoring_port import ScoringPort
+from core.application.ports.outbound.checkpoint_port import CheckpointPort
+from core.application.ports.outbound.telemetry_port import TelemetryPort
 from core.domain.models.tracking.work_unit import WorkUnitPayload, WorkUnitStatus
-from core.application.ports.outbound.execution_tracking_port import ExecutionTrackingPort
 from core.domain.models.linkage_specification import SequentialLinkageSpecification, BlockingPhaseContext
 
 
@@ -18,10 +19,11 @@ def mock_dependencies():
     return {
         "orchestrator": MagicMock(spec=WorkUnitOrchestrator),
         "persistence": MagicMock(spec=DataPersistencePort),
-        "transformation": MagicMock(),  # sem spec: port não declara exclude_records ainda
+        "transformation": MagicMock(),
         "get_candidates": MagicMock(spec=GetCandidatesPort),
         "scoring": MagicMock(spec=ScoringPort),
-        "tracking": MagicMock(spec=ExecutionTrackingPort),
+        "checkpoint": MagicMock(spec=CheckpointPort),
+        "telemetry": MagicMock(spec=TelemetryPort),
     }
 
 
@@ -49,7 +51,8 @@ def test_execute_processes_all_work_units_successfully(mock_dependencies, mock_s
     transformation = mock_dependencies["transformation"]
     get_candidates = mock_dependencies["get_candidates"]
     scoring = mock_dependencies["scoring"]
-    tracking = mock_dependencies["tracking"]
+    checkpoint = mock_dependencies["checkpoint"]
+    telemetry = mock_dependencies["telemetry"]
 
     df_raw = MagicMock(spec=DataFrame)
     df_raw.count.return_value = 10
@@ -61,7 +64,7 @@ def test_execute_processes_all_work_units_successfully(mock_dependencies, mock_s
 
     payload = WorkUnitPayload(unit_id="uf_BA", dataframe=df_raw)
     orchestrator.prepare_and_route.return_value = [payload]
-    tracking.get_all_work_units.return_value = [MagicMock(status=WorkUnitStatus.PENDING)]
+    checkpoint.get_all_work_units.return_value = [MagicMock(status=WorkUnitStatus.PENDING)]
 
     get_candidates.get_candidates.return_value = df_candidates
     scoring.calculate_score.return_value = df_scored
@@ -76,7 +79,8 @@ def test_execute_processes_all_work_units_successfully(mock_dependencies, mock_s
         transformation_port=transformation,
         get_candidates_port=get_candidates,
         scoring_port=scoring,
-        tracking_port=tracking
+        checkpoint_port=checkpoint,
+        telemetry_port=telemetry,
     )
 
     execution_config_mock = MagicMock()
@@ -104,7 +108,7 @@ def test_execute_processes_all_work_units_successfully(mock_dependencies, mock_s
     )
     transformation.add_phase_marker.assert_called_once_with(df_filtered, "fase_teste_unitario")
 
-    # 4. Persistência com nova assinatura
+    # 4. Persistência
     persistence.save_phase_output.assert_called_once_with(
         df=df_marked,
         project_name="test_linkage",
@@ -113,10 +117,31 @@ def test_execute_processes_all_work_units_successfully(mock_dependencies, mock_s
         phase_name="fase_teste_unitario"
     )
 
-    # 5. Tracking final
-    tracking.update_work_unit_status.assert_called_once_with(
+    # 5. Checkpoint de conclusão
+    checkpoint.update_work_unit_status.assert_called_once_with(
         job_id="job_unit_test_001",
         unit_id="uf_BA",
         status=WorkUnitStatus.COMPLETED,
         records_processed=150
     )
+
+    # 6. Telemetria emitida em todas as etapas esperadas
+    telemetry.log_job_start.assert_called_once_with("job_unit_test_001", "test_linkage", ANY)
+    telemetry.log_work_unit_start.assert_called_once_with("job_unit_test_001", "uf_BA", ANY)
+    telemetry.log_phase_telemetry.assert_called_once_with(
+        job_id="job_unit_test_001",
+        unit_id="uf_BA",
+        phase_index=1,
+        phase_name="fase_teste_unitario",
+        records_in=10,
+        records_out=150,
+        duration=ANY,
+    )
+    telemetry.log_work_unit_completion.assert_called_once_with(
+        job_id="job_unit_test_001",
+        unit_id="uf_BA",
+        total_links=150,
+        remaining=ANY,
+        duration=ANY,
+    )
+    telemetry.log_job_completion.assert_called_once_with("job_unit_test_001", ANY, ANY)

@@ -2,7 +2,7 @@ import logging
 from typing import Iterable, List
 
 from core.application.ports.outbound.data_ingestion_port import DataIngestionPort
-from core.application.ports.outbound.execution_tracking_port import ExecutionTrackingPort
+from core.application.ports.outbound.checkpoint_port import CheckpointPort
 from core.domain.models.tracking.work_unit_factory import WorkUnitFactory
 from core.domain.models.tracking.work_unit import WorkUnitExecutionRecord, WorkUnitPayload, WorkUnitStatus
 from core.infra.configs.models.execution_config import ExecutionConfig
@@ -14,9 +14,9 @@ class WorkUnitOrchestrator:
     Orquestrador de Aplicação encarregado de isolar o controle de fluxo,
     descoberta de partições e o gerenciamento de estados transicionais do Job.
     """
-    def __init__(self, ingestion_port: DataIngestionPort, tracking_port: ExecutionTrackingPort):
+    def __init__(self, ingestion_port: DataIngestionPort, checkpoint_port: CheckpointPort):
         self.ingestion = ingestion_port
-        self.tracking = tracking_port
+        self.checkpoint = checkpoint_port
 
     def prepare_and_route(self, table_name: str, execution_config: ExecutionConfig) -> Iterable[WorkUnitPayload]:
         """
@@ -46,15 +46,15 @@ class WorkUnitOrchestrator:
         ]
 
         # 4. Inicializa o arquivo JSON de auditoria (Preserva o arquivo caso seja um Restart)
-        self.tracking.initialize_job_state(job_id, records_to_init)
+        self.checkpoint.initialize_job_state(job_id, records_to_init)
 
         # 5. Recupera as fatias pendentes e as consome sob demanda (Lazy Loading)
-        pending_records = self.tracking.get_pending_work_units(job_id)
+        pending_records = self.checkpoint.get_pending_work_units(job_id)
         logger.info(f"[{job_id}] Unidades para processamento: {len(pending_records)}")
 
         for record in pending_records:
             # Altera transicionalmente para PROCESSING imediatamente antes de ler os dados
-            self.tracking.update_work_unit_status(job_id, record.unit_id, WorkUnitStatus.PROCESSING)
+            self.checkpoint.update_work_unit_status(job_id, record.unit_id, WorkUnitStatus.PROCESSING)
             
             try:
                 # Carrega o DataFrame fisicamente filtrado pelo Spark
@@ -66,7 +66,7 @@ class WorkUnitOrchestrator:
                 )
             except Exception as e:
                 logger.error(f"[{job_id}] Erro crítico ao montar os dados da unidade '{record.unit_id}': {e}")
-                self.tracking.update_work_unit_status(
+                self.checkpoint.update_work_unit_status(
                     job_id=job_id,
                     unit_id=record.unit_id,
                     status=WorkUnitStatus.FAILED,
