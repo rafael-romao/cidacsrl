@@ -51,7 +51,7 @@ class RecordLinkageUseCase:
 
         all_units = self.checkpoint.get_all_work_units(job_id)
         total_units = len(all_units)
-        pending_count = len([u for u in all_units if u.status == WorkUnitStatus.PENDING])
+        pending_count = total_units
         total_start_time = time.time()
 
         self.telemetry.log_job_start(job_id, project_name, total_units)
@@ -59,8 +59,8 @@ class RecordLinkageUseCase:
         for payload in work_stream:
             unit_start_time = time.time()
 
-            self.telemetry.log_work_unit_start(job_id, payload.unit_id, pending_count)
             pending_count -= 1
+            self.telemetry.log_work_unit_start(job_id, payload.unit_id, pending_count)
 
             df_remaining = payload.dataframe
             total_unit_persisted = 0

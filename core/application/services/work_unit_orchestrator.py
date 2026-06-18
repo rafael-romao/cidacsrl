@@ -40,7 +40,8 @@ class WorkUnitOrchestrator:
     def route(self, table_name: str, execution_config: ExecutionConfig) -> Iterable[WorkUnitPayload]:
         """
         Transforma o escopo lógico em fatias físicas de dados e as despacha
-        preguiçosamente para processamento.
+        preguiçosamente para processamento. A inicialização do checkpoint é executada
+        de forma eager antes de retornar o stream, garantindo visibilidade imediata do estado.
         """
         partition_col = execution_config.partitioning.partition_column
         partitions = list(execution_config.partitioning.filter_partitions)
@@ -58,6 +59,9 @@ class WorkUnitOrchestrator:
         pending_records = self.checkpoint.get_pending_work_units(job_id)
         logger.info(f"[{job_id}] Unidades para processamento: {len(pending_records)}")
 
+        return self._stream(job_id, table_name, pending_records)
+
+    def _stream(self, job_id: str, table_name: str, pending_records: List[WorkUnitExecutionRecord]) -> Iterable[WorkUnitPayload]:
         for record in pending_records:
             self.checkpoint.update_work_unit_status(job_id, record.unit_id, WorkUnitStatus.PROCESSING)
 
