@@ -19,6 +19,8 @@ from core.infra.adapters.outbound.spark_scoring_adapter import SparkScoringAdapt
 from core.infra.adapters.outbound.elasticsearch.executors import SingleSearchExecutor, MultiSearchExecutor
 from core.infra.adapters.outbound.json_checkpoint_adapter import JSONCheckpointAdapter
 from core.infra.adapters.outbound.formatted_log_telemetry_adapter import FormattedLogTelemetryAdapter
+from core.infra.adapters.outbound.jsonl_telemetry_adapter import JsonlLinkageTelemetryAdapter
+from core.infra.adapters.outbound.composite_telemetry_adapter import CompositeLinkageTelemetryAdapter
 
 from core.application.services.work_unit_orchestrator import WorkUnitOrchestrator
 from core.application.use_cases.record_linkage_use_case import RecordLinkageUseCase
@@ -104,7 +106,15 @@ def bootstrap_sequential_linkage(
             tracking_directory=execution_config.audit_log_path,
             project_name=linkage_spec.linkage_project_name
         )
-        telemetry_adapter = FormattedLogTelemetryAdapter()
+        telemetry_adapters = [FormattedLogTelemetryAdapter()]
+        if execution_config.audit_log_path:
+            jsonl_path = (
+                f"{execution_config.audit_log_path}"
+                f"/{linkage_spec.linkage_project_name}"
+                f"/{job_id}_telemetry.jsonl"
+            )
+            telemetry_adapters.append(JsonlLinkageTelemetryAdapter(file_path=jsonl_path))
+        telemetry_adapter = CompositeLinkageTelemetryAdapter(telemetry_adapters)
 
         _run_preflight_validations(linkage_spec, execution_config, es_config, ingestion_adapter)
 

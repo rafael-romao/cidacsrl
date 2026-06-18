@@ -1,4 +1,6 @@
 import logging
+from datetime import datetime
+from pathlib import Path
 
 from core.infra.spark.spark_factory import spark_session_context
 from deduplicating.infra.configs.models.deduplicate_workflow_config import DeduplicateWorkflowConfig
@@ -6,6 +8,8 @@ from deduplicating.infra.adapters.outbound.spark_data_reader_adapter import Spar
 from deduplicating.infra.adapters.outbound.graphframes_adapter import GraphFramesAdapter
 from deduplicating.infra.adapters.outbound.spark_data_persistence_adapter import SparkDataPersistenceAdapter
 from deduplicating.infra.adapters.outbound.formatted_log_deduplication_telemetry_adapter import FormattedLogDeduplicationTelemetryAdapter
+from deduplicating.infra.adapters.outbound.jsonl_deduplication_telemetry_adapter import JsonlDeduplicationTelemetryAdapter
+from deduplicating.infra.adapters.outbound.composite_deduplication_telemetry_adapter import CompositeDeduplicationTelemetryAdapter
 from deduplicating.application.use_cases.deduplicate_use_case import DeduplicateUseCase
 
 logger = logging.getLogger("Bootstrapper: Deduplication")
@@ -32,7 +36,14 @@ def bootstrap_deduplication(config: DeduplicateWorkflowConfig) -> None:
         reader = SparkDataReaderAdapter(spark=spark, storage=config.source_storage)
         graph_processor = GraphFramesAdapter()
         persistence = SparkDataPersistenceAdapter(storage=config.output_storage)
-        telemetry = FormattedLogDeduplicationTelemetryAdapter()
+
+        run_id = datetime.now().strftime("%Y%m%d_%H%M%S")
+        output_dir = Path(config.output_storage.output_path).parent
+        jsonl_path = str(output_dir / f"{run_id}_dedup_telemetry.jsonl")
+        telemetry = CompositeDeduplicationTelemetryAdapter([
+            FormattedLogDeduplicationTelemetryAdapter(),
+            JsonlDeduplicationTelemetryAdapter(file_path=jsonl_path, run_id=run_id),
+        ])
 
         use_case = DeduplicateUseCase(
             reader=reader,

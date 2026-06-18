@@ -1,4 +1,5 @@
 import logging
+from datetime import datetime
 from typing import Any, Dict
 
 from core.infra.spark.spark_factory import create_spark_session
@@ -8,6 +9,8 @@ from core.infra.configs.loader import parse_dataset_indexing_specification, pars
 from core.infra.adapters.outbound.spark_data_ingestion_adapter import SparkDataIngestionAdapter
 from core.infra.adapters.outbound.elasticsearch.spark_es_indexing_adapter import SparkESIndexingAdapter
 from core.infra.adapters.outbound.formatted_log_telemetry_adapter import FormattedLogTelemetryAdapter
+from core.infra.adapters.outbound.jsonl_telemetry_adapter import JsonlIndexingTelemetryAdapter
+from core.infra.adapters.outbound.composite_telemetry_adapter import CompositeIndexingTelemetryAdapter
 from core.application.use_cases.index_dataset_use_case import IndexDatasetUseCase
 
 logger = logging.getLogger("Bootstrapper: Elasticsearch Indexing")
@@ -36,7 +39,14 @@ def bootstrap_elasticsearch_indexing(
     try:        
         ingestion_adapter = SparkDataIngestionAdapter(spark_session=spark_session, storage_config=source_config)
         indexing_adapter = SparkESIndexingAdapter(es_config=es_config)
-        telemetry_adapter = FormattedLogTelemetryAdapter()
+
+        run_ts = datetime.now().strftime("%Y%m%d_%H%M%S")
+        telemetry_dir = storage_config_data.get("telemetry_path", "./telemetry")
+        jsonl_path = f"{telemetry_dir}/{indexing_spec.index_config.name}_{run_ts}_indexing_telemetry.jsonl"
+        telemetry_adapter = CompositeIndexingTelemetryAdapter([
+            FormattedLogTelemetryAdapter(),
+            JsonlIndexingTelemetryAdapter(file_path=jsonl_path),
+        ])
 
         use_case = IndexDatasetUseCase(
             ingestion_port=ingestion_adapter,
