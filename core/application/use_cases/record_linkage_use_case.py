@@ -1,6 +1,5 @@
 import logging
 import time
-from typing import Any
 from core.domain.models.linkage_specification import SequentialLinkageSpecification
 from core.domain.models.tracking.work_unit import WorkUnitStatus
 from core.application.services.work_unit_orchestrator import WorkUnitOrchestrator
@@ -9,6 +8,7 @@ from core.application.ports.outbound.data_transformation_port import DataTransfo
 from core.application.ports.outbound.get_candidates_port import GetCandidatesPort
 from core.application.ports.outbound.scoring_port import ScoringPort
 from core.application.ports.outbound.execution_tracking_port import ExecutionTrackingPort
+from core.infra.configs.models.execution_config import ExecutionConfig
 
 logger = logging.getLogger("UseCase: Record Linkage")
 
@@ -34,7 +34,7 @@ class RecordLinkageUseCase:
         self.scoring = scoring_port
         self.tracking = tracking_port
 
-    def execute(self, specification: SequentialLinkageSpecification, job_id: str, execution_config: Any) -> None:
+    def execute(self, specification: SequentialLinkageSpecification, job_id: str, execution_config: ExecutionConfig) -> None:
         project_name = specification.linkage_project_name
         logger.info(f"[{job_id}] - Linkage '{project_name}' - Fonte: '{specification.source_table}' - Índice: '{specification.target_es_index}'.")
 
@@ -45,53 +45,47 @@ class RecordLinkageUseCase:
         )
 
         
-        total_units = len(self.tracking.get_all_work_units(job_id))
+        all_units = self.tracking.get_all_work_units(job_id)
+        total_units = len(all_units)
+        pending_count = len([u for u in all_units if u.status == WorkUnitStatus.PENDING])
         total_start_time = time.time()
 
         for payload in work_stream:
-            all_units = self.tracking.get_all_work_units(job_id)
-            pending_count = len([u for u in all_units if u.status == WorkUnitStatus.PENDING])
             unit_start_time = time.time()
 
             self.tracking.log_work_unit_start(
-                job_id, 
-                payload.unit_id, 
+                job_id,
+                payload.unit_id,
                 pending_count
             )
-           
+            pending_count -= 1
+
             df_remaining = payload.dataframe
             total_unit_persisted = 0
-            
+            remaining_count = 0
+            records_saved = 0
 
             for phase_index, phase_context in enumerate(specification.build_blocking_phase_contexts(), start=1):
                 if not phase_context.enabled:
-                    continue                
-                
+                    continue
+
                 phase_start_time = time.time()
                 remaining_count = df_remaining.count()
-                
-                if remaining_count == 0:                    
+
+                if remaining_count == 0:
                     break
-                
-                # Busca de Candidatos para a fase atual
+
                 candidates_df = self.get_candidates.get_candidates(df_remaining, phase_context)
-                
-                # Candidatos encontrados são pontuados com base nas regras de scoring definidas para a fase
                 scored_df = self.scoring.calculate_score(candidates_df, phase_context)
-                
-                # Filtra os pares de registros com base no limiar de confiança definido para a fase
                 matched_pairs = self.transformation.filter_matches_by_threshold(
-                    dataset=scored_df, 
+                    dataset=scored_df,
                     threshold=phase_context.strong_match_score_threshold
                 )
-                
-               
+
                 matched_pairs.cache()
-                
-                # Adiciona a coluna com o nome da fase que gerou o par de registros
+
                 phase_marked = self.transformation.add_phase_marker(matched_pairs, phase_context.phase_name)
-                
-                # Salva os pares de registros encontrados para a fase atual
+
                 records_saved = self.persistence.save_phase_output(
                     df=phase_marked,
                     project_name=project_name,
@@ -99,10 +93,9 @@ class RecordLinkageUseCase:
                     unit_id=payload.unit_id,
                     phase_name=phase_context.phase_name
                 )
-                
+
                 total_unit_persisted += records_saved
 
-                # Remove os registros já pareados com alta confiança do dataset principal para as fases subsequentes
                 df_remaining = self.transformation.exclude_records(
                     primary_dataset=df_remaining,
                     records_to_exclude=matched_pairs,
@@ -116,18 +109,15 @@ class RecordLinkageUseCase:
                     records_in=remaining_count,
                     records_out=records_saved,
                     duration=time.time() - phase_start_time
-                )           
+                )
 
-
-
-            
             self.tracking.update_work_unit_status(
                 job_id=job_id,
                 unit_id=payload.unit_id,
                 status=WorkUnitStatus.COMPLETED,
                 records_processed=total_unit_persisted
             )
-            self.tracking.log_work_unit_completion(total_unit_persisted, f"{remaining_count-records_saved}", time.time() - unit_start_time)
+            self.tracking.log_work_unit_completion(total_unit_persisted, remaining_count - records_saved, time.time() - unit_start_time)
         
         
         total_duration = time.time() - total_start_time
