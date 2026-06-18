@@ -78,18 +78,51 @@ def test_read_slice_applies_logical_filters_correctly(
         assert row["uf_internacao"] == "BA"
 
 def test_read_all_returns_entire_dataframe_without_filters(
-    local_spark, 
-    sample_dataframe, 
+    local_spark,
+    sample_dataframe,
     simulated_storage_config
 ):
     table_name = "internacao_read_all_test"
     physical_table_path = simulated_storage_config["source_dir"] / table_name
     sample_dataframe.write.format("parquet").save(str(physical_table_path))
-    
+
     adapter = SparkDataIngestionAdapter(
         spark_session=local_spark,
         storage_config=simulated_storage_config["config"]
     )
-    
+
     full_df = adapter.read_all(table_name)
     assert full_df.count() == 3
+
+def test_validate_source_schema_succeeds_when_all_required_columns_exist(
+    local_spark,
+    sample_dataframe,
+    simulated_storage_config
+):
+    table_name = "internacao_schema_valid_test"
+    physical_table_path = simulated_storage_config["source_dir"] / table_name
+    sample_dataframe.write.format("parquet").save(str(physical_table_path))
+
+    adapter = SparkDataIngestionAdapter(
+        spark_session=local_spark,
+        storage_config=simulated_storage_config["config"]
+    )
+
+    adapter.validate_source_schema(table_name, {"codigo_internacao", "nome_completo", "uf_internacao"})
+
+def test_validate_source_schema_raises_when_column_is_missing(
+    local_spark,
+    sample_dataframe,
+    simulated_storage_config
+):
+    table_name = "internacao_schema_missing_test"
+    physical_table_path = simulated_storage_config["source_dir"] / table_name
+    sample_dataframe.write.format("parquet").save(str(physical_table_path))
+
+    adapter = SparkDataIngestionAdapter(
+        spark_session=local_spark,
+        storage_config=simulated_storage_config["config"]
+    )
+
+    with pytest.raises(ValueError, match="coluna_inexistente"):
+        adapter.validate_source_schema(table_name, {"codigo_internacao", "coluna_inexistente"})

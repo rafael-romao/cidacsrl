@@ -129,6 +129,13 @@ class SequentialLinkageSpecification:
         required_fields.add(self.id_target_table)
         return required_fields
 
+    def get_required_source_columns(self) -> set[str]:
+        required_fields = {self.id_source_table}
+        for phase in self.blocking_phases:
+            for rule in phase.rules:
+                required_fields.add(rule.source_column)
+        return required_fields
+
 
     @classmethod
     def from_dict(cls, config_dict: Dict[str, Any]) -> 'SequentialLinkageSpecification':

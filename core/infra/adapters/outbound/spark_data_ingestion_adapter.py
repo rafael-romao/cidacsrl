@@ -1,6 +1,6 @@
 import os
 import logging
-from typing import List, Dict, Any, Optional
+from typing import List, Dict, Any, Optional, Set
 import pyspark.sql.functions as F
 from pyspark.sql import SparkSession, DataFrame
 
@@ -27,6 +27,17 @@ class SparkDataIngestionAdapter(DataIngestionPort):
         except Exception as e:
             errors.append(f"Falha ao validar a saúde do storage de origem: {str(e)}")
         return errors
+
+    def validate_source_schema(self, table_name: str, required_columns: Set[str]) -> None:
+        path = self._resolve_source_path(table_name)
+        available = set(self.spark.read.format(self.storage_config.source_format).load(path).schema.fieldNames())
+        missing = required_columns - available
+        if missing:
+            raise ValueError(
+                f"Colunas ausentes na tabela fonte '{table_name}': {sorted(missing)}. "
+                f"Colunas disponíveis: {sorted(available)}"
+            )
+        logger.info(f"Schema da tabela '{table_name}' validado com sucesso. Colunas requeridas encontradas: {sorted(required_columns)}")
 
     def discover_partitions(self, table_name: str, partition_column: str) -> List[str]:
         cache_key = f"{table_name}:{partition_column}"
