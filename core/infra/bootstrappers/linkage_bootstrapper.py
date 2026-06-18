@@ -1,7 +1,7 @@
 import logging
 from typing import Any, Dict
 
-from core.infra.spark.spark_factory import create_spark_session
+from core.infra.spark.spark_factory import spark_session_context
 from core.infra.configs.loader import (
     parse_sequential_linkage_specification, 
     parse_es_config,
@@ -65,44 +65,40 @@ def bootstrap_sequential_linkage(
         raise ValueError(f"Estratégia de busca Elasticsearch desconhecida: '{strategy_name}'.")
 
     # 4. Inicialização do contexto computacional distribuído do Apache Spark
-    spark_session = create_spark_session(
-        app_name=f"CIDACS-RL Linkage - {linkage_spec.source_table}_{linkage_spec.target_es_index}", 
+    with spark_session_context(
+        app_name=f"CIDACS-RL Linkage - {linkage_spec.source_table}_{linkage_spec.target_es_index}",
         spark_config=spark_config_data.get("spark_configs", {})
-    )
+    ) as spark_session:
 
-    try:       
-        
         tracking_adapter = JSONExecutionTrackingAdapter(
             tracking_directory=execution_config.audit_log_path,
             project_name=linkage_spec.linkage_project_name
         )
 
         ingestion_adapter = SparkDataIngestionAdapter(
-            spark_session=spark_session, 
+            spark_session=spark_session,
             storage_config=source_storage_config
         )
-        
+
         persistence_adapter = SparkDataPersistenceAdapter(
             output_config=output_storage_config
         )
-        
+
         transformation_adapter = SparkDataTransformationAdapter()
-        
+
         # 6. Validação física do estado do storage de dados
         errors = ingestion_adapter.check_health(linkage_spec.source_table)
         if errors:
             raise ValueError(f"Falha de Infraestrutura: {errors}")
 
-
         search_adapter = SparkESSearchAdapter(
-            index_name=linkage_spec.target_es_index, 
+            index_name=linkage_spec.target_es_index,
             es_config=es_config,
             search_executor=search_executor
         )
-        
+
         scoring_adapter = SparkScoringAdapter()
 
-        
         orchestrator = WorkUnitOrchestrator(
             ingestion_port=ingestion_adapter,
             tracking_port=tracking_adapter
@@ -118,16 +114,9 @@ def bootstrap_sequential_linkage(
         )
 
         use_case.execute(
-            specification=linkage_spec, 
+            specification=linkage_spec,
             job_id=job_id,
             execution_config=execution_config
         )
-        
+
         logger.info("Linkage Execution finished successfully.")
-        
-    except Exception as e:
-        logger.error(f"Erro durante a execução do linkage: {e}")
-        raise e
-    finally:
-        spark_session.stop()
-        logger.info("Spark session stopped.")

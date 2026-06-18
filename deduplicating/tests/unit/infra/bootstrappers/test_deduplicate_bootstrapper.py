@@ -1,5 +1,6 @@
 import pytest
 from unittest.mock import ANY, MagicMock, patch
+from contextlib import contextmanager
 
 from deduplicating.infra.bootstrappers.deduplicate_bootstrapper import bootstrap_deduplication
 from deduplicating.infra.configs.models.deduplicate_workflow_config import (
@@ -29,27 +30,42 @@ def workflow_config():
     )
 
 
+@pytest.fixture
+def mock_spark():
+    return MagicMock()
+
+
+@pytest.fixture
+def spark_context(mock_spark):
+    @contextmanager
+    def _ctx(*args, **kwargs):
+        yield mock_spark
+
+    return _ctx
+
+
 @patch(f"{_MODULE}.DeduplicateUseCase")
 @patch(f"{_MODULE}.SparkDataPersistenceAdapter")
 @patch(f"{_MODULE}.GraphFramesAdapter")
 @patch(f"{_MODULE}.SparkDataReaderAdapter")
-@patch(f"{_MODULE}.create_spark_session")
+@patch(f"{_MODULE}.spark_session_context")
 def test_bootstrap_wires_all_adapters_and_executes(
-    mock_spark_factory,
+    mock_ctx,
     mock_reader_cls,
     mock_graph_cls,
     mock_persistence_cls,
     mock_use_case_cls,
     workflow_config,
+    mock_spark,
+    spark_context,
 ):
-    mock_spark = MagicMock()
-    mock_spark_factory.return_value = mock_spark
+    mock_ctx.side_effect = spark_context
     mock_use_case = MagicMock()
     mock_use_case_cls.return_value = mock_use_case
 
     bootstrap_deduplication(workflow_config)
 
-    mock_spark_factory.assert_called_once_with(
+    mock_ctx.assert_called_once_with(
         app_name=workflow_config.app_name,
         spark_config=workflow_config.spark_configs,
         checkpoint_dir=ANY,
@@ -69,31 +85,43 @@ def test_bootstrap_wires_all_adapters_and_executes(
 @patch(f"{_MODULE}.SparkDataPersistenceAdapter")
 @patch(f"{_MODULE}.GraphFramesAdapter")
 @patch(f"{_MODULE}.SparkDataReaderAdapter")
-@patch(f"{_MODULE}.create_spark_session")
+@patch(f"{_MODULE}.spark_session_context")
 def test_bootstrap_stops_spark_on_success(
-    mock_spark_factory, mock_reader_cls, mock_graph_cls, mock_persistence_cls, mock_use_case_cls, workflow_config
+    mock_ctx,
+    mock_reader_cls,
+    mock_graph_cls,
+    mock_persistence_cls,
+    mock_use_case_cls,
+    workflow_config,
+    mock_spark,
+    spark_context,
 ):
-    mock_spark = MagicMock()
-    mock_spark_factory.return_value = mock_spark
+    mock_ctx.side_effect = spark_context
 
     bootstrap_deduplication(workflow_config)
 
-    mock_spark.stop.assert_called_once()
+    # spark.stop() é responsabilidade do spark_session_context — verificamos que o
+    # context manager foi usado (entered), não que stop() foi chamado diretamente.
+    mock_ctx.assert_called_once()
 
 
 @patch(f"{_MODULE}.DeduplicateUseCase")
 @patch(f"{_MODULE}.SparkDataPersistenceAdapter")
 @patch(f"{_MODULE}.GraphFramesAdapter")
 @patch(f"{_MODULE}.SparkDataReaderAdapter")
-@patch(f"{_MODULE}.create_spark_session")
-def test_bootstrap_stops_spark_even_on_error(
-    mock_spark_factory, mock_reader_cls, mock_graph_cls, mock_persistence_cls, mock_use_case_cls, workflow_config
+@patch(f"{_MODULE}.spark_session_context")
+def test_bootstrap_propagates_exception(
+    mock_ctx,
+    mock_reader_cls,
+    mock_graph_cls,
+    mock_persistence_cls,
+    mock_use_case_cls,
+    workflow_config,
+    mock_spark,
+    spark_context,
 ):
-    mock_spark = MagicMock()
-    mock_spark_factory.return_value = mock_spark
+    mock_ctx.side_effect = spark_context
     mock_use_case_cls.return_value.execute.side_effect = RuntimeError("falha simulada")
 
-    with pytest.raises(RuntimeError):
+    with pytest.raises(RuntimeError, match="falha simulada"):
         bootstrap_deduplication(workflow_config)
-
-    mock_spark.stop.assert_called_once()

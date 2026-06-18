@@ -1,5 +1,7 @@
+from contextlib import contextmanager
+
 from pyspark.sql import SparkSession
-from typing import Dict, Any, Optional
+from typing import Dict, Any, Generator, Optional
 import logging
 
 logger = logging.getLogger("Factory: SparkSessionFactory")
@@ -68,3 +70,20 @@ def create_spark_session(
     log_spark_configs(spark)
 
     return spark
+
+
+@contextmanager
+def spark_session_context(
+    app_name: str,
+    spark_config: Optional[Dict[str, Any]] = None,
+    checkpoint_dir: Optional[str] = None,
+) -> Generator[SparkSession, None, None]:
+    spark = create_spark_session(app_name=app_name, spark_config=spark_config, checkpoint_dir=checkpoint_dir)
+    try:
+        yield spark
+    except Exception as e:
+        logger.error(f"Erro durante execução da SparkSession '{app_name}': {e}")
+        raise
+    finally:
+        spark.stop()
+        logger.info(f"SparkSession '{app_name}' encerrada.")

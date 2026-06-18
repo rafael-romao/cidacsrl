@@ -1,6 +1,6 @@
 import logging
 
-from core.infra.spark.spark_factory import create_spark_session
+from core.infra.spark.spark_factory import spark_session_context
 from deduplicating.infra.configs.models.deduplicate_workflow_config import DeduplicateWorkflowConfig
 from deduplicating.infra.adapters.outbound.spark_data_reader_adapter import SparkDataReaderAdapter
 from deduplicating.infra.adapters.outbound.graphframes_adapter import GraphFramesAdapter
@@ -23,13 +23,11 @@ def bootstrap_deduplication(config: DeduplicateWorkflowConfig) -> None:
     """
     logger.info("Bootstrapping Deduplication workflow...")
 
-    spark = create_spark_session(
+    with spark_session_context(
         app_name=config.app_name,
         spark_config=config.spark_configs,
         checkpoint_dir=_CHECKPOINT_DIR,
-    )
-
-    try:
+    ) as spark:
         reader = SparkDataReaderAdapter(spark=spark, storage=config.storage)
         graph_processor = GraphFramesAdapter()
         persistence = SparkDataPersistenceAdapter(storage=config.storage)
@@ -43,10 +41,3 @@ def bootstrap_deduplication(config: DeduplicateWorkflowConfig) -> None:
         use_case.execute(spec=config.deduplication_spec)
 
         logger.info("Deduplication workflow finalizado com sucesso.")
-
-    except Exception as e:
-        logger.error(f"Erro durante a execução da deduplicação: {e}")
-        raise
-    finally:
-        spark.stop()
-        logger.info("SparkSession encerrada.")
