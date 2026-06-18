@@ -7,7 +7,7 @@ from pyspark.sql import functions as F
 from core.application.ports.outbound.data_persistence_port import DataPersistencePort
 from core.infra.configs.models.storage_config import OutputStorageConfig
 
-logger = logging.getLogger("Adapter: SparkDataPersistenceAdapter")
+logger = logging.getLogger("Adapter: Persistence")
 
 class SparkDataPersistenceAdapter(DataPersistencePort):
     def __init__(self, output_config: OutputStorageConfig):
@@ -29,7 +29,8 @@ class SparkDataPersistenceAdapter(DataPersistencePort):
         try:
             writer = df.write.format(self.config.output_format).mode("overwrite")
             if partition_column:
-                writer = writer.option("partitionOverwriteMode", "dynamic").partitionBy(partition_column)
+                actual_col = partition_column if partition_column in df.columns else f"source_{partition_column}"
+                writer = writer.option("partitionOverwriteMode", "dynamic").partitionBy(actual_col)
             writer.save(str(base_path))
             return df.count()
         finally:
