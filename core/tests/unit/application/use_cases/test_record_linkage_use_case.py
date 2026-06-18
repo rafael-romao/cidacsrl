@@ -63,7 +63,7 @@ def test_execute_processes_all_work_units_successfully(mock_dependencies, mock_s
     df_remaining_after_exclude = MagicMock(spec=DataFrame)
 
     payload = WorkUnitPayload(unit_id="uf_BA", dataframe=df_raw)
-    orchestrator.prepare_and_route.return_value = [payload]
+    orchestrator.route.return_value = [payload]
     checkpoint.get_all_work_units.return_value = [MagicMock(status=WorkUnitStatus.PENDING)]
 
     get_candidates.get_candidates.return_value = df_candidates
@@ -72,6 +72,9 @@ def test_execute_processes_all_work_units_successfully(mock_dependencies, mock_s
     transformation.add_phase_marker.return_value = df_marked
     transformation.exclude_records.return_value = df_remaining_after_exclude
     persistence.save_phase_output.return_value = 150
+
+    execution_config_mock = MagicMock()
+    execution_config_mock.partitioning.partition_column = "uf"
 
     use_case = RecordLinkageUseCase(
         orchestrator=orchestrator,
@@ -83,7 +86,6 @@ def test_execute_processes_all_work_units_successfully(mock_dependencies, mock_s
         telemetry_port=telemetry,
     )
 
-    execution_config_mock = MagicMock()
     use_case.execute(
         specification=mock_specification,
         job_id="job_unit_test_001",
@@ -91,7 +93,7 @@ def test_execute_processes_all_work_units_successfully(mock_dependencies, mock_s
     )
 
     # 1. Orquestrador roteou com os parâmetros corretos
-    orchestrator.prepare_and_route.assert_called_once_with(
+    orchestrator.route.assert_called_once_with(
         table_name="internacao_table",
         execution_config=execution_config_mock
     )
@@ -108,13 +110,12 @@ def test_execute_processes_all_work_units_successfully(mock_dependencies, mock_s
     )
     transformation.add_phase_marker.assert_called_once_with(df_filtered, "fase_teste_unitario")
 
-    # 4. Persistência
+    # 4. Persistência com particionamento Hive
     persistence.save_phase_output.assert_called_once_with(
         df=df_marked,
         project_name="test_linkage",
-        job_id="job_unit_test_001",
-        unit_id="uf_BA",
-        phase_name="fase_teste_unitario"
+        phase_name="fase_teste_unitario",
+        partition_column="uf",
     )
 
     # 5. Checkpoint de conclusão
@@ -163,10 +164,13 @@ def test_execute_emits_failure_telemetry_and_reraises_on_exception(mock_dependen
     df_raw.count.return_value = 10
 
     payload = WorkUnitPayload(unit_id="uf_RJ", dataframe=df_raw)
-    orchestrator.prepare_and_route.return_value = [payload]
+    orchestrator.route.return_value = [payload]
     checkpoint.get_all_work_units.return_value = [MagicMock(status=WorkUnitStatus.PENDING)]
 
     get_candidates.get_candidates.side_effect = RuntimeError("ES unreachable")
+
+    execution_config_mock = MagicMock()
+    execution_config_mock.partitioning.partition_column = None
 
     use_case = RecordLinkageUseCase(
         orchestrator=orchestrator,
@@ -182,7 +186,7 @@ def test_execute_emits_failure_telemetry_and_reraises_on_exception(mock_dependen
         use_case.execute(
             specification=mock_specification,
             job_id="job_failure_test",
-            execution_config=MagicMock()
+            execution_config=execution_config_mock
         )
 
     # Checkpoint marcado como FAILED com a mensagem de erro

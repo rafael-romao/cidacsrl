@@ -42,7 +42,9 @@ class RecordLinkageUseCase:
         project_name = specification.linkage_project_name
         logger.info(f"[{job_id}] - Linkage '{project_name}' - Fonte: '{specification.source_table}' - Índice: '{specification.target_es_index}'.")
 
-        work_stream = self.orchestrator.prepare_and_route(
+        partition_column = execution_config.partitioning.partition_column
+
+        work_stream = self.orchestrator.route(
             table_name=specification.source_table,
             execution_config=execution_config
         )
@@ -100,9 +102,8 @@ class RecordLinkageUseCase:
                     records_saved = self.persistence.save_phase_output(
                         df=phase_marked,
                         project_name=project_name,
-                        job_id=job_id,
-                        unit_id=payload.unit_id,
-                        phase_name=phase_context.phase_name
+                        phase_name=phase_context.phase_name,
+                        partition_column=partition_column,
                     )
                     persist_duration = time.time() - persist_start
 

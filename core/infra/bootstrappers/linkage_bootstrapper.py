@@ -106,6 +106,11 @@ def bootstrap_sequential_linkage(
             checkpoint_port=checkpoint_adapter
         )
 
+        enriched_config = orchestrator.prepare(
+            table_name=linkage_spec.source_table,
+            execution_config=execution_config
+        )
+
         use_case = RecordLinkageUseCase(
             orchestrator=orchestrator,
             persistence_port=persistence_adapter,
@@ -119,7 +124,7 @@ def bootstrap_sequential_linkage(
         use_case.execute(
             specification=linkage_spec,
             job_id=job_id,
-            execution_config=execution_config
+            execution_config=enriched_config
         )
 
         logger.info("Linkage Execution finished successfully.")

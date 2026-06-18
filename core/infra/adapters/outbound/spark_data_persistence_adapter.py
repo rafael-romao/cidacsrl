@@ -1,6 +1,8 @@
 import logging
 from pathlib import Path
+from typing import Optional
 from pyspark.sql import DataFrame
+from pyspark.sql import functions as F
 
 from core.application.ports.outbound.data_persistence_port import DataPersistencePort
 from core.infra.configs.models.storage_config import OutputStorageConfig
@@ -9,26 +11,26 @@ logger = logging.getLogger("Adapter: SparkDataPersistenceAdapter")
 
 class SparkDataPersistenceAdapter(DataPersistencePort):
     def __init__(self, output_config: OutputStorageConfig):
-        self.config = output_config 
+        self.config = output_config
 
     def save_phase_output(
-        self, 
-        df: DataFrame, 
-        project_name: str, 
-        job_id: str, 
-        unit_id: str, 
-        phase_name: str
+        self,
+        df: DataFrame,
+        project_name: str,
+        phase_name: str,
+        partition_column: Optional[str] = None,
     ) -> int:
-        base_path = Path(self.config.output_path)
-        absolute_target_path = base_path / project_name / job_id / unit_id / phase_name
-        
-        target_path_str = str(absolute_target_path)
+        base_path = Path(self.config.output_path) / project_name / phase_name
+
         logger.info(f"Escrevendo resultados da fase: '{phase_name}'")
-        logger.debug(f"Escrevendo resultados da fase '{phase_name}' em: {target_path_str}")
-        
+        logger.debug(f"Escrevendo resultados da fase '{phase_name}' em: {str(base_path)}")
+
         df.cache()
         try:
-            df.write.format(self.config.output_format).mode("overwrite").save(target_path_str)
+            writer = df.write.format(self.config.output_format).mode("overwrite")
+            if partition_column:
+                writer = writer.option("partitionOverwriteMode", "dynamic").partitionBy(partition_column)
+            writer.save(str(base_path))
             return df.count()
         finally:
             df.unpersist()

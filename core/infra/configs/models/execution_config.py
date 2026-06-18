@@ -1,11 +1,12 @@
+import dataclasses
 from dataclasses import dataclass, field
 from typing import Optional, List
 from datetime import datetime
 
 @dataclass(frozen=True)
-class DataPartitioningConfig:    
-    partition_column: Optional[str] = None      # Ex: "uf"
-    filter_partitions: List[str] = field(default_factory=list)  # Ex: ["BA", "SP"]
+class DataPartitioningConfig:
+    partition_column: Optional[str] = None
+    filter_partitions: List[str] = field(default_factory=list)
 
     @property
     def has_filters(self) -> bool:
@@ -13,7 +14,7 @@ class DataPartitioningConfig:
 
 @dataclass(frozen=True)
 class ExecutionConfig:
-    job_id: Optional[str] = None 
+    job_id: Optional[str] = None
     partitioning: DataPartitioningConfig = field(default_factory=DataPartitioningConfig)
     sample_fraction: Optional[float] = None
     sample_seed: int = 42
@@ -23,3 +24,9 @@ class ExecutionConfig:
         if not self.job_id:
             timestamp_str = datetime.now().strftime("%Y%m%d_%H%M%S")
             object.__setattr__(self, "job_id", f"job_{timestamp_str}")
+
+    def with_discovered_partitions(self, partitions: List[str]) -> "ExecutionConfig":
+        return dataclasses.replace(
+            self,
+            partitioning=dataclasses.replace(self.partitioning, filter_partitions=partitions)
+        )
