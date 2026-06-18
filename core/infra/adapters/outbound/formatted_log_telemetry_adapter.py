@@ -1,11 +1,12 @@
 import logging
 
 from core.application.ports.outbound.telemetry_port import TelemetryPort
+from core.application.ports.outbound.indexing_telemetry_port import IndexingTelemetryPort
 
 logger = logging.getLogger("Adapter: Telemetry")
 
 
-class FormattedLogTelemetryAdapter(TelemetryPort):
+class FormattedLogTelemetryAdapter(TelemetryPort, IndexingTelemetryPort):
 
     def log_job_start(self, job_id: str, project_name: str, total_units: int) -> None:
         logger.info("=========================================================================")
@@ -71,5 +72,22 @@ class FormattedLogTelemetryAdapter(TelemetryPort):
         logger.info("=========================================================================")
         logger.info(
             f" JOB '{job_id}' CONCLUÍDO | TEMPO: {duration:.2f}s | BLOCOS: {total_units}"
+        )
+        logger.info("=========================================================================")
+
+    # ── IndexingTelemetryPort ────────────────────────────────────────────────
+
+    def log_indexing_start(self, source_table: str, index_name: str, column_count: int) -> None:
+        logger.info("=========================================================================")
+        logger.info(f" INDEXAÇÃO | Tabela: '{source_table}' → Índice: '{index_name}' | Colunas: {column_count}")
+        logger.info("=========================================================================")
+
+    def log_index_ensured(self, index_name: str, duration: float) -> None:
+        logger.info(f"  ├── Índice '{index_name}' pronto em {duration:.2f}s")
+
+    def log_indexing_completion(self, source_table: str, index_name: str, total_duration: float) -> None:
+        logger.info("=========================================================================")
+        logger.info(
+            f" INDEXAÇÃO CONCLUÍDA | '{source_table}' → '{index_name}' | TEMPO: {total_duration:.2f}s"
         )
         logger.info("=========================================================================")

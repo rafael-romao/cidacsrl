@@ -7,6 +7,7 @@ from core.infra.configs.loader import parse_dataset_indexing_specification, pars
 
 from core.infra.adapters.outbound.spark_data_ingestion_adapter import SparkDataIngestionAdapter
 from core.infra.adapters.outbound.elasticsearch.spark_es_indexing_adapter import SparkESIndexingAdapter
+from core.infra.adapters.outbound.formatted_log_telemetry_adapter import FormattedLogTelemetryAdapter
 from core.application.use_cases.index_dataset_use_case import IndexDatasetUseCase
 
 logger = logging.getLogger("Bootstrapper: Elasticsearch Indexing")
@@ -35,10 +36,12 @@ def bootstrap_elasticsearch_indexing(
     try:        
         ingestion_adapter = SparkDataIngestionAdapter(spark_session=spark_session, storage_config=source_config)
         indexing_adapter = SparkESIndexingAdapter(es_config=es_config)
+        telemetry_adapter = FormattedLogTelemetryAdapter()
 
         use_case = IndexDatasetUseCase(
-            ingestion_port=ingestion_adapter, 
-            indexing_port=indexing_adapter
+            ingestion_port=ingestion_adapter,
+            indexing_port=indexing_adapter,
+            telemetry_port=telemetry_adapter,
         )
         
         use_case.execute(
