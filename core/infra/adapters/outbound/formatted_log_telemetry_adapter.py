@@ -10,7 +10,7 @@ class FormattedLogTelemetryAdapter(TelemetryPort, IndexingTelemetryPort):
 
     def log_job_start(self, job_id: str, project_name: str, total_units: int) -> None:
         logger.info("=========================================================================")
-        logger.info(f" JOB '{job_id}' | PROJETO: '{project_name}' | BLOCOS: {total_units}")
+        logger.info(f" JOB '{job_id}' | PROJETO: '{project_name}' | BLOCOS: {total_units:,}".replace(",", "."))
         logger.info("=========================================================================")
 
     def log_work_unit_start(self, job_id: str, unit_id: str, pending_count: int) -> None:
@@ -19,9 +19,10 @@ class FormattedLogTelemetryAdapter(TelemetryPort, IndexingTelemetryPort):
             logger.info(f"│ {job_id:<10} |             PROCESSANDO EM UM ÚNICO BLOCO             │")
             logger.info("=========================================================================")
         else:
-            logger.info("┌───────────────────────────────────────────────────────────────────────┐")
-            logger.info(f"│ {job_id:<10} | PENDENTES: {pending_count:<3} |  BLOCO: {unit_id:<35} │")
-            logger.info("└───────────────────────────────────────────────────────────────────────┘")
+            pending_str = f"{pending_count:,}".replace(",", ".")
+            logger.info("┌────────────────────────────────────────────────────────────────────────────────────────┐")
+            logger.info(f"│ {job_id} | PENDENTES: {pending_str:<7} |  BLOCO: {unit_id:<35} │")
+            logger.info("└────────────────────────────────────────────────────────────────────────────────────────┘")
 
     def log_phase_skipped(self, job_id: str, unit_id: str, phase_index: int, phase_name: str) -> None:
         logger.info(f"  ├── [{unit_id} | Fase {phase_index}: {phase_name:<12}] PULADA (desabilitada)")
@@ -45,33 +46,41 @@ class FormattedLogTelemetryAdapter(TelemetryPort, IndexingTelemetryPort):
         search_duration: float,
         persist_duration: float,
     ) -> None:
+        rec_in_str = f"{records_in:,}".replace(",", ".")
+        cand_str = f"{candidates_found:,}".replace(",", ".")
+        rec_out_str = f"{records_out:,}".replace(",", ".")
         logger.info(
             f"  ├── [{unit_id} | Fase {phase_index}: {phase_name:<12}] "
-            f"Entrantes: {records_in:<5} | Candidatos: {candidates_found:<6} | Pares: {records_out:<4} | "
-            f"Busca: {search_duration:.2f}s | Persist: {persist_duration:.2f}s | Total: {duration:.2f}s"
+            f"Entrantes: {rec_in_str:<9} | Candidatos: {cand_str:<9} | Pares: {rec_out_str:<9} | "
+            f"Busca: {search_duration:.2f}s ({search_duration/60:.2f} min) | "
+            f"Persist: {persist_duration:.2f}s ({persist_duration/60:.2f} min) | "
+            f"Total: {duration:.2f}s ({duration/60:.2f} min)"
         )
 
     def log_work_unit_completion(
         self, job_id: str, unit_id: str, total_links: int, remaining: int, duration: float
     ) -> None:
         throughput = total_links / duration if duration > 0 else 0
+        tot_links_str = f"{total_links:,}".replace(",", ".")
+        rem_str = f"{remaining:,}".replace(",", ".")
+        throughput_str = f"{throughput:,.2f}".replace(",", "_").replace(".", ",").replace("_", ".")
         logger.info(
             f"  └── [{unit_id} | Consolidado] "
-            f"Total Pares: {total_links:<4} | Restantes: {remaining:<4} | "
-            f"Tempo: {duration:.2f}s | Throughput: {throughput:.2f} pares/s\n"
+            f"Total Pares: {tot_links_str:<9} | Restantes: {rem_str:<9} | "
+            f"Tempo: {duration:.2f}s ({duration/60:.2f} min) | Throughput: {throughput_str} pares/s\n"
         )
 
     def log_work_unit_failure(
         self, job_id: str, unit_id: str, error_message: str, duration: float
     ) -> None:
         logger.error(
-            f"  └── [{unit_id} | FALHA] Duração: {duration:.2f}s | Erro: {error_message}"
+            f"  └── [{unit_id} | FALHA] Duração: {duration:.2f}s ({duration/60:.2f} min) | Erro: {error_message}"
         )
 
     def log_job_completion(self, job_id: str, total_units: int, duration: float) -> None:
         logger.info("=========================================================================")
         logger.info(
-            f" JOB '{job_id}' CONCLUÍDO | TEMPO: {duration:.2f}s | BLOCOS: {total_units}"
+            f" JOB '{job_id}' CONCLUÍDO | TEMPO: {duration:.2f}s ({duration/60:.2f} min) | BLOCOS: {f'{total_units:,}'.replace(',', '.')}"
         )
         logger.info("=========================================================================")
 
@@ -79,15 +88,15 @@ class FormattedLogTelemetryAdapter(TelemetryPort, IndexingTelemetryPort):
 
     def log_indexing_start(self, source_table: str, index_name: str, column_count: int) -> None:
         logger.info("=========================================================================")
-        logger.info(f" INDEXAÇÃO | Tabela: '{source_table}' → Índice: '{index_name}' | Colunas: {column_count}")
+        logger.info(f" INDEXAÇÃO | Tabela: '{source_table}' → Índice: '{index_name}' | Colunas: {f'{column_count:,}'.replace(',', '.')}")
         logger.info("=========================================================================")
 
     def log_index_ensured(self, index_name: str, duration: float) -> None:
-        logger.info(f"  ├── Índice '{index_name}' pronto em {duration:.2f}s")
+        logger.info(f"  ├── Índice '{index_name}' pronto em {duration:.2f}s ({duration/60:.2f} min)")
 
     def log_indexing_completion(self, source_table: str, index_name: str, total_duration: float) -> None:
         logger.info("=========================================================================")
         logger.info(
-            f" INDEXAÇÃO CONCLUÍDA | '{source_table}' → '{index_name}' | TEMPO: {total_duration:.2f}s"
+            f" INDEXAÇÃO CONCLUÍDA | '{source_table}' → '{index_name}' | TEMPO: {total_duration:.2f}s ({total_duration/60:.2f} min)"
         )
         logger.info("=========================================================================")

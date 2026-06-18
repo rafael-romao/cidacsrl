@@ -13,12 +13,12 @@ class FormattedLogDeduplicationTelemetryAdapter(DeduplicationTelemetryPort):
         logger.info("=========================================================================")
 
     def log_pairs_loaded(self, duration: float) -> None:
-        logger.info(f"  ├── Pares linkados carregados em {duration:.2f}s")
+        logger.info(f"  ├── Pares linkados carregados em {duration:.2f}s ({duration/60:.2f} min)")
 
     def log_clusters_found(self, duration: float) -> None:
-        logger.info(f"  ├── Componentes conectados calculados em {duration:.2f}s")
+        logger.info(f"  ├── Componentes conectados calculados em {duration:.2f}s ({duration/60:.2f} min)")
 
     def log_deduplication_completion(self, total_duration: float) -> None:
         logger.info("=========================================================================")
-        logger.info(f" DEDUPLICAÇÃO CONCLUÍDA | TEMPO: {total_duration:.2f}s")
+        logger.info(f" DEDUPLICAÇÃO CONCLUÍDA | TEMPO: {total_duration:.2f}s ({total_duration/60:.2f} min)")
         logger.info("=========================================================================")
