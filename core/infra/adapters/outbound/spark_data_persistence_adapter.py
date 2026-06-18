@@ -20,17 +20,24 @@ class SparkDataPersistenceAdapter(DataPersistencePort):
         phase_name: str,
         partition_column: Optional[str] = None,
     ) -> int:
-        base_path = Path(self.config.output_path) / project_name / phase_name
+        base_path = Path(self.config.output_path) / project_name
 
         logger.info(f"Escrevendo resultados da fase: '{phase_name}'")
         logger.debug(f"Escrevendo resultados da fase '{phase_name}' em: {str(base_path)}")
 
         df.cache()
         try:
-            writer = df.write.format(self.config.output_format).mode("overwrite")
+            partition_cols = ["phase_match"]
             if partition_column:
                 actual_col = partition_column if partition_column in df.columns else f"source_{partition_column}"
-                writer = writer.option("partitionOverwriteMode", "dynamic").partitionBy(actual_col)
+                partition_cols.append(actual_col)
+
+            writer = (
+                df.write.format(self.config.output_format)
+                .mode("overwrite")
+                .option("partitionOverwriteMode", "dynamic")
+                .partitionBy(*partition_cols)
+            )
             writer.save(str(base_path))
             return df.count()
         finally:
