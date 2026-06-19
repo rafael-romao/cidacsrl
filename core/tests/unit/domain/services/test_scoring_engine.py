@@ -28,7 +28,7 @@ def base_rules():
 # TESTES
 # ==========================================
 
-@patch("core.domain.services.scoring_engine.SIMILARITY_FUNCTION_MAP", MOCK_SIMILARITY_MAP)
+@patch("core.application.domain.services.scoring_engine.SIMILARITY_FUNCTION_MAP", MOCK_SIMILARITY_MAP)
 def test_calculate_perfect_match(base_rules):
     """Caso 2: Match exato em todas as colunas. O score deve ser 1.0."""
     result = calculate_pair_scores_and_similarities(
@@ -41,7 +41,7 @@ def test_calculate_perfect_match(base_rules):
     assert result["sim_nome"] == 1.0
     assert result["sim_idade"] == 1.0
 
-@patch("core.domain.services.scoring_engine.SIMILARITY_FUNCTION_MAP", MOCK_SIMILARITY_MAP)
+@patch("core.application.domain.services.scoring_engine.SIMILARITY_FUNCTION_MAP", MOCK_SIMILARITY_MAP)
 def test_calculate_complete_mismatch(base_rules):
     """Caso 3: Diferença total em todas as colunas. O score deve ser 0.0."""
     result = calculate_pair_scores_and_similarities(
@@ -54,7 +54,7 @@ def test_calculate_complete_mismatch(base_rules):
     assert result["sim_nome"] == 0.0
     assert result["sim_idade"] == 0.0
 
-@patch("core.domain.services.scoring_engine.SIMILARITY_FUNCTION_MAP", MOCK_SIMILARITY_MAP)
+@patch("core.application.domain.services.scoring_engine.SIMILARITY_FUNCTION_MAP", MOCK_SIMILARITY_MAP)
 def test_calculate_partial_match_with_mocked_jaro():
     """Caso 4: Match parcial com pesos diferentes."""
     rules = [
@@ -70,7 +70,7 @@ def test_calculate_partial_match_with_mocked_jaro():
     assert result["match_score"] == 0.85
     assert result["sim_nome"] == 0.85
 
-@patch("core.domain.services.scoring_engine.SIMILARITY_FUNCTION_MAP", MOCK_SIMILARITY_MAP)
+@patch("core.application.domain.services.scoring_engine.SIMILARITY_FUNCTION_MAP", MOCK_SIMILARITY_MAP)
 def test_null_values_without_penalty(base_rules):
     """Caso 5: Valor nulo presente, mas a regra NÃO possui penalidade."""
     result = calculate_pair_scores_and_similarities(
@@ -83,7 +83,7 @@ def test_null_values_without_penalty(base_rules):
     assert result["sim_nome"] == 1.0
     assert result["sim_idade"] == 0.0
 
-@patch("core.domain.services.scoring_engine.SIMILARITY_FUNCTION_MAP", MOCK_SIMILARITY_MAP)
+@patch("core.application.domain.services.scoring_engine.SIMILARITY_FUNCTION_MAP", MOCK_SIMILARITY_MAP)
 def test_null_values_with_penalty():
     """Caso 6: Valor nulo presente, e a regra possui penalidade."""
     rules = [
@@ -101,7 +101,7 @@ def test_null_values_with_penalty():
     assert result["sim_nome"] == 1.0
     assert result["sim_cpf"] == 0.0
 
-@patch("core.domain.services.scoring_engine.SIMILARITY_FUNCTION_MAP", MOCK_SIMILARITY_MAP)
+@patch("core.application.domain.services.scoring_engine.SIMILARITY_FUNCTION_MAP", MOCK_SIMILARITY_MAP)
 def test_negative_score_due_to_penalty():
     """Caso 7: Penalidades superam os acertos, resultando em score negativo."""
     rules = [
@@ -117,7 +117,7 @@ def test_negative_score_due_to_penalty():
     
     assert result["match_score"] == -2.5
 
-@patch("core.domain.services.scoring_engine.SIMILARITY_FUNCTION_MAP", MOCK_SIMILARITY_MAP)
+@patch("core.application.domain.services.scoring_engine.SIMILARITY_FUNCTION_MAP", MOCK_SIMILARITY_MAP)
 def test_resilience_to_exceptions_in_similarity_functions(caplog):
     """Caso 8: Uma função matemática de similaridade levanta um erro inesperado."""
     rules = [
@@ -148,7 +148,7 @@ def test_missing_similarity_key_raises_error():
         )
 
 
-@patch("core.domain.services.scoring_engine.SIMILARITY_FUNCTION_MAP", MOCK_SIMILARITY_MAP)
+@patch("core.application.domain.services.scoring_engine.SIMILARITY_FUNCTION_MAP", MOCK_SIMILARITY_MAP)
 def test_debug_payload_includes_rule_breakdown(base_rules):
     result = calculate_pair_scores_and_similarities(
         source_row_dict={"nome": "João", "idade": 30},
@@ -168,7 +168,7 @@ def test_debug_payload_includes_rule_breakdown(base_rules):
     assert result["_debug"]["rules"][0]["weighted_contribution"] == 2.0
 
 
-@patch("core.domain.services.scoring_engine.SIMILARITY_FUNCTION_MAP", MOCK_SIMILARITY_MAP)
+@patch("core.application.domain.services.scoring_engine.SIMILARITY_FUNCTION_MAP", MOCK_SIMILARITY_MAP)
 def test_debug_payload_empty_rules():
     result = calculate_pair_scores_and_similarities(
         source_row_dict={"nome": "João"},

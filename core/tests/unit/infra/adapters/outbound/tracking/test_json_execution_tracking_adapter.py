@@ -36,8 +36,8 @@ def test_initialize_job_state_creates_new_json_file(adapter, project_dir):
     with open(checkpoint_file, "r") as f:
         saved_state = json.load(f)
 
-    assert "uf_BA" in saved_state
-    assert saved_state["uf_BA"]["status"] == "PENDING"
+    assert "uf_BA" in saved_state["units"]
+    assert saved_state["units"]["uf_BA"]["status"] == "PENDING"
 
 def test_initialize_job_state_does_not_overwrite_existing_progress(adapter, project_dir):
     job_id = "job_resilient_02"
@@ -46,14 +46,16 @@ def test_initialize_job_state_does_not_overwrite_existing_progress(adapter, proj
     file_path = job_dir / "state.json"
 
     pre_existing_state = {
-        "uf_BA": {
-            "unit_id": "uf_BA",
-            "filters": {"uf": "BA"},
-            "status": WorkUnitStatus.COMPLETED.value,
-            "records_processed": 500,
-            "started_at": "2026-06-15T10:00:00",
-            "finished_at": "2026-06-15T10:05:00",
-            "error_message": None
+        "meta": {"schema_version": 1, "job_id": job_id, "project_name": PROJECT_NAME, "created_at": "2026-06-15T10:00:00+00:00"},
+        "units": {
+            "uf_BA": {
+                "filters": {"uf": "BA"},
+                "status": WorkUnitStatus.COMPLETED.value,
+                "records_processed": 500,
+                "started_at": "2026-06-15T10:00:00+00:00",
+                "finished_at": "2026-06-15T10:05:00+00:00",
+                "error_message": None
+            }
         }
     }
     with open(file_path, "w", encoding="utf-8") as f:
@@ -66,8 +68,8 @@ def test_initialize_job_state_does_not_overwrite_existing_progress(adapter, proj
     with open(file_path, "r", encoding="utf-8") as f:
         data = json.load(f)
 
-    assert data["uf_BA"]["status"] == WorkUnitStatus.COMPLETED.value
-    assert data["uf_BA"]["records_processed"] == 500
+    assert data["units"]["uf_BA"]["status"] == WorkUnitStatus.COMPLETED.value
+    assert data["units"]["uf_BA"]["records_processed"] == 500
 
 def test_get_pending_work_units_filters_out_completed_records(adapter, project_dir):
     job_id = "job_filter_03"
@@ -76,9 +78,12 @@ def test_get_pending_work_units_filters_out_completed_records(adapter, project_d
     file_path = job_dir / "state.json"
 
     mixed_state = {
-        "uf_BA": {"unit_id": "uf_BA", "status": WorkUnitStatus.COMPLETED.value, "filters": {"uf": "BA"}},
-        "uf_SP": {"unit_id": "uf_SP", "status": WorkUnitStatus.PENDING.value, "filters": {"uf": "SP"}},
-        "uf_RJ": {"unit_id": "uf_RJ", "status": WorkUnitStatus.FAILED.value, "filters": {"uf": "RJ"}, "error_message": "Memory Out"}
+        "meta": {"schema_version": 1, "job_id": job_id, "project_name": PROJECT_NAME, "created_at": "2026-06-15T10:00:00+00:00"},
+        "units": {
+            "uf_BA": {"status": WorkUnitStatus.COMPLETED.value, "filters": {"uf": "BA"}},
+            "uf_SP": {"status": WorkUnitStatus.PENDING.value, "filters": {"uf": "SP"}},
+            "uf_RJ": {"status": WorkUnitStatus.FAILED.value, "filters": {"uf": "RJ"}, "error_message": "Memory Out"},
+        }
     }
     with open(file_path, "w", encoding="utf-8") as f:
         json.dump(mixed_state, f)
@@ -102,7 +107,7 @@ def test_update_work_unit_status_transitions_correctly(adapter, project_dir):
     with open(checkpoint_file, "r") as f:
         saved_state = json.load(f)
 
-    assert saved_state["uf_BA"]["status"] == "PROCESSING"
+    assert saved_state["units"]["uf_BA"]["status"] == "PROCESSING"
 
 def test_update_work_unit_status_raises_value_error_if_unit_not_mapped(adapter):
     with pytest.raises(ValueError) as exc_info:
@@ -126,5 +131,5 @@ def test_corrupted_checkpoint_file_is_backed_up_and_state_resets(adapter, projec
     with open(checkpoint_file, "r", encoding="utf-8") as f:
         new_state = json.load(f)
 
-    assert "uf_BA" in new_state
-    assert new_state["uf_BA"]["status"] == "PENDING"
+    assert "uf_BA" in new_state["units"]
+    assert new_state["units"]["uf_BA"]["status"] == "PENDING"
