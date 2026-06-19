@@ -1,7 +1,7 @@
 import os
 import pytest
 from unittest.mock import patch, MagicMock
-from core.infra.bootstrappers.linkage_bootstrapper import bootstrap_sequential_linkage
+from cidacsrl.bootstrap.linkage_bootstrap import build_linkage_use_case
 
 @pytest.fixture
 def setup_integration_payloads(tmp_path):

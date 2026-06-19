@@ -1,6 +1,6 @@
 from unittest.mock import MagicMock, patch
 
-from core.infra.bootstrappers.indexing_bootstrapper import bootstrap_elasticsearch_indexing
+from cidacsrl.bootstrap.indexing_bootstrap import build_indexing_use_case
 
 
 def test_bootstrap_elasticsearch_indexing_execution(test_paths):

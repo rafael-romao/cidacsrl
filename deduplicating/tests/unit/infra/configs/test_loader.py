@@ -2,8 +2,8 @@ import pytest
 from pathlib import Path
 from unittest.mock import patch
 
-from deduplicating.infra.configs.loader import load_deduplicate_workflow_config
-from deduplicating.infra.configs.models.deduplicate_workflow_config import DeduplicateWorkflowConfig
+from cidacsrl.config.dedup_loader import load_deduplicate_workflow_config
+from cidacsrl.config.models.dedup_workflow_config import DeduplicateWorkflowConfig
 
 pytestmark = pytest.mark.unit
 

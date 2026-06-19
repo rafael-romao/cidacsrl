@@ -3,7 +3,7 @@ from datetime import datetime
 from pathlib import Path
 
 from cidacsrl.adapters.outbound.spark.spark_factory import spark_session_context
-from deduplicating.infra.configs.models.deduplicate_workflow_config import DeduplicateWorkflowConfig
+from cidacsrl.config.models.dedup_workflow_config import DeduplicateWorkflowConfig
 from cidacsrl.adapters.outbound.spark.data_reader_adapter import SparkDataReaderAdapter
 from cidacsrl.adapters.outbound.graph.graphframes_adapter import GraphFramesAdapter
 from cidacsrl.adapters.outbound.spark.dedup_data_persistence_adapter import SparkDataPersistenceAdapter

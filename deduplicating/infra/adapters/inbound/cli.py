@@ -3,8 +3,8 @@ import argparse
 import logging
 
 from cidacsrl.config.logging import configure_logging
-from deduplicating.infra.configs.loader import load_deduplicate_workflow_config
-from deduplicating.infra.bootstrappers.deduplicate_bootstrapper import bootstrap_deduplication
+from cidacsrl.config.dedup_loader import load_deduplicate_workflow_config
+from cidacsrl.bootstrap.deduplication_bootstrap import build_deduplication_use_case
 
 logger = logging.getLogger("CLI: Deduplication")
 
@@ -45,11 +45,15 @@ def main() -> None:
         logger.error(f"Falha ao carregar configuração: {e}")
         sys.exit(1)
 
+    use_case, spark = build_deduplication_use_case(config)
     try:
-        bootstrap_deduplication(config)
+        use_case.execute(spec=config.deduplication_spec)
+        logger.info("Deduplication workflow finalizado com sucesso.")
     except Exception as e:
         logger.critical(f"Erro crítico na execução: {e}", exc_info=True)
         sys.exit(1)
+    finally:
+        spark.stop()
 
 
 if __name__ == "__main__":

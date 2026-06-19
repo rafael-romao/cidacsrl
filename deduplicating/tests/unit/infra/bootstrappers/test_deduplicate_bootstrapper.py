@@ -1,15 +1,14 @@
 import pytest
 from unittest.mock import ANY, MagicMock, patch
-from contextlib import contextmanager
 
 from cidacsrl.config.models.storage_config import SourceStorageConfig, OutputStorageConfig
-from deduplicating.infra.bootstrappers.deduplicate_bootstrapper import bootstrap_deduplication
-from deduplicating.infra.configs.models.deduplicate_workflow_config import DeduplicateWorkflowConfig
+from cidacsrl.bootstrap.deduplication_bootstrap import build_deduplication_use_case
+from cidacsrl.config.models.dedup_workflow_config import DeduplicateWorkflowConfig
 from cidacsrl.domain.deduplication.deduplication_specification import DeduplicationSpecification
 
 pytestmark = pytest.mark.unit
 
-_MODULE = "deduplicating.infra.bootstrappers.deduplicate_bootstrapper"
+_MODULE = "cidacsrl.bootstrap.deduplication_bootstrap"
 
 
 @pytest.fixture
@@ -26,44 +25,33 @@ def workflow_config():
     )
 
 
-@pytest.fixture
-def mock_spark():
-    return MagicMock()
-
-
-@pytest.fixture
-def spark_context(mock_spark):
-    @contextmanager
-    def _ctx(*args, **kwargs):
-        yield mock_spark
-
-    return _ctx
-
-
 @patch(f"{_MODULE}.DeduplicateUseCase")
+@patch(f"{_MODULE}.CompositeDeduplicationTelemetryAdapter")
+@patch(f"{_MODULE}.JsonlDeduplicationTelemetryAdapter")
 @patch(f"{_MODULE}.FormattedLogDeduplicationTelemetryAdapter")
 @patch(f"{_MODULE}.SparkDataPersistenceAdapter")
 @patch(f"{_MODULE}.GraphFramesAdapter")
 @patch(f"{_MODULE}.SparkDataReaderAdapter")
-@patch(f"{_MODULE}.spark_session_context")
-def test_bootstrap_wires_all_adapters_and_executes(
-    mock_ctx,
+@patch(f"{_MODULE}.create_spark_session")
+def test_build_wires_all_adapters(
+    mock_create_spark,
     mock_reader_cls,
     mock_graph_cls,
     mock_persistence_cls,
-    mock_telemetry_cls,
+    mock_formatted_telemetry_cls,
+    mock_jsonl_telemetry_cls,
+    mock_composite_cls,
     mock_use_case_cls,
     workflow_config,
-    mock_spark,
-    spark_context,
 ):
-    mock_ctx.side_effect = spark_context
+    mock_spark = MagicMock()
+    mock_create_spark.return_value = mock_spark
     mock_use_case = MagicMock()
     mock_use_case_cls.return_value = mock_use_case
 
-    bootstrap_deduplication(workflow_config)
+    returned_use_case, returned_spark = build_deduplication_use_case(workflow_config)
 
-    mock_ctx.assert_called_once_with(
+    mock_create_spark.assert_called_once_with(
         app_name=workflow_config.app_name,
         spark_config=workflow_config.spark_configs,
         checkpoint_dir=ANY,
@@ -71,55 +59,66 @@ def test_bootstrap_wires_all_adapters_and_executes(
     mock_reader_cls.assert_called_once_with(spark=mock_spark, storage=workflow_config.source_storage)
     mock_graph_cls.assert_called_once_with()
     mock_persistence_cls.assert_called_once_with(storage=workflow_config.output_storage)
-    mock_telemetry_cls.assert_called_once_with()
+    mock_formatted_telemetry_cls.assert_called_once_with()
     mock_use_case_cls.assert_called_once_with(
         reader=mock_reader_cls.return_value,
         graph_processor=mock_graph_cls.return_value,
         persistence=mock_persistence_cls.return_value,
-        telemetry=mock_telemetry_cls.return_value,
+        telemetry=mock_composite_cls.return_value,
     )
-    mock_use_case.execute.assert_called_once_with(spec=workflow_config.deduplication_spec)
+    assert returned_use_case is mock_use_case
+    assert returned_spark is mock_spark
+    mock_use_case.execute.assert_not_called()
 
 
 @patch(f"{_MODULE}.DeduplicateUseCase")
+@patch(f"{_MODULE}.CompositeDeduplicationTelemetryAdapter")
+@patch(f"{_MODULE}.JsonlDeduplicationTelemetryAdapter")
+@patch(f"{_MODULE}.FormattedLogDeduplicationTelemetryAdapter")
 @patch(f"{_MODULE}.SparkDataPersistenceAdapter")
 @patch(f"{_MODULE}.GraphFramesAdapter")
 @patch(f"{_MODULE}.SparkDataReaderAdapter")
-@patch(f"{_MODULE}.spark_session_context")
-def test_bootstrap_stops_spark_on_success(
-    mock_ctx,
+@patch(f"{_MODULE}.create_spark_session")
+def test_build_returns_spark_session(
+    mock_create_spark,
     mock_reader_cls,
     mock_graph_cls,
     mock_persistence_cls,
+    mock_formatted_telemetry_cls,
+    mock_jsonl_telemetry_cls,
+    mock_composite_cls,
     mock_use_case_cls,
     workflow_config,
-    mock_spark,
-    spark_context,
 ):
-    mock_ctx.side_effect = spark_context
+    mock_spark = MagicMock()
+    mock_create_spark.return_value = mock_spark
 
-    bootstrap_deduplication(workflow_config)
+    _, returned_spark = build_deduplication_use_case(workflow_config)
 
-    mock_ctx.assert_called_once()
+    assert returned_spark is mock_spark
 
 
 @patch(f"{_MODULE}.DeduplicateUseCase")
+@patch(f"{_MODULE}.CompositeDeduplicationTelemetryAdapter")
+@patch(f"{_MODULE}.JsonlDeduplicationTelemetryAdapter")
+@patch(f"{_MODULE}.FormattedLogDeduplicationTelemetryAdapter")
 @patch(f"{_MODULE}.SparkDataPersistenceAdapter")
 @patch(f"{_MODULE}.GraphFramesAdapter")
 @patch(f"{_MODULE}.SparkDataReaderAdapter")
-@patch(f"{_MODULE}.spark_session_context")
-def test_bootstrap_propagates_exception(
-    mock_ctx,
+@patch(f"{_MODULE}.create_spark_session")
+def test_build_propagates_exception_from_adapter(
+    mock_create_spark,
     mock_reader_cls,
     mock_graph_cls,
     mock_persistence_cls,
+    mock_formatted_telemetry_cls,
+    mock_jsonl_telemetry_cls,
+    mock_composite_cls,
     mock_use_case_cls,
     workflow_config,
-    mock_spark,
-    spark_context,
 ):
-    mock_ctx.side_effect = spark_context
-    mock_use_case_cls.return_value.execute.side_effect = RuntimeError("falha simulada")
+    mock_create_spark.return_value = MagicMock()
+    mock_reader_cls.side_effect = RuntimeError("falha simulada")
 
     with pytest.raises(RuntimeError, match="falha simulada"):
-        bootstrap_deduplication(workflow_config)
+        build_deduplication_use_case(workflow_config)
