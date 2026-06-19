@@ -38,9 +38,6 @@ cidacsrl = "cidacsrl.adapters.inbound.cli:main"
 [tool.poetry]
 requires-poetry = ">=2.0.0"
 packages = [
-    { include = "core", from = "." },
-    { include = "cleaning", from = "." },
-    { include = "deduplicating", from = "." },
     { include = "cidacsrl", from = "src" }
 ]
 
@@ -71,7 +68,7 @@ default_section = "THIRDPARTY"
 skip = ["tests"]
 
 [tool.pytest.ini_options]
-testpaths = ["tests", "core/tests", "deduplicating/tests"]
+testpaths = ["tests"]
 markers = [
     "unit: Testes unitarios de logica pura e dominio.",
     "integration: Testes de integracao que dependem de Spark ou ES(Docker).",

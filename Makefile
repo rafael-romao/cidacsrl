@@ -1,13 +1,12 @@
 # Configurações de Executáveis e Variáveis
 PYTHON     := python
-COMPOSE    := docker compose -f core/tests/environment/docker-compose.yml
+COMPOSE    := docker compose -f tests/environment/docker-compose.yml
 SPARK_PKG  := spark_packages
 VENV_PYTHON = $(shell poetry env list --full-path 2>/dev/null | awk 'NR==1{print $$1}')/bin/python
 
 .PHONY: all build clean help env-check clean-docker prepare-dirs stop-all stop generate-data
 .PHONY: up up-es up-ui up-jupyter down restart ps logs logs-engine logs-es logs-cerebro logs-jupyter shell-engine shell-es shell-jupyter
-.PHONY: test test-integration test-unit run-e2e-pipeline run-e2e-indexing-only
-.PHONY: test-unit-dedup run-e2e-dedup
+.PHONY: test test-integration test-unit run-e2e-pipeline run-e2e-indexing-only run-e2e-dedup
 
 all: help
 
@@ -40,7 +39,7 @@ up-jupyter: env-check
 down:
 	@echo "--> Derrubando os contêineres locais do ambiente de teste..."
 	$(COMPOSE) --profile elasticsearch --profile runner --profile ui --profile jupyter down -v --remove-orphans
-	@rm -f core/tests/environment/.es_data/node.lock
+	@rm -f tests/environment/.es_data/node.lock
 
 restart: down up
 
@@ -75,44 +74,40 @@ shell-jupyter:
 
 generate-data: up
 	@echo "Gerando dados de teste..."
-	$(COMPOSE) exec cidacsrl_runner python core/tests/e2e/generate_e2e_data_acidentes.py
+	$(COMPOSE) exec cidacsrl_runner python tests/e2e/linkage/generate_e2e_data_acidentes.py
 
 run-e2e-pipeline: up
 	@if [ -z "$(ENV)" ]; then echo "❌ Erro: Variável ENV é obrigatória. Uso: make run-e2e-pipeline ENV=nome_do_arquivo.yml"; exit 1; fi
 	@echo "Pipeline executando: verificação de índice + linkage usando $(ENV)"
 	$(COMPOSE) exec cidacsrl_runner \
-		python core/tests/e2e/run_e2e_pipeline.py --env-name $(ENV)
+		python tests/e2e/linkage/run_e2e_pipeline.py --env-name $(ENV)
 
 run-e2e-indexing-only: up
 	@if [ -z "$(ENV)" ]; then echo "❌ Erro: Variável ENV é obrigatória. Uso: make run-e2e-indexing-only ENV=nome_do_arquivo.yml"; exit 1; fi
 	@echo "Pipeline executando apenas com indexação usando $(ENV)"
 	$(COMPOSE) exec cidacsrl_runner \
-		python core/tests/e2e/run_e2e_pipeline.py --env-name $(ENV) --skip-linkage
+		python tests/e2e/linkage/run_e2e_pipeline.py --env-name $(ENV) --skip-linkage
+
+run-e2e-dedup:
+	@echo "--> Executando pipeline E2E de deduplicação com dados locais de teste..."
+	@if [ -z "$(VENV_PYTHON)" ]; then echo "❌ Erro: virtualenv Poetry não encontrado em ~/.cache/pypoetry/virtualenvs/"; exit 1; fi
+	$(VENV_PYTHON) tests/e2e/deduplication/run_e2e_deduplication.py $(if $(CONFIG),--config-path $(CONFIG),)
 
 ES_CONNECTOR_PKG := org.elasticsearch:elasticsearch-spark-30_2.12:9.1.8
 PYSPARK_ENV     := -e CIDACSRL_ES_URL=http://elasticsearch:9200 -e "PYSPARK_SUBMIT_ARGS=--packages $(ES_CONNECTOR_PKG) pyspark-shell"
 
 test: up
 	@echo "--> Executando toda a suíte de testes..."
-	$(COMPOSE) exec $(PYSPARK_ENV) cidacsrl_runner pytest core/tests/ -v
+	$(COMPOSE) exec $(PYSPARK_ENV) cidacsrl_runner pytest tests/ -v
 
 test-integration: up
 	@echo "--> Executando testes de integração..."
-	$(COMPOSE) exec $(PYSPARK_ENV) cidacsrl_runner pytest core/tests/integration/ -m integration -v
+	$(COMPOSE) exec $(PYSPARK_ENV) cidacsrl_runner pytest tests/integration/ -m integration -v
 
-test-unit: up
+test-unit:
 	@echo "--> Executando testes unitários..."
-	$(COMPOSE) exec cidacsrl_runner pytest core/tests/unit/ -m unit -v
-
-test-unit-dedup:
-	@echo "--> Executando testes unitários do módulo deduplicating (local)..."
 	@if [ -z "$(VENV_PYTHON)" ]; then echo "❌ Erro: virtualenv Poetry não encontrado em ~/.cache/pypoetry/virtualenvs/"; exit 1; fi
-	$(VENV_PYTHON) -m pytest deduplicating/tests/unit/ -v --tb=short -m unit
-
-run-e2e-dedup:
-	@echo "--> Executando pipeline E2E de deduplicação com dados locais de teste..."
-	@if [ -z "$(VENV_PYTHON)" ]; then echo "❌ Erro: virtualenv Poetry não encontrado em ~/.cache/pypoetry/virtualenvs/"; exit 1; fi
-	$(VENV_PYTHON) deduplicating/tests/e2e/run_e2e_deduplication.py $(if $(CONFIG),--config-path $(CONFIG),)
+	$(VENV_PYTHON) -m pytest tests/unit/ -m unit -v --tb=short
 
 # ─── 3. COMPILAÇÃO, EMPACOTAMENTO E LIMPEZA ────────────────────────────────────
 
@@ -166,8 +161,8 @@ stop-all:
 # ─── 4. AUXILIARES INTERNOS ────────────────────────────────────────────────────
 
 env-check:
-	@if [ ! -d "core/tests/environment" ]; then \
-		echo "❌ Erro: Diretório 'core/tests/environment' não encontrado. Certifique-se de estar na raiz do repositório."; \
+	@if [ ! -d "tests/environment" ]; then \
+		echo "❌ Erro: Diretório 'tests/environment' não encontrado. Certifique-se de estar na raiz do repositório."; \
 		exit 1; \
 	fi
 
@@ -191,16 +186,12 @@ help:
 	@echo "  make shell-engine      - Abre terminal bash dentro do container Engine"
 	@echo ""
 	@echo "Execução de Pipelines e Testes:"
-	@echo "  make run-e2e-pipeline ENV=<arquivo.yml>    - Roda a esteira fim-a-fim (pula indexação se já populado)"
+	@echo "  make run-e2e-pipeline ENV=<arquivo.yml>      - Roda a esteira fim-a-fim linkage"
 	@echo "  make run-e2e-indexing-only ENV=<arquivo.yml> - Roda apenas a indexação"
-	@echo "  make test                                  - Roda todos os testes (Unitários e Integração) via contêiner"
-	@echo "  make test-integration                      - Executa apenas os testes da camada de integração"
-	@echo "  make test-unit                             - Executa apenas as validações unitárias em memória"
-	@echo ""
-	@echo "Deduplicação (local, sem Docker):"
-	@echo "  make test-unit-dedup                       - Testes unitários do módulo deduplicating (venv local)"
-	@echo "  make run-e2e-dedup                         - Pipeline E2E de deduplicação com dados locais de teste"
-	@echo "  make run-e2e-dedup CONFIG=<path.yml>       - Pipeline E2E com config customizado"
+	@echo "  make run-e2e-dedup [CONFIG=<path.yml>]       - Pipeline E2E de deduplicação"
+	@echo "  make test                                    - Roda todos os testes via contêiner"
+	@echo "  make test-integration                        - Executa testes de integração"
+	@echo "  make test-unit                               - Executa testes unitários (local)"
 	@echo ""
 	@echo "Compilação e Faxina:"
 	@echo "  make build             - Prepara pacote Wheel e dependências via Poetry"

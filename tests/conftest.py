@@ -48,3 +48,13 @@ def es_url() -> str:
 @pytest.fixture(scope="session")
 def es_config_data(es_url) -> dict:
     return {"es_connection_url": es_url, "wan_only": True}
+
+
+@pytest.fixture(scope="session")
+def storage_config_data(test_paths) -> dict:
+    return {
+        "source_data_path": str(test_paths["input"]),
+        "output_data_path": str(test_paths["output"]),
+        "source_data_format": "parquet",
+        "output_data_format": "parquet",
+    }
