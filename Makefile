@@ -16,16 +16,6 @@ all: help
 up: env-check
 	@echo "--> Subindo o ambiente de teste (Elasticsearch + Engine)..."
 	$(COMPOSE) --profile elasticsearch --profile runner up -d --remove-orphans
-	@echo "Verificando disponibilidade do Elasticsearch..."
-	@timeout=90; \
-	while ! docker inspect --format='{{.State.Health.Status}}' cidacsrl_elasticsearch 2>/dev/null | grep -q healthy; do \
-		sleep 2; \
-		timeout=$$((timeout-2)); \
-		if [ $$timeout -le 0 ]; then \
-			echo "Elasticsearch não ficou saudável a tempo!"; \
-			exit 1; \
-		fi; \
-	done
 	@echo "\n✅ Ambiente de teste disponível!"
 	@echo "\n- Elasticsearch rodando em: http://localhost:9200. Use 'make up-ui' para acessar o Cerebro."
 	@echo "\n- Use 'make run-e2e-pipeline ENV=<arquivo.yml>' para rodar o pipeline de teste completo."
