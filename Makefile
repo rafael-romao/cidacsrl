@@ -3,10 +3,12 @@ PYTHON     := python
 COMPOSE    := docker compose -f tests/environment/docker-compose.yml
 SPARK_PKG  := spark_packages
 VENV_PYTHON = $(shell poetry env list --full-path 2>/dev/null | awk 'NR==1{print $$1}')/bin/python
+VENV_BIN    = $(shell poetry env list --full-path 2>/dev/null | awk 'NR==1{print $$1}')/bin
 
 .PHONY: all build clean help env-check clean-docker prepare-dirs stop-all stop generate-data
 .PHONY: up up-es up-ui up-jupyter down restart ps logs logs-engine logs-es logs-cerebro logs-jupyter shell-engine shell-es shell-jupyter
 .PHONY: test test-integration test-unit run-e2e-pipeline run-e2e-indexing-only run-e2e-dedup
+.PHONY: format format-check
 
 all: help
 
@@ -109,7 +111,25 @@ test-unit:
 	@if [ -z "$(VENV_PYTHON)" ]; then echo "❌ Erro: virtualenv Poetry não encontrado em ~/.cache/pypoetry/virtualenvs/"; exit 1; fi
 	$(VENV_PYTHON) -m pytest tests/unit/ -m unit -v --tb=short
 
-# ─── 3. COMPILAÇÃO, EMPACOTAMENTO E LIMPEZA ────────────────────────────────────
+# ─── 3. FORMATAÇÃO E QUALIDADE DE CÓDIGO ───────────────────────────────────────
+
+format:
+	@if [ -z "$(VENV_BIN)" ]; then echo "❌ Erro: virtualenv Poetry não encontrado."; exit 1; fi
+	@echo "--> Organizando imports com isort..."
+	$(VENV_BIN)/isort src/ tests/
+	@echo "--> Formatando código com blue..."
+	$(VENV_BIN)/blue src/ tests/
+	@echo "✅ Formatação concluída!"
+
+format-check:
+	@if [ -z "$(VENV_BIN)" ]; then echo "❌ Erro: virtualenv Poetry não encontrado."; exit 1; fi
+	@echo "--> Verificando imports com isort (dry-run)..."
+	$(VENV_BIN)/isort src/ tests/ --check-only --diff
+	@echo "--> Verificando formatação com blue (dry-run)..."
+	$(VENV_BIN)/blue src/ tests/ --check
+	@echo "✅ Verificação concluída!"
+
+# ─── 4. COMPILAÇÃO, EMPACOTAMENTO E LIMPEZA ────────────────────────────────────
 
 build:
 	@echo "--> Preparando empacotamento via Poetry..."
@@ -158,7 +178,7 @@ stop-all:
 	@echo "⚠️ Parando TODOS os contêineres em execução no Docker..."
 	docker stop $$(docker ps -a -q) 2>/dev/null || true
 
-# ─── 4. AUXILIARES INTERNOS ────────────────────────────────────────────────────
+# ─── 5. AUXILIARES INTERNOS ────────────────────────────────────────────────────
 
 env-check:
 	@if [ ! -d "tests/environment" ]; then \
@@ -192,6 +212,10 @@ help:
 	@echo "  make test                                    - Roda todos os testes via contêiner"
 	@echo "  make test-integration                        - Executa testes de integração"
 	@echo "  make test-unit                               - Executa testes unitários (local)"
+	@echo ""
+	@echo "Formatação e Qualidade de Código:"
+	@echo "  make format            - Organiza imports (isort) e formata código (blue)"
+	@echo "  make format-check      - Verifica imports e formatação sem modificar arquivos"
 	@echo ""
 	@echo "Compilação e Faxina:"
 	@echo "  make build             - Prepara pacote Wheel e dependências via Poetry"
