@@ -75,21 +75,27 @@ def setup_integration_payloads(tmp_path):
     }
 
 def test_bootstrap_sequential_linkage_execution(setup_integration_payloads):
-    payloads = setup_integration_payloads    
-    
-    with patch("core.infra.bootstrappers.linkage_bootstrapper.get_es_client", return_value=MagicMock()), \
-         patch("core.infra.bootstrappers.linkage_bootstrapper.validate_elasticsearch_schema"), \
-         patch("core.infra.bootstrappers.linkage_bootstrapper.RecordLinkageUseCase") as mock_uc_class, \
+    payloads = setup_integration_payloads
+
+    with patch("cidacsrl.bootstrap.linkage_bootstrap.get_es_client", return_value=MagicMock()), \
+         patch("cidacsrl.bootstrap.linkage_bootstrap.validate_elasticsearch_schema"), \
+         patch("cidacsrl.bootstrap.linkage_bootstrap.RecordLinkageUseCase") as mock_uc_class, \
          patch("cidacsrl.adapters.outbound.spark.data_ingestion_adapter.SparkDataIngestionAdapter.check_health", return_value=[]):
-        
+
         try:
-            bootstrap_sequential_linkage(
+            use_case, spec, config, spark = build_linkage_use_case(
                 storage_config_data=payloads["storage_config_data"],
                 execution_config_data=payloads["execution_config_data"],
                 linkage_spec_data=payloads["linkage_spec_data"],
                 es_config_data=payloads["es_config_data"],
                 spark_config_data=payloads["spark_config_data"]
             )
+            use_case.execute(
+                specification=spec,
+                job_id=config.job_id,
+                execution_config=config,
+            )
+            spark.stop()
         except Exception as e:
             pytest.fail(f"O bootstrapper falhou ao ser executado com os payloads segregados: {e}")
 

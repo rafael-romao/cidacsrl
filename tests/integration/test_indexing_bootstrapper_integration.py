@@ -7,7 +7,7 @@ def test_bootstrap_elasticsearch_indexing_execution(test_paths):
     captured = {}
 
     storage_config_data = {
-        "source_path": str(test_paths["input_data"]),
+        "source_path": str(test_paths["input"]),
         "source_format": "parquet",
     }
     indexing_spec_data = {
@@ -53,12 +53,14 @@ def test_bootstrap_elasticsearch_indexing_execution(test_paths):
         autospec=True,
         side_effect=capture_index_dataframe,
     ):
-        bootstrap_elasticsearch_indexing(
+        use_case, spec, spark = build_indexing_use_case(
             storage_config_data=storage_config_data,
             indexing_spec_data=indexing_spec_data,
             es_config_data=es_config_data,
             spark_config_data=spark_config_data,
         )
+        use_case.execute(spec=spec)
+        spark.stop()
 
     fake_es_client.indices.create.assert_called_once()
     assert captured["index_name"] == "nascimentos_example_index_integration"

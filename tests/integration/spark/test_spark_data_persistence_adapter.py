@@ -24,7 +24,7 @@ def test_save_phase_output_without_partition(spark, tmp_path):
     adapter = SparkDataPersistenceAdapter(output_config=config)
 
     df_test = spark.createDataFrame([
-        Row(source_id="A1", candidate_id="B1", match_score=0.98, phase_match="fase_teste")
+        Row(source_id="A1", candidate_id="B1", match_score=0.98, phase_match="fase_e2e_nome")
     ])
 
     records_saved = adapter.save_phase_output(
@@ -35,7 +35,7 @@ def test_save_phase_output_without_partition(spark, tmp_path):
 
     assert records_saved == 1
 
-    expected_path = tmp_path / "output" / "linkage_internacao_nascimentos" / "fase_e2e_nome"
+    expected_path = tmp_path / "output" / "linkage_internacao_nascimentos" / "phase_match=fase_e2e_nome"
     assert expected_path.exists()
     assert expected_path.is_dir()
     parquet_files = list(expected_path.glob("*.parquet"))
@@ -50,7 +50,7 @@ def test_save_phase_output_with_hive_partition(spark, tmp_path):
     adapter = SparkDataPersistenceAdapter(output_config=config)
 
     df_test = spark.createDataFrame([
-        Row(source_id="A1", candidate_id="B1", match_score=0.98, phase_match="fase_teste", uf="BA")
+        Row(source_id="A1", candidate_id="B1", match_score=0.98, phase_match="fase_e2e_nome", uf="BA")
     ])
 
     records_saved = adapter.save_phase_output(
@@ -63,7 +63,7 @@ def test_save_phase_output_with_hive_partition(spark, tmp_path):
     assert records_saved == 1
 
     hive_partition_path = (
-        tmp_path / "output" / "linkage_internacao_nascimentos" / "fase_e2e_nome" / "uf=BA"
+        tmp_path / "output" / "linkage_internacao_nascimentos" / "phase_match=fase_e2e_nome" / "uf=BA"
     )
     assert hive_partition_path.exists()
     assert hive_partition_path.is_dir()
@@ -78,8 +78,8 @@ def test_save_phase_output_dynamic_partition_overwrite(spark, tmp_path):
     )
     adapter = SparkDataPersistenceAdapter(output_config=config)
 
-    df_ba = spark.createDataFrame([Row(source_id="A1", candidate_id="B1", match_score=0.98, uf="BA")])
-    df_sp = spark.createDataFrame([Row(source_id="A2", candidate_id="B2", match_score=0.95, uf="SP")])
+    df_ba = spark.createDataFrame([Row(source_id="A1", candidate_id="B1", match_score=0.98, phase_match="fase_nome", uf="BA")])
+    df_sp = spark.createDataFrame([Row(source_id="A2", candidate_id="B2", match_score=0.95, phase_match="fase_nome", uf="SP")])
 
     adapter.save_phase_output(
         df=df_ba,
@@ -94,14 +94,14 @@ def test_save_phase_output_dynamic_partition_overwrite(spark, tmp_path):
         partition_column="uf",
     )
 
-    base_path = tmp_path / "output" / "linkage_test" / "fase_nome"
+    base_path = tmp_path / "output" / "linkage_test" / "phase_match=fase_nome"
 
     # Ambas as partições devem coexistir
     assert (base_path / "uf=BA").exists()
     assert (base_path / "uf=SP").exists()
 
     # Reescrever BA não deve apagar SP
-    df_ba_updated = spark.createDataFrame([Row(source_id="A3", candidate_id="B3", match_score=0.99, uf="BA")])
+    df_ba_updated = spark.createDataFrame([Row(source_id="A3", candidate_id="B3", match_score=0.99, phase_match="fase_nome", uf="BA")])
     adapter.save_phase_output(
         df=df_ba_updated,
         project_name="linkage_test",
