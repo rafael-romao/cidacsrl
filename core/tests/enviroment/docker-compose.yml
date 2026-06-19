@@ -97,5 +97,5 @@ services:
     volumes:
       - ../notebooks:/app/notebooks
       - ./:/app
-      - ./tests/data:/app/data
-      - ./tests/config:/app/configs
+      - ../data:/app/data
+      - ../config:/app/configs

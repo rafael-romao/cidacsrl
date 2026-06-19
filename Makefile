@@ -30,7 +30,7 @@ up-es: env-check
 
 up-ui: env-check
 	@echo "\n --> Subindo ferramentas de monitoria Visual (Cerebro)..."
-	$(COMPOSE) --profile ui up -d
+	$(COMPOSE) --profile cerebro up -d
 
 up-jupyter: env-check
 	@echo "\n --> Subindo ambiente interativo Jupyter Notebook..."
@@ -50,7 +50,7 @@ logs:
 	$(COMPOSE) logs -f
 
 logs-engine:
-	$(COMPOSE) logs -f runner
+	$(COMPOSE) logs -f cidacsrl_runner
 
 logs-es:
 	$(COMPOSE) logs -f elasticsearch
@@ -59,7 +59,7 @@ logs-cerebro:
 	$(COMPOSE) logs -f cerebro
 
 logs-jupyter:
-	$(COMPOSE) logs -f jupyter-notebook
+	$(COMPOSE) logs -f jupyter
 
 shell-engine:
 	docker exec -it cidacsrl_runner bash
@@ -68,7 +68,7 @@ shell-es:
 	docker exec -it cidacsrl_elasticsearch bash
 
 shell-jupyter:
-	docker exec -it cidacsrl_jupyter_notebook bash
+	docker exec -it cidacsrl_jupyter bash
 
 # ─── 2. EXECUÇÃO DE PIPELINES E TESTES ─────────────────────────────────────────
 
@@ -141,7 +141,6 @@ clean:
 
 clean-docker: down
 	@echo "--> Removendo volumes e faxinando o ambiente Docker..."
-	$(COMPOSE) down -v --remove-orphans
 	docker system prune -f --volumes
 
 stop-cidacsrl-runner:
