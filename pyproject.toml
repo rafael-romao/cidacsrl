@@ -38,7 +38,8 @@ packages = [
     { include = "core", from = "." },
     { include = "cleaning", from = "." },
     { include = "deduplicating", from = "." },
-    { include = "cli.py", from = "." }
+    { include = "cli.py", from = "." },
+    { include = "cidacsrl", from = "src" }
 ]
 
 [tool.poetry.group.dev.dependencies]
@@ -68,6 +69,7 @@ default_section = "THIRDPARTY"
 skip = ["tests"]
 
 [tool.pytest.ini_options]
+testpaths = ["tests", "core/tests", "deduplicating/tests"]
 markers = [
     "unit: Testes unitarios de logica pura e dominio.",
     "integration: Testes de integracao que dependem de Spark ou ES(Docker).",

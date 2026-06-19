@@ -174,3 +174,7 @@ MagicMock/
 notebooks/
 logs/
 .vscode/
+
+# Test generated outputs (never commit)
+tests/output/
+tests/audit_logs/
