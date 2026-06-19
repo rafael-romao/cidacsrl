@@ -1,14 +1,14 @@
-from typing import Any, Dict, List, Iterable
+import itertools
 import logging
 import socket
-import itertools
+from typing import Any, Dict, Iterable, List
 
 from pyspark.sql import Row
-from pyspark.sql.types import StructType, StructField, StringType, FloatType
+from pyspark.sql.types import FloatType, StringType, StructField, StructType
 
+from cidacsrl.domain.linkage.linkage_specification import BlockingPhaseContext
 from cidacsrl.ports.linkage.get_candidates_port import GetCandidatesPort
 from cidacsrl.ports.linkage.search_executor import SearchExecutor
-from cidacsrl.domain.linkage.linkage_specification import BlockingPhaseContext
 
 from .client import get_es_client
 from .query_builder import ElasticsearchQueryBuilder

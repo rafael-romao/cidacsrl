@@ -1,15 +1,22 @@
 import logging
 import time
-from cidacsrl.domain.linkage.linkage_specification import SequentialLinkageSpecification
+
+from cidacsrl.application.linkage.work_unit_orchestrator import (
+    WorkUnitOrchestrator,
+)
+from cidacsrl.config.models.execution_config import ExecutionConfig
+from cidacsrl.domain.linkage.linkage_specification import (
+    SequentialLinkageSpecification,
+)
 from cidacsrl.domain.linkage.tracking.work_unit import WorkUnitStatus
-from cidacsrl.application.linkage.work_unit_orchestrator import WorkUnitOrchestrator
+from cidacsrl.ports.linkage.checkpoint_port import CheckpointPort
 from cidacsrl.ports.linkage.data_persistence_port import DataPersistencePort
-from cidacsrl.ports.linkage.data_transformation_port import DataTransformationPort
+from cidacsrl.ports.linkage.data_transformation_port import (
+    DataTransformationPort,
+)
 from cidacsrl.ports.linkage.get_candidates_port import GetCandidatesPort
 from cidacsrl.ports.linkage.scoring_port import ScoringPort
-from cidacsrl.ports.linkage.checkpoint_port import CheckpointPort
 from cidacsrl.ports.linkage.telemetry_port import TelemetryPort
-from cidacsrl.config.models.execution_config import ExecutionConfig
 
 logger = logging.getLogger("UseCase: Record Linkage")
 

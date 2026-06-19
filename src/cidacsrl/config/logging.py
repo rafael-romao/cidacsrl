@@ -1,6 +1,7 @@
 import logging
-import sys
 import os
+import sys
+
 
 def configure_logging() -> None:
     for handler in logging.root.handlers[:]:

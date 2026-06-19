@@ -1,7 +1,7 @@
 import logging
 
-from cidacsrl.ports.linkage.telemetry_port import TelemetryPort
 from cidacsrl.ports.indexing.telemetry_port import IndexingTelemetryPort
+from cidacsrl.ports.linkage.telemetry_port import TelemetryPort
 
 logger = logging.getLogger("Adapter: Telemetry")
 

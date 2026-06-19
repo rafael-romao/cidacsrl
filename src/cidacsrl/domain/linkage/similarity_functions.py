@@ -1,7 +1,7 @@
 import logging
 from typing import Any, Optional
-import jellyfish
 
+import jellyfish
 
 logger = logging.getLogger("Service: SimilarityFunctions")
 

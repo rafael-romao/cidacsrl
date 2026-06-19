@@ -1,13 +1,16 @@
 import logging
 import time
-from typing import Dict, Any
+from typing import Any, Dict
 
-from elasticsearch import Elasticsearch, ConnectionError as ESConnectionError, ConnectionTimeout as ESTimeoutError
+from elasticsearch import ConnectionError as ESConnectionError
+from elasticsearch import ConnectionTimeout as ESTimeoutError
+from elasticsearch import Elasticsearch
 from pyspark.sql import DataFrame
 
-
 from cidacsrl.adapters.outbound.elasticsearch.client import get_es_client
-from cidacsrl.adapters.outbound.elasticsearch.mapping_models import ESIndexDefinition
+from cidacsrl.adapters.outbound.elasticsearch.mapping_models import (
+    ESIndexDefinition,
+)
 
 logger = logging.getLogger("Adapter: Elasticsearch Indexing Operations")
 

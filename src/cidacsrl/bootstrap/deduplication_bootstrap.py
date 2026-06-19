@@ -5,15 +5,31 @@ from typing import Tuple
 
 from pyspark.sql import SparkSession
 
+from cidacsrl.adapters.outbound.graph.graphframes_adapter import (
+    GraphFramesAdapter,
+)
+from cidacsrl.adapters.outbound.spark.data_reader_adapter import (
+    SparkDataReaderAdapter,
+)
+from cidacsrl.adapters.outbound.spark.dedup_data_persistence_adapter import (
+    SparkDataPersistenceAdapter,
+)
 from cidacsrl.adapters.outbound.spark.spark_factory import create_spark_session
-from cidacsrl.config.models.dedup_workflow_config import DeduplicateWorkflowConfig
-from cidacsrl.adapters.outbound.spark.data_reader_adapter import SparkDataReaderAdapter
-from cidacsrl.adapters.outbound.graph.graphframes_adapter import GraphFramesAdapter
-from cidacsrl.adapters.outbound.spark.dedup_data_persistence_adapter import SparkDataPersistenceAdapter
-from cidacsrl.adapters.outbound.telemetry.formatted_log_dedup_telemetry_adapter import FormattedLogDeduplicationTelemetryAdapter
-from cidacsrl.adapters.outbound.telemetry.jsonl_dedup_telemetry_adapter import JsonlDeduplicationTelemetryAdapter
-from cidacsrl.adapters.outbound.telemetry.composite_dedup_telemetry_adapter import CompositeDeduplicationTelemetryAdapter
-from cidacsrl.application.deduplication.deduplicate_use_case import DeduplicateUseCase
+from cidacsrl.adapters.outbound.telemetry.composite_dedup_telemetry_adapter import (
+    CompositeDeduplicationTelemetryAdapter,
+)
+from cidacsrl.adapters.outbound.telemetry.formatted_log_dedup_telemetry_adapter import (
+    FormattedLogDeduplicationTelemetryAdapter,
+)
+from cidacsrl.adapters.outbound.telemetry.jsonl_dedup_telemetry_adapter import (
+    JsonlDeduplicationTelemetryAdapter,
+)
+from cidacsrl.application.deduplication.deduplicate_use_case import (
+    DeduplicateUseCase,
+)
+from cidacsrl.config.models.dedup_workflow_config import (
+    DeduplicateWorkflowConfig,
+)
 
 logger = logging.getLogger("Bootstrap: Deduplication")
 

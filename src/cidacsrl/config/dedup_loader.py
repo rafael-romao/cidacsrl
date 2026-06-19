@@ -1,9 +1,12 @@
-import yaml
 import logging
 from pathlib import Path
-from typing import Dict, Any, Union
+from typing import Any, Dict, Union
 
-from cidacsrl.config.models.dedup_workflow_config import DeduplicateWorkflowConfig
+import yaml
+
+from cidacsrl.config.models.dedup_workflow_config import (
+    DeduplicateWorkflowConfig,
+)
 
 logger = logging.getLogger("Loader: Deduplication Config")
 

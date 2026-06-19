@@ -2,12 +2,14 @@ import argparse
 import logging
 import sys
 
+from cidacsrl.bootstrap.deduplication_bootstrap import (
+    build_deduplication_use_case,
+)
+from cidacsrl.bootstrap.indexing_bootstrap import build_indexing_use_case
+from cidacsrl.bootstrap.linkage_bootstrap import build_linkage_use_case
+from cidacsrl.config.dedup_loader import load_deduplicate_workflow_config
 from cidacsrl.config.loader import load_yaml
 from cidacsrl.config.logging import configure_logging
-from cidacsrl.config.dedup_loader import load_deduplicate_workflow_config
-from cidacsrl.bootstrap.linkage_bootstrap import build_linkage_use_case
-from cidacsrl.bootstrap.indexing_bootstrap import build_indexing_use_case
-from cidacsrl.bootstrap.deduplication_bootstrap import build_deduplication_use_case
 
 logger = logging.getLogger("cidacsrl.cli")
 

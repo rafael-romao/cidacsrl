@@ -1,6 +1,8 @@
 from typing import List
 
-from cidacsrl.ports.deduplication.telemetry_port import DeduplicationTelemetryPort
+from cidacsrl.ports.deduplication.telemetry_port import (
+    DeduplicationTelemetryPort,
+)
 
 
 class CompositeDeduplicationTelemetryAdapter(DeduplicationTelemetryPort):

@@ -1,6 +1,5 @@
 import logging
-from typing import TypedDict, NotRequired, Union, Tuple
-
+from typing import NotRequired, Tuple, TypedDict, Union
 
 logger = logging.getLogger("Entity: ElasticsearchConfig")
 

@@ -2,7 +2,6 @@ from dataclasses import dataclass
 from typing import List, Optional
 
 
-
 @dataclass
 class ColumnConfig:
     """Define as operações de limpeza para uma única coluna.

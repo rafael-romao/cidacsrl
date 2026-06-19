@@ -1,9 +1,8 @@
 import logging
 import time
-from typing import Dict, Any
+from typing import Any, Dict
 
 from elasticsearch import Elasticsearch
-
 
 from cidacsrl.adapters.outbound.elasticsearch.client import get_es_client
 

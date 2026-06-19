@@ -1,11 +1,14 @@
 import json
-from typing import Dict, Any
+from typing import Any, Dict
+
 import pyspark.sql.functions as F
 from pyspark.sql.types import FloatType, StringType, StructField, StructType
 
-from cidacsrl.ports.linkage.scoring_port import ScoringPort
 from cidacsrl.domain.linkage.linkage_specification import BlockingPhaseContext
-from cidacsrl.domain.linkage.scoring_engine import calculate_pair_scores_and_similarities
+from cidacsrl.domain.linkage.scoring_engine import (
+    calculate_pair_scores_and_similarities,
+)
+from cidacsrl.ports.linkage.scoring_port import ScoringPort
 
 
 class SparkScoringAdapter(ScoringPort):

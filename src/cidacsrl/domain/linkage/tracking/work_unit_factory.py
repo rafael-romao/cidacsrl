@@ -1,5 +1,7 @@
-from typing import List, Dict, Any, Optional
+from typing import Any, Dict, List, Optional
+
 from cidacsrl.domain.linkage.tracking.work_unit import WorkUnitMetadata
+
 
 class WorkUnitFactory:
     @staticmethod

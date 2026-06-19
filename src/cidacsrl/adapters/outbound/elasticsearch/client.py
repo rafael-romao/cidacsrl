@@ -1,9 +1,11 @@
 # src/es/client.py
 
 import logging
-from typing import Any, Dict, Optional, Tuple, List, Union
+from typing import Any, Dict, List, Optional, Tuple, Union
 
-from elasticsearch import Elasticsearch, ConnectionError as ESConnectionError, AuthenticationException, AuthorizationException
+from elasticsearch import AuthenticationException, AuthorizationException
+from elasticsearch import ConnectionError as ESConnectionError
+from elasticsearch import Elasticsearch
 
 logger = logging.getLogger("Adapter: Elasticsearch Client")
 

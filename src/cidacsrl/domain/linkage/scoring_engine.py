@@ -1,12 +1,12 @@
 import logging
-from typing import Dict, Any, List, Callable
+from typing import Any, Callable, Dict, List
 
-from cidacsrl.domain.linkage.similarity_functions import (
-    jaro_winkler_score_func,
-    hamming_score_func,
-    exact_score_func
-)
 from cidacsrl.domain.linkage.matching_rules import ComparisonRule
+from cidacsrl.domain.linkage.similarity_functions import (
+    exact_score_func,
+    hamming_score_func,
+    jaro_winkler_score_func,
+)
 
 logger = logging.getLogger("Service: ScoringEngine")
 

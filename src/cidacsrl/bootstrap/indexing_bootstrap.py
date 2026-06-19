@@ -4,16 +4,33 @@ from typing import Any, Dict, Tuple
 
 from pyspark.sql import SparkSession
 
+from cidacsrl.adapters.outbound.elasticsearch.spark_es_indexing_adapter import (
+    SparkESIndexingAdapter,
+)
+from cidacsrl.adapters.outbound.spark.data_ingestion_adapter import (
+    SparkDataIngestionAdapter,
+)
 from cidacsrl.adapters.outbound.spark.spark_factory import create_spark_session
+from cidacsrl.adapters.outbound.telemetry.composite_linkage_telemetry_adapter import (
+    CompositeIndexingTelemetryAdapter,
+)
+from cidacsrl.adapters.outbound.telemetry.formatted_log_telemetry_adapter import (
+    FormattedLogTelemetryAdapter,
+)
+from cidacsrl.adapters.outbound.telemetry.jsonl_telemetry_adapter import (
+    JsonlIndexingTelemetryAdapter,
+)
+from cidacsrl.application.indexing.index_dataset_use_case import (
+    IndexDatasetUseCase,
+)
+from cidacsrl.config.loader import (
+    parse_dataset_indexing_specification,
+    parse_es_config,
+)
 from cidacsrl.config.models.storage_config import SourceStorageConfig
-from cidacsrl.config.loader import parse_dataset_indexing_specification, parse_es_config
-from cidacsrl.adapters.outbound.spark.data_ingestion_adapter import SparkDataIngestionAdapter
-from cidacsrl.adapters.outbound.elasticsearch.spark_es_indexing_adapter import SparkESIndexingAdapter
-from cidacsrl.adapters.outbound.telemetry.formatted_log_telemetry_adapter import FormattedLogTelemetryAdapter
-from cidacsrl.adapters.outbound.telemetry.jsonl_telemetry_adapter import JsonlIndexingTelemetryAdapter
-from cidacsrl.adapters.outbound.telemetry.composite_linkage_telemetry_adapter import CompositeIndexingTelemetryAdapter
-from cidacsrl.application.indexing.index_dataset_use_case import IndexDatasetUseCase
-from cidacsrl.domain.indexing.indexing_specification import DatasetIndexingSpecification
+from cidacsrl.domain.indexing.indexing_specification import (
+    DatasetIndexingSpecification,
+)
 
 logger = logging.getLogger("Bootstrap: Elasticsearch Indexing")
 

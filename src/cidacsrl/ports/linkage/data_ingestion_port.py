@@ -1,5 +1,7 @@
 from abc import ABC, abstractmethod
-from typing import List, Dict, Any, Set
+from typing import Any, Dict, List, Set
+
+
 class DataIngestionPort(ABC):
     """
     Porta de saída responsável pelo carregamento e inspeção

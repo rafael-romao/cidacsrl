@@ -2,17 +2,17 @@ import dataclasses
 import json
 from pathlib import Path
 
-from cidacsrl.ports.linkage.telemetry_port import TelemetryPort
-from cidacsrl.ports.indexing.telemetry_port import IndexingTelemetryPort
 from cidacsrl.adapters.outbound.telemetry.events.linkage_events import (
-    PhaseRecord,
-    UnitRecord,
-    JobRecord,
-    _ts,
-    IndexingStartEvent,
     IndexEnsuredEvent,
     IndexingCompleteEvent,
+    IndexingStartEvent,
+    JobRecord,
+    PhaseRecord,
+    UnitRecord,
+    _ts,
 )
+from cidacsrl.ports.indexing.telemetry_port import IndexingTelemetryPort
+from cidacsrl.ports.linkage.telemetry_port import TelemetryPort
 
 
 class JsonlLinkageTelemetryAdapter(TelemetryPort):

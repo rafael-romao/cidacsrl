@@ -1,6 +1,10 @@
 from abc import ABC, abstractmethod
 from typing import List
-from cidacsrl.domain.linkage.tracking.work_unit import WorkUnitExecutionRecord, WorkUnitStatus
+
+from cidacsrl.domain.linkage.tracking.work_unit import (
+    WorkUnitExecutionRecord,
+    WorkUnitStatus,
+)
 
 
 class CheckpointPort(ABC):

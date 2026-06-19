@@ -1,8 +1,8 @@
 import logging
 from typing import Any
 
-from cidacsrl.ports.deduplication.data_reader_port import DataReaderPort
 from cidacsrl.config.models.storage_config import SourceStorageConfig
+from cidacsrl.ports.deduplication.data_reader_port import DataReaderPort
 
 logger = logging.getLogger("Adapter: SparkDataReader")
 

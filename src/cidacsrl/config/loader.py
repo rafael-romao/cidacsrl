@@ -1,15 +1,29 @@
 import logging
-import yaml
-from typing import Dict, Any, Union, List
 from pathlib import Path
+from typing import Any, Dict, List, Union
 
+import yaml
 
-from cidacsrl.config.models.storage_config import SourceStorageConfig, OutputStorageConfig
-from cidacsrl.config.models.execution_config import ExecutionConfig, DataPartitioningConfig
-from cidacsrl.config.models.indexed_dataset_filter import parse_indexed_dataset_filter
-from cidacsrl.domain.linkage.linkage_specification import SequentialLinkageSpecification
-from cidacsrl.adapters.outbound.elasticsearch.service_config import ElasticsearchConfig
-from cidacsrl.domain.indexing.indexing_specification import DatasetIndexingSpecification
+from cidacsrl.adapters.outbound.elasticsearch.service_config import (
+    ElasticsearchConfig,
+)
+from cidacsrl.config.models.execution_config import (
+    DataPartitioningConfig,
+    ExecutionConfig,
+)
+from cidacsrl.config.models.indexed_dataset_filter import (
+    parse_indexed_dataset_filter,
+)
+from cidacsrl.config.models.storage_config import (
+    OutputStorageConfig,
+    SourceStorageConfig,
+)
+from cidacsrl.domain.indexing.indexing_specification import (
+    DatasetIndexingSpecification,
+)
+from cidacsrl.domain.linkage.linkage_specification import (
+    SequentialLinkageSpecification,
+)
 
 logger = logging.getLogger("Loader: Configuration Loader")
 

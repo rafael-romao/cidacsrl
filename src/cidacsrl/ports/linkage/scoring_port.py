@@ -3,6 +3,7 @@ from typing import Any
 
 from cidacsrl.domain.linkage.linkage_specification import BlockingPhaseContext
 
+
 class ScoringPort(ABC):
     @abstractmethod
     def calculate_score(

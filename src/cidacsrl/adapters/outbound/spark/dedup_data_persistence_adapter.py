@@ -1,8 +1,10 @@
 import logging
 from typing import Any
 
-from cidacsrl.ports.deduplication.data_persistence_port import DataPersistencePort
 from cidacsrl.config.models.storage_config import OutputStorageConfig
+from cidacsrl.ports.deduplication.data_persistence_port import (
+    DataPersistencePort,
+)
 
 logger = logging.getLogger("Adapter: SparkDataPersistence")
 

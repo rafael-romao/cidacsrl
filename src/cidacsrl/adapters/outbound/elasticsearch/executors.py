@@ -1,5 +1,6 @@
+from typing import Dict, List
+
 from cidacsrl.ports.linkage.search_executor import SearchExecutor
-from typing import List, Dict
 
 
 class SingleSearchExecutor(SearchExecutor):

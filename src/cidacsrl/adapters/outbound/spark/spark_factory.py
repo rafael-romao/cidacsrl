@@ -1,8 +1,8 @@
+import logging
 from contextlib import contextmanager
+from typing import Any, Dict, Generator, Optional
 
 from pyspark.sql import SparkSession
-from typing import Dict, Any, Generator, Optional
-import logging
 
 logger = logging.getLogger("Factory: SparkSessionFactory")
 

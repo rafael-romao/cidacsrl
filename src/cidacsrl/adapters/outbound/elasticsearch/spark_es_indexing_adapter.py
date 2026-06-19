@@ -1,10 +1,14 @@
 import logging
-from typing import Dict, Any
-from pyspark.sql import DataFrame
-from cidacsrl.ports.indexing.data_indexing_port import DataIndexingPort
-from cidacsrl.domain.indexing.indexing_specification import DatasetIndexingSpecification
-from cidacsrl.adapters.outbound.elasticsearch.client import get_es_client
+from typing import Any, Dict
 from urllib.parse import urlparse
+
+from pyspark.sql import DataFrame
+
+from cidacsrl.adapters.outbound.elasticsearch.client import get_es_client
+from cidacsrl.domain.indexing.indexing_specification import (
+    DatasetIndexingSpecification,
+)
+from cidacsrl.ports.indexing.data_indexing_port import DataIndexingPort
 
 logger = logging.getLogger("Adapter: SparkESIndexingAdapter")
 

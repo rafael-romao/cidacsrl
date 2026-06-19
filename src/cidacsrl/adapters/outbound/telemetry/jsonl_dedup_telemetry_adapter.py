@@ -2,12 +2,14 @@ import dataclasses
 import json
 from pathlib import Path
 
-from cidacsrl.ports.deduplication.telemetry_port import DeduplicationTelemetryPort
 from cidacsrl.adapters.outbound.telemetry.events.deduplication_events import (
-    DeduplicationStartEvent,
-    PairsLoadedEvent,
     ClustersFoundEvent,
     DeduplicationCompleteEvent,
+    DeduplicationStartEvent,
+    PairsLoadedEvent,
+)
+from cidacsrl.ports.deduplication.telemetry_port import (
+    DeduplicationTelemetryPort,
 )
 
 

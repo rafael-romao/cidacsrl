@@ -1,6 +1,10 @@
 from abc import ABC, abstractmethod
 from typing import Any
-from cidacsrl.domain.indexing.indexing_specification import DatasetIndexingSpecification
+
+from cidacsrl.domain.indexing.indexing_specification import (
+    DatasetIndexingSpecification,
+)
+
 
 class DataIndexingPort(ABC):
     @abstractmethod

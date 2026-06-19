@@ -1,11 +1,19 @@
 import logging
 import time
 
-from cidacsrl.domain.deduplication.deduplication_specification import DeduplicationSpecification
+from cidacsrl.domain.deduplication.deduplication_specification import (
+    DeduplicationSpecification,
+)
+from cidacsrl.ports.deduplication.data_persistence_port import (
+    DataPersistencePort,
+)
 from cidacsrl.ports.deduplication.data_reader_port import DataReaderPort
-from cidacsrl.ports.deduplication.graph_processing_port import GraphProcessingPort
-from cidacsrl.ports.deduplication.data_persistence_port import DataPersistencePort
-from cidacsrl.ports.deduplication.telemetry_port import DeduplicationTelemetryPort
+from cidacsrl.ports.deduplication.graph_processing_port import (
+    GraphProcessingPort,
+)
+from cidacsrl.ports.deduplication.telemetry_port import (
+    DeduplicationTelemetryPort,
+)
 
 logger = logging.getLogger("UseCase: Deduplication")
 

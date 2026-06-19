@@ -1,9 +1,12 @@
 import functools
 from typing import List
+
 import pyspark.sql.functions as F
 from pyspark.sql import DataFrame
 
-from cidacsrl.ports.linkage.data_transformation_port import DataTransformationPort
+from cidacsrl.ports.linkage.data_transformation_port import (
+    DataTransformationPort,
+)
 
 
 class SparkDataTransformationAdapter(DataTransformationPort):

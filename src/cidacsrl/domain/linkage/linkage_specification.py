@@ -2,8 +2,13 @@ import logging
 from dataclasses import dataclass, field
 from typing import Any, Dict, Iterable, List, Optional
 
-from cidacsrl.config.models.indexed_dataset_filter import IndexedDatasetFilterItem
-from cidacsrl.domain.linkage.matching_rules import BlockingPhase, ComparisonRule
+from cidacsrl.config.models.indexed_dataset_filter import (
+    IndexedDatasetFilterItem,
+)
+from cidacsrl.domain.linkage.matching_rules import (
+    BlockingPhase,
+    ComparisonRule,
+)
 
 logger = logging.getLogger("Entity: LinkageSpecification")
 

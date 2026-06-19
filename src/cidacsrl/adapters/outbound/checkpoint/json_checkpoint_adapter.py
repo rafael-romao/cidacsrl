@@ -1,11 +1,14 @@
-import os
 import json
 import logging
-from typing import List, Dict, Any
+import os
 from datetime import datetime, timezone
+from typing import Any, Dict, List
 
+from cidacsrl.domain.linkage.tracking.work_unit import (
+    WorkUnitExecutionRecord,
+    WorkUnitStatus,
+)
 from cidacsrl.ports.linkage.checkpoint_port import CheckpointPort
-from cidacsrl.domain.linkage.tracking.work_unit import WorkUnitExecutionRecord, WorkUnitStatus
 
 logger = logging.getLogger("Adapter: JSON Checkpoint")
 
