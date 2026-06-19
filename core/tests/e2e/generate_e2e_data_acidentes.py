@@ -3,7 +3,7 @@ import random
 import pandas as pd
 from faker import Faker
 from pathlib import Path
-from core.infra.configs.logging_config import configure_logging
+from cidacsrl.config.logging import configure_logging
 
 configure_logging()
 logger = logging.getLogger("Script::DataGenerator")

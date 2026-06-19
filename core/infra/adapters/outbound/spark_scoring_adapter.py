@@ -4,8 +4,8 @@ import pyspark.sql.functions as F
 from pyspark.sql.types import FloatType, StringType, StructField, StructType
 
 from core.application.ports.outbound.scoring_port import ScoringPort
-from core.application.domain.models.linkage_specification import BlockingPhaseContext
-from core.application.domain.services.scoring_engine import calculate_pair_scores_and_similarities
+from cidacsrl.domain.linkage.linkage_specification import BlockingPhaseContext
+from cidacsrl.domain.linkage.scoring_engine import calculate_pair_scores_and_similarities
 
 
 class SparkScoringAdapter(ScoringPort):

@@ -2,10 +2,10 @@ import pytest
 from unittest.mock import ANY, MagicMock, patch
 from contextlib import contextmanager
 
-from core.infra.configs.models.storage_config import SourceStorageConfig, OutputStorageConfig
+from cidacsrl.config.models.storage_config import SourceStorageConfig, OutputStorageConfig
 from deduplicating.infra.bootstrappers.deduplicate_bootstrapper import bootstrap_deduplication
 from deduplicating.infra.configs.models.deduplicate_workflow_config import DeduplicateWorkflowConfig
-from deduplicating.application.domain.models.deduplication_specification import DeduplicationSpecification
+from cidacsrl.domain.deduplication.deduplication_specification import DeduplicationSpecification
 
 pytestmark = pytest.mark.unit
 

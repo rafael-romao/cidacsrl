@@ -3,7 +3,7 @@ from pathlib import Path
 from pyspark.sql import SparkSession
 
 from core.infra.adapters.outbound.spark_data_ingestion_adapter import SparkDataIngestionAdapter
-from core.infra.configs.models.storage_config import SourceStorageConfig
+from cidacsrl.config.models.storage_config import SourceStorageConfig
 
 @pytest.fixture(scope="module")
 def local_spark():

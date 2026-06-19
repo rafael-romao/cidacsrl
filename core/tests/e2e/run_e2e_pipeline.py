@@ -9,7 +9,7 @@ from pyspark.sql import SparkSession
 from elasticsearch import Elasticsearch
 import pyarrow.dataset as ds
 
-from core.infra.configs.logging_config import configure_logging
+from cidacsrl.config.logging import configure_logging
 
 configure_logging()
 logger = logging.getLogger("E2E Pipeline Runner")

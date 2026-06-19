@@ -2,7 +2,7 @@ import pytest
 from unittest.mock import patch, mock_open
 from pathlib import Path
 
-from core.infra.configs.loader import (
+from cidacsrl.config.loader import (
     load_yaml,
     parse_source_storage_config,
     parse_output_storage_config,
@@ -14,10 +14,10 @@ from core.infra.configs.loader import (
     load_dataset_indexing_specification
 )
 
-from core.infra.configs.models.storage_config import SourceStorageConfig, OutputStorageConfig
-from core.infra.configs.models.execution_config import ExecutionConfig
-from core.application.domain.models.linkage_specification import SequentialLinkageSpecification
-from core.application.domain.models.indexing_specification import DatasetIndexingSpecification
+from cidacsrl.config.models.storage_config import SourceStorageConfig, OutputStorageConfig
+from cidacsrl.config.models.execution_config import ExecutionConfig
+from cidacsrl.domain.linkage.linkage_specification import SequentialLinkageSpecification
+from cidacsrl.domain.indexing.indexing_specification import DatasetIndexingSpecification
 
 # =========================================================================
 # 1. FLUXO BASE DE LEITURA (load_yaml)
@@ -151,7 +151,7 @@ def test_load_sequential_linkage_specification_integration():
             }
         ]
     }
-    with patch("core.infra.configs.loader.load_yaml", return_value=mock_linkage_spec):
+    with patch("cidacsrl.config.loader.load_yaml", return_value=mock_linkage_spec):
         result = load_sequential_linkage_specification("any_path.yml")
         assert isinstance(result, SequentialLinkageSpecification)
         assert result.source_table == "internacao_example"
@@ -219,7 +219,7 @@ def test_load_dataset_indexing_specification_integration():
         "index_config": {"name": "nascimentos_test"},
         "index_columns": [{"name": "id", "type": "keyword"}]
     }
-    with patch("core.infra.configs.loader.load_yaml", return_value=mock_yaml_data):
+    with patch("cidacsrl.config.loader.load_yaml", return_value=mock_yaml_data):
         result = load_dataset_indexing_specification("any_path.yml")
         assert isinstance(result, DatasetIndexingSpecification)
         assert result.index_config.name == "nascimentos_test"

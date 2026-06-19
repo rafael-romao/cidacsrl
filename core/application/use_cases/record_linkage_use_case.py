@@ -1,7 +1,7 @@
 import logging
 import time
-from core.application.domain.models.linkage_specification import SequentialLinkageSpecification
-from core.application.domain.models.tracking.work_unit import WorkUnitStatus
+from cidacsrl.domain.linkage.linkage_specification import SequentialLinkageSpecification
+from cidacsrl.domain.linkage.tracking.work_unit import WorkUnitStatus
 from core.application.services.work_unit_orchestrator import WorkUnitOrchestrator
 from core.application.ports.outbound.data_persistence_port import DataPersistencePort
 from core.application.ports.outbound.data_transformation_port import DataTransformationPort
@@ -9,7 +9,7 @@ from core.application.ports.outbound.get_candidates_port import GetCandidatesPor
 from core.application.ports.outbound.scoring_port import ScoringPort
 from core.application.ports.outbound.checkpoint_port import CheckpointPort
 from core.application.ports.outbound.telemetry_port import TelemetryPort
-from core.infra.configs.models.execution_config import ExecutionConfig
+from cidacsrl.config.models.execution_config import ExecutionConfig
 
 logger = logging.getLogger("UseCase: Record Linkage")
 

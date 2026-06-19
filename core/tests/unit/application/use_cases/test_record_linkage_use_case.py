@@ -10,8 +10,8 @@ from core.application.ports.outbound.get_candidates_port import GetCandidatesPor
 from core.application.ports.outbound.scoring_port import ScoringPort
 from core.application.ports.outbound.checkpoint_port import CheckpointPort
 from core.application.ports.outbound.telemetry_port import TelemetryPort
-from core.application.domain.models.tracking.work_unit import WorkUnitPayload, WorkUnitStatus
-from core.application.domain.models.linkage_specification import SequentialLinkageSpecification, BlockingPhaseContext
+from cidacsrl.domain.linkage.tracking.work_unit import WorkUnitPayload, WorkUnitStatus
+from cidacsrl.domain.linkage.linkage_specification import SequentialLinkageSpecification, BlockingPhaseContext
 
 
 @pytest.fixture

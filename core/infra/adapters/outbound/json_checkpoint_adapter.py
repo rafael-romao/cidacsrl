@@ -5,7 +5,7 @@ from typing import List, Dict, Any
 from datetime import datetime, timezone
 
 from core.application.ports.outbound.checkpoint_port import CheckpointPort
-from core.application.domain.models.tracking.work_unit import WorkUnitExecutionRecord, WorkUnitStatus
+from cidacsrl.domain.linkage.tracking.work_unit import WorkUnitExecutionRecord, WorkUnitStatus
 
 logger = logging.getLogger("Adapter: JSON Checkpoint")
 

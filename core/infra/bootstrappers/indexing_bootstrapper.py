@@ -3,8 +3,8 @@ from datetime import datetime
 from typing import Any, Dict
 
 from core.infra.spark.spark_factory import create_spark_session
-from core.infra.configs.models.storage_config import SourceStorageConfig
-from core.infra.configs.loader import parse_dataset_indexing_specification, parse_es_config
+from cidacsrl.config.models.storage_config import SourceStorageConfig
+from cidacsrl.config.loader import parse_dataset_indexing_specification, parse_es_config
 
 from core.infra.adapters.outbound.spark_data_ingestion_adapter import SparkDataIngestionAdapter
 from core.infra.adapters.outbound.elasticsearch.spark_es_indexing_adapter import SparkESIndexingAdapter

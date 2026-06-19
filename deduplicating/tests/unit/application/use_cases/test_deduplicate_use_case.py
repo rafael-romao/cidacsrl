@@ -1,7 +1,7 @@
 import pytest
 from unittest.mock import MagicMock, ANY
 
-from deduplicating.application.domain.models.deduplication_specification import DeduplicationSpecification
+from cidacsrl.domain.deduplication.deduplication_specification import DeduplicationSpecification
 from deduplicating.application.ports.outbound.data_reader_port import DataReaderPort
 from deduplicating.application.ports.outbound.graph_processing_port import GraphProcessingPort
 from deduplicating.application.ports.outbound.data_persistence_port import DataPersistencePort

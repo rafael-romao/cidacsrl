@@ -5,7 +5,7 @@ import pyspark.sql.functions as F
 from pyspark.sql import SparkSession, DataFrame
 
 from core.application.ports.outbound.data_ingestion_port import DataIngestionPort
-from core.infra.configs.models.storage_config import SourceStorageConfig
+from cidacsrl.config.models.storage_config import SourceStorageConfig
 
 logger = logging.getLogger("Adapter: SparkDataIngestionAdapter")
 

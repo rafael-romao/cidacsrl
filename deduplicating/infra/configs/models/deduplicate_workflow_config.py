@@ -1,8 +1,8 @@
 from dataclasses import dataclass, field
 from typing import Any, Dict
 
-from core.infra.configs.models.storage_config import SourceStorageConfig, OutputStorageConfig
-from deduplicating.application.domain.models.deduplication_specification import DeduplicationSpecification
+from cidacsrl.config.models.storage_config import SourceStorageConfig, OutputStorageConfig
+from cidacsrl.domain.deduplication.deduplication_specification import DeduplicationSpecification
 
 
 @dataclass(frozen=True)

@@ -2,8 +2,8 @@ import pytest
 from unittest.mock import Mock, ANY
 
 from core.application.services.work_unit_orchestrator import WorkUnitOrchestrator
-from core.application.domain.models.tracking.work_unit import WorkUnitExecutionRecord, WorkUnitStatus
-from core.infra.configs.models.execution_config import ExecutionConfig, DataPartitioningConfig
+from cidacsrl.domain.linkage.tracking.work_unit import WorkUnitExecutionRecord, WorkUnitStatus
+from cidacsrl.config.models.execution_config import ExecutionConfig, DataPartitioningConfig
 
 
 def test_prepare_and_route_uses_configured_partitions_without_scanning_disk():

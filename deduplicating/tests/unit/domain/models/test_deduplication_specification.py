@@ -1,6 +1,6 @@
 import pytest
 
-from deduplicating.application.domain.models.deduplication_specification import DeduplicationSpecification
+from cidacsrl.domain.deduplication.deduplication_specification import DeduplicationSpecification
 
 pytestmark = pytest.mark.unit
 

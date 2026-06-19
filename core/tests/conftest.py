@@ -1,7 +1,7 @@
 import os
 from pathlib import Path
 import pytest
-from core.infra.configs.logging_config import configure_logging
+from cidacsrl.config.logging import configure_logging
 from unittest.mock import MagicMock
 
 configure_logging()

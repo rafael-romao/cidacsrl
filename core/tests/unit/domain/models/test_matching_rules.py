@@ -1,7 +1,7 @@
 import pytest
 
-from core.application.domain.models.matching_rules import BlockingPhase, ComparisonRule
-from core.application.domain.models.linkage_specification import SequentialLinkageSpecification
+from cidacsrl.domain.linkage.matching_rules import BlockingPhase, ComparisonRule
+from cidacsrl.domain.linkage.linkage_specification import SequentialLinkageSpecification
 
 pytestmark = pytest.mark.unit
 

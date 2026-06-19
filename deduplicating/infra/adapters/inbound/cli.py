@@ -2,7 +2,7 @@ import sys
 import argparse
 import logging
 
-from core.infra.configs.logging_config import configure_logging
+from cidacsrl.config.logging import configure_logging
 from deduplicating.infra.configs.loader import load_deduplicate_workflow_config
 from deduplicating.infra.bootstrappers.deduplicate_bootstrapper import bootstrap_deduplication
 

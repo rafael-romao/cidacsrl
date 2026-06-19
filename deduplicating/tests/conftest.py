@@ -1,5 +1,5 @@
 import pytest
-from core.infra.configs.logging_config import configure_logging
+from cidacsrl.config.logging import configure_logging
 
 configure_logging()
 

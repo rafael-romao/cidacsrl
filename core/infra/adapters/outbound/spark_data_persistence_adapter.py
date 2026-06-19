@@ -5,7 +5,7 @@ from pyspark.sql import DataFrame
 from pyspark.sql import functions as F
 
 from core.application.ports.outbound.data_persistence_port import DataPersistencePort
-from core.infra.configs.models.storage_config import OutputStorageConfig
+from cidacsrl.config.models.storage_config import OutputStorageConfig
 
 logger = logging.getLogger("Adapter: Persistence")
 

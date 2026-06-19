@@ -2,7 +2,7 @@ import logging
 from typing import Any, Dict, Set
 
 from core.infra.spark.spark_factory import spark_session_context
-from core.infra.configs.loader import (
+from cidacsrl.config.loader import (
     parse_sequential_linkage_specification,
     parse_es_config,
     parse_source_storage_config,
@@ -24,9 +24,9 @@ from core.infra.adapters.outbound.composite_telemetry_adapter import CompositeLi
 
 from core.application.services.work_unit_orchestrator import WorkUnitOrchestrator
 from core.application.use_cases.record_linkage_use_case import RecordLinkageUseCase
-from core.application.domain.models.linkage_specification import SequentialLinkageSpecification
+from cidacsrl.domain.linkage.linkage_specification import SequentialLinkageSpecification
 from core.infra.elasticsearch.models.service_config import ElasticsearchConfig
-from core.infra.configs.models.execution_config import ExecutionConfig
+from cidacsrl.config.models.execution_config import ExecutionConfig
 
 logger = logging.getLogger("Bootstrapper: Record Linkage")
 
