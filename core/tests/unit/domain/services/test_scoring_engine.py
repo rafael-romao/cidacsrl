@@ -1,8 +1,8 @@
 import pytest
 from unittest.mock import patch
 
-from core.domain.services.scoring_engine import calculate_pair_scores_and_similarities
-from core.domain.models.matching_rules import ComparisonRule
+from core.application.domain.services.scoring_engine import calculate_pair_scores_and_similarities
+from core.application.domain.models.matching_rules import ComparisonRule
 
 pytestmark = pytest.mark.unit
 

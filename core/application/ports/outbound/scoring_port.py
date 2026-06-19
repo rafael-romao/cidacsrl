@@ -1,7 +1,7 @@
 from abc import ABC, abstractmethod
 from typing import Any
 
-from core.domain.models.linkage_specification import BlockingPhaseContext
+from core.application.domain.models.linkage_specification import BlockingPhaseContext
 
 class ScoringPort(ABC):
     @abstractmethod

@@ -24,7 +24,7 @@ from core.infra.adapters.outbound.composite_telemetry_adapter import CompositeLi
 
 from core.application.services.work_unit_orchestrator import WorkUnitOrchestrator
 from core.application.use_cases.record_linkage_use_case import RecordLinkageUseCase
-from core.domain.models.linkage_specification import SequentialLinkageSpecification
+from core.application.domain.models.linkage_specification import SequentialLinkageSpecification
 from core.infra.elasticsearch.models.service_config import ElasticsearchConfig
 from core.infra.configs.models.execution_config import ExecutionConfig
 

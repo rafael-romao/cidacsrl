@@ -1,6 +1,6 @@
 from abc import ABC, abstractmethod
 from typing import List
-from core.domain.models.tracking.work_unit import WorkUnitExecutionRecord, WorkUnitStatus
+from core.application.domain.models.tracking.work_unit import WorkUnitExecutionRecord, WorkUnitStatus
 
 
 class CheckpointPort(ABC):

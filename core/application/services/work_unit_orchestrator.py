@@ -3,8 +3,8 @@ from typing import Iterable, List
 
 from core.application.ports.outbound.data_ingestion_port import DataIngestionPort
 from core.application.ports.outbound.checkpoint_port import CheckpointPort
-from core.domain.models.tracking.work_unit_factory import WorkUnitFactory
-from core.domain.models.tracking.work_unit import WorkUnitExecutionRecord, WorkUnitPayload, WorkUnitStatus
+from core.application.domain.models.tracking.work_unit_factory import WorkUnitFactory
+from core.application.domain.models.tracking.work_unit import WorkUnitExecutionRecord, WorkUnitPayload, WorkUnitStatus
 from core.infra.configs.models.execution_config import ExecutionConfig
 
 logger = logging.getLogger("Service: Orchestrator")

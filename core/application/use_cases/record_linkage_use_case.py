@@ -1,7 +1,7 @@
 import logging
 import time
-from core.domain.models.linkage_specification import SequentialLinkageSpecification
-from core.domain.models.tracking.work_unit import WorkUnitStatus
+from core.application.domain.models.linkage_specification import SequentialLinkageSpecification
+from core.application.domain.models.tracking.work_unit import WorkUnitStatus
 from core.application.services.work_unit_orchestrator import WorkUnitOrchestrator
 from core.application.ports.outbound.data_persistence_port import DataPersistencePort
 from core.application.ports.outbound.data_transformation_port import DataTransformationPort

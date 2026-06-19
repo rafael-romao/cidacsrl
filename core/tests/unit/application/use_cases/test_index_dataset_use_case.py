@@ -5,7 +5,7 @@ from core.application.use_cases.index_dataset_use_case import IndexDatasetUseCas
 from core.application.ports.outbound.data_ingestion_port import DataIngestionPort
 from core.application.ports.outbound.data_indexing_port import DataIndexingPort
 from core.application.ports.outbound.indexing_telemetry_port import IndexingTelemetryPort
-from core.domain.models.indexing_specification import DatasetIndexingSpecification, IndexColumnConfig, IndexSettingsConfig
+from core.application.domain.models.indexing_specification import DatasetIndexingSpecification, IndexColumnConfig, IndexSettingsConfig
 
 
 def _make_spec():

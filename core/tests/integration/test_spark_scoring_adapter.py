@@ -3,8 +3,8 @@ from pyspark.sql import SparkSession, Row
 from pyspark.sql.types import StructType, StructField, StringType, IntegerType, FloatType
 
 from core.infra.adapters.outbound.spark_scoring_adapter import SparkScoringAdapter
-from core.domain.models.matching_rules import ComparisonRule
-from core.domain.models.linkage_specification import BlockingPhaseContext, BlockingPhaseTargetFields
+from core.application.domain.models.matching_rules import ComparisonRule
+from core.application.domain.models.linkage_specification import BlockingPhaseContext, BlockingPhaseTargetFields
 
 
 @pytest.fixture(scope="module")

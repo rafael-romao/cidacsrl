@@ -1,5 +1,5 @@
 import pytest
-from core.domain.models.indexing_specification import (
+from core.application.domain.models.indexing_specification import (
     SourceConfig, IndexSettingsConfig, IndexColumnConfig, DatasetIndexingSpecification
 )
 

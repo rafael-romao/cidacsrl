@@ -7,9 +7,9 @@ from pathlib import Path
 from core.infra.configs.models.storage_config import SourceStorageConfig, OutputStorageConfig
 from core.infra.configs.models.execution_config import ExecutionConfig, DataPartitioningConfig
 from core.infra.configs.models.indexed_dataset_filter import parse_indexed_dataset_filter
-from core.domain.models.linkage_specification import SequentialLinkageSpecification
+from core.application.domain.models.linkage_specification import SequentialLinkageSpecification
 from core.infra.elasticsearch.models.service_config import ElasticsearchConfig
-from core.domain.models.indexing_specification import DatasetIndexingSpecification
+from core.application.domain.models.indexing_specification import DatasetIndexingSpecification
 
 logger = logging.getLogger("Loader: Configuration Loader")
 

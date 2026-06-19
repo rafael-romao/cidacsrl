@@ -2,7 +2,7 @@ import logging
 from typing import Dict, Any
 from pyspark.sql import DataFrame
 from core.application.ports.outbound.data_indexing_port import DataIndexingPort
-from core.domain.models.indexing_specification import DatasetIndexingSpecification
+from core.application.domain.models.indexing_specification import DatasetIndexingSpecification
 from core.infra.adapters.outbound.elasticsearch.client import get_es_client
 from urllib.parse import urlparse
 

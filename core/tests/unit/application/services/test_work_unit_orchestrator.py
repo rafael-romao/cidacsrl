@@ -2,7 +2,7 @@ import pytest
 from unittest.mock import Mock, ANY
 
 from core.application.services.work_unit_orchestrator import WorkUnitOrchestrator
-from core.domain.models.tracking.work_unit import WorkUnitExecutionRecord, WorkUnitStatus
+from core.application.domain.models.tracking.work_unit import WorkUnitExecutionRecord, WorkUnitStatus
 from core.infra.configs.models.execution_config import ExecutionConfig, DataPartitioningConfig
 
 

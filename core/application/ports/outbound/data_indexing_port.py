@@ -1,6 +1,6 @@
 from abc import ABC, abstractmethod
 from typing import Any
-from core.domain.models.indexing_specification import DatasetIndexingSpecification
+from core.application.domain.models.indexing_specification import DatasetIndexingSpecification
 
 class DataIndexingPort(ABC):
     @abstractmethod

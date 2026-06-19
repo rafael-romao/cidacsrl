@@ -8,7 +8,7 @@ from pyspark.sql.types import StructType, StructField, StringType, FloatType
 
 from core.application.ports.outbound.get_candidates_port import GetCandidatesPort
 from core.application.ports.outbound.search_executor import SearchExecutor
-from core.domain.models.linkage_specification import BlockingPhaseContext
+from core.application.domain.models.linkage_specification import BlockingPhaseContext
 
 from .client import get_es_client
 from .query_builder import ElasticsearchQueryBuilder

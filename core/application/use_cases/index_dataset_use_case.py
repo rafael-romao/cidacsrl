@@ -3,7 +3,7 @@ import time
 from core.application.ports.outbound.data_ingestion_port import DataIngestionPort
 from core.application.ports.outbound.data_indexing_port import DataIndexingPort
 from core.application.ports.outbound.indexing_telemetry_port import IndexingTelemetryPort
-from core.domain.models.indexing_specification import DatasetIndexingSpecification
+from core.application.domain.models.indexing_specification import DatasetIndexingSpecification
 
 
 class IndexDatasetUseCase:

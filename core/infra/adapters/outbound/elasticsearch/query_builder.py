@@ -1,7 +1,7 @@
 import logging
 from typing import List, Dict, Any, Optional, Callable
 
-from core.domain.models.matching_rules import ComparisonRule
+from core.application.domain.models.matching_rules import ComparisonRule
 from core.infra.configs.models.indexed_dataset_filter import IndexedDatasetFilterItem
 
 logger = logging.getLogger("Adapter: Elasticsearch Query Builder")

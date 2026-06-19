@@ -16,8 +16,8 @@ from core.infra.configs.loader import (
 
 from core.infra.configs.models.storage_config import SourceStorageConfig, OutputStorageConfig
 from core.infra.configs.models.execution_config import ExecutionConfig
-from core.domain.models.linkage_specification import SequentialLinkageSpecification
-from core.domain.models.indexing_specification import DatasetIndexingSpecification
+from core.application.domain.models.linkage_specification import SequentialLinkageSpecification
+from core.application.domain.models.indexing_specification import DatasetIndexingSpecification
 
 # =========================================================================
 # 1. FLUXO BASE DE LEITURA (load_yaml)

@@ -3,7 +3,7 @@ from dataclasses import dataclass, field
 from typing import Any, Dict, Iterable, List, Optional
 
 from core.infra.configs.models.indexed_dataset_filter import IndexedDatasetFilterItem
-from core.domain.models.matching_rules import BlockingPhase, ComparisonRule
+from core.application.domain.models.matching_rules import BlockingPhase, ComparisonRule
 
 logger = logging.getLogger("Entity: LinkageSpecification")
 
