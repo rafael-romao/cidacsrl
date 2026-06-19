@@ -80,7 +80,7 @@ def test_bootstrap_sequential_linkage_execution(setup_integration_payloads):
     with patch("core.infra.bootstrappers.linkage_bootstrapper.get_es_client", return_value=MagicMock()), \
          patch("core.infra.bootstrappers.linkage_bootstrapper.validate_elasticsearch_schema"), \
          patch("core.infra.bootstrappers.linkage_bootstrapper.RecordLinkageUseCase") as mock_uc_class, \
-         patch("core.infra.adapters.outbound.spark_data_ingestion_adapter.SparkDataIngestionAdapter.check_health", return_value=[]):
+         patch("cidacsrl.adapters.outbound.spark.data_ingestion_adapter.SparkDataIngestionAdapter.check_health", return_value=[]):
         
         try:
             bootstrap_sequential_linkage(

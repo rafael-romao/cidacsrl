@@ -1,7 +1,7 @@
 import pytest
 from pathlib import Path
 from pyspark.sql import SparkSession, Row
-from core.infra.adapters.outbound.spark_data_persistence_adapter import SparkDataPersistenceAdapter
+from cidacsrl.adapters.outbound.spark.data_persistence_adapter import SparkDataPersistenceAdapter
 from cidacsrl.config.models.storage_config import OutputStorageConfig
 
 

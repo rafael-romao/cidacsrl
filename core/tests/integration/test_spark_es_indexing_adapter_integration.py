@@ -8,7 +8,7 @@ from pyspark.sql import Row
 
 
 
-from core.infra.adapters.outbound.elasticsearch.spark_es_indexing_adapter import SparkESIndexingAdapter
+from cidacsrl.adapters.outbound.elasticsearch.spark_es_indexing_adapter import SparkESIndexingAdapter
 from cidacsrl.domain.indexing.indexing_specification import DatasetIndexingSpecification, IndexColumnConfig
 
 

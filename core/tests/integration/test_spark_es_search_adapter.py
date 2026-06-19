@@ -3,8 +3,8 @@ import pytest
 from elasticsearch import Elasticsearch
 from pyspark.sql import SparkSession, Row
 
-from core.infra.adapters.outbound.elasticsearch.spark_es_search_adapter import SparkESSearchAdapter
-from core.infra.adapters.outbound.elasticsearch.executors import MultiSearchExecutor
+from cidacsrl.adapters.outbound.elasticsearch.spark_es_search_adapter import SparkESSearchAdapter
+from cidacsrl.adapters.outbound.elasticsearch.executors import MultiSearchExecutor
 from cidacsrl.domain.linkage.matching_rules import ComparisonRule
 from cidacsrl.domain.linkage.linkage_specification import BlockingPhaseContext, BlockingPhaseTargetFields
 

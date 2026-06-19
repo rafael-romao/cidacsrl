@@ -46,10 +46,10 @@ def test_bootstrap_elasticsearch_indexing_execution(test_paths):
         captured["index_name"] = spec.index_config.name
 
     with patch(
-        "core.infra.adapters.outbound.elasticsearch.spark_es_indexing_adapter.get_es_client",
+        "cidacsrl.adapters.outbound.elasticsearch.spark_es_indexing_adapter.get_es_client",
         return_value=fake_es_client,
     ), patch(
-        "core.infra.adapters.outbound.elasticsearch.spark_es_indexing_adapter.SparkESIndexingAdapter.index_dataframe",
+        "cidacsrl.adapters.outbound.elasticsearch.spark_es_indexing_adapter.SparkESIndexingAdapter.index_dataframe",
         autospec=True,
         side_effect=capture_index_dataframe,
     ):

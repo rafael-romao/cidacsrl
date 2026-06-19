@@ -2,15 +2,15 @@ import logging
 from datetime import datetime
 from typing import Any, Dict
 
-from core.infra.spark.spark_factory import create_spark_session
+from cidacsrl.adapters.outbound.spark.spark_factory import create_spark_session
 from cidacsrl.config.models.storage_config import SourceStorageConfig
 from cidacsrl.config.loader import parse_dataset_indexing_specification, parse_es_config
 
-from core.infra.adapters.outbound.spark_data_ingestion_adapter import SparkDataIngestionAdapter
-from core.infra.adapters.outbound.elasticsearch.spark_es_indexing_adapter import SparkESIndexingAdapter
-from core.infra.adapters.outbound.formatted_log_telemetry_adapter import FormattedLogTelemetryAdapter
-from core.infra.adapters.outbound.jsonl_telemetry_adapter import JsonlIndexingTelemetryAdapter
-from core.infra.adapters.outbound.composite_telemetry_adapter import CompositeIndexingTelemetryAdapter
+from cidacsrl.adapters.outbound.spark.data_ingestion_adapter import SparkDataIngestionAdapter
+from cidacsrl.adapters.outbound.elasticsearch.spark_es_indexing_adapter import SparkESIndexingAdapter
+from cidacsrl.adapters.outbound.telemetry.formatted_log_telemetry_adapter import FormattedLogTelemetryAdapter
+from cidacsrl.adapters.outbound.telemetry.jsonl_telemetry_adapter import JsonlIndexingTelemetryAdapter
+from cidacsrl.adapters.outbound.telemetry.composite_linkage_telemetry_adapter import CompositeIndexingTelemetryAdapter
 from cidacsrl.application.indexing.index_dataset_use_case import IndexDatasetUseCase
 
 logger = logging.getLogger("Bootstrapper: Elasticsearch Indexing")

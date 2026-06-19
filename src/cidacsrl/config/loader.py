@@ -8,7 +8,7 @@ from cidacsrl.config.models.storage_config import SourceStorageConfig, OutputSto
 from cidacsrl.config.models.execution_config import ExecutionConfig, DataPartitioningConfig
 from cidacsrl.config.models.indexed_dataset_filter import parse_indexed_dataset_filter
 from cidacsrl.domain.linkage.linkage_specification import SequentialLinkageSpecification
-from core.infra.elasticsearch.models.service_config import ElasticsearchConfig
+from cidacsrl.adapters.outbound.elasticsearch.service_config import ElasticsearchConfig
 from cidacsrl.domain.indexing.indexing_specification import DatasetIndexingSpecification
 
 logger = logging.getLogger("Loader: Configuration Loader")

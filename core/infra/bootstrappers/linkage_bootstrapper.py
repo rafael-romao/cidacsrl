@@ -1,7 +1,7 @@
 import logging
 from typing import Any, Dict, Set
 
-from core.infra.spark.spark_factory import spark_session_context
+from cidacsrl.adapters.outbound.spark.spark_factory import spark_session_context
 from cidacsrl.config.loader import (
     parse_sequential_linkage_specification,
     parse_es_config,
@@ -10,22 +10,22 @@ from cidacsrl.config.loader import (
     parse_execution_config
 )
 
-from core.infra.adapters.outbound.elasticsearch.client import get_es_client, validate_elasticsearch_schema
-from core.infra.adapters.outbound.spark_data_ingestion_adapter import SparkDataIngestionAdapter
-from core.infra.adapters.outbound.spark_data_persistence_adapter import SparkDataPersistenceAdapter
-from core.infra.adapters.outbound.spark_data_transformation_adapter import SparkDataTransformationAdapter
-from core.infra.adapters.outbound.elasticsearch.spark_es_search_adapter import SparkESSearchAdapter
-from core.infra.adapters.outbound.spark_scoring_adapter import SparkScoringAdapter
-from core.infra.adapters.outbound.elasticsearch.executors import SingleSearchExecutor, MultiSearchExecutor
-from core.infra.adapters.outbound.json_checkpoint_adapter import JSONCheckpointAdapter
-from core.infra.adapters.outbound.formatted_log_telemetry_adapter import FormattedLogTelemetryAdapter
-from core.infra.adapters.outbound.jsonl_telemetry_adapter import JsonlLinkageTelemetryAdapter
-from core.infra.adapters.outbound.composite_telemetry_adapter import CompositeLinkageTelemetryAdapter
+from cidacsrl.adapters.outbound.elasticsearch.client import get_es_client, validate_elasticsearch_schema
+from cidacsrl.adapters.outbound.spark.data_ingestion_adapter import SparkDataIngestionAdapter
+from cidacsrl.adapters.outbound.spark.data_persistence_adapter import SparkDataPersistenceAdapter
+from cidacsrl.adapters.outbound.spark.data_transformation_adapter import SparkDataTransformationAdapter
+from cidacsrl.adapters.outbound.elasticsearch.spark_es_search_adapter import SparkESSearchAdapter
+from cidacsrl.adapters.outbound.spark.scoring_adapter import SparkScoringAdapter
+from cidacsrl.adapters.outbound.elasticsearch.executors import SingleSearchExecutor, MultiSearchExecutor
+from cidacsrl.adapters.outbound.checkpoint.json_checkpoint_adapter import JSONCheckpointAdapter
+from cidacsrl.adapters.outbound.telemetry.formatted_log_telemetry_adapter import FormattedLogTelemetryAdapter
+from cidacsrl.adapters.outbound.telemetry.jsonl_telemetry_adapter import JsonlLinkageTelemetryAdapter
+from cidacsrl.adapters.outbound.telemetry.composite_linkage_telemetry_adapter import CompositeLinkageTelemetryAdapter
 
 from cidacsrl.application.linkage.work_unit_orchestrator import WorkUnitOrchestrator
 from cidacsrl.application.linkage.record_linkage_use_case import RecordLinkageUseCase
 from cidacsrl.domain.linkage.linkage_specification import SequentialLinkageSpecification
-from core.infra.elasticsearch.models.service_config import ElasticsearchConfig
+from cidacsrl.adapters.outbound.elasticsearch.service_config import ElasticsearchConfig
 from cidacsrl.config.models.execution_config import ExecutionConfig
 
 logger = logging.getLogger("Bootstrapper: Record Linkage")

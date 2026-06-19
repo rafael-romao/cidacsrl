@@ -2,7 +2,7 @@ import json
 from pathlib import Path
 import pytest
 from cidacsrl.domain.linkage.tracking.work_unit import WorkUnitMetadata, WorkUnitStatus, WorkUnitExecutionRecord
-from core.infra.adapters.outbound.json_checkpoint_adapter import JSONCheckpointAdapter
+from cidacsrl.adapters.outbound.checkpoint.json_checkpoint_adapter import JSONCheckpointAdapter
 
 PROJECT_NAME = "test_project"
 

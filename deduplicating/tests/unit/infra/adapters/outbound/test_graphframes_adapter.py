@@ -1,7 +1,7 @@
 import pytest
 from unittest.mock import MagicMock, patch, call
 
-from deduplicating.infra.adapters.outbound.graphframes_adapter import GraphFramesAdapter
+from cidacsrl.adapters.outbound.graph.graphframes_adapter import GraphFramesAdapter
 
 pytestmark = pytest.mark.unit
 
@@ -35,8 +35,8 @@ def df_pairs():
     return df
 
 
-@patch("deduplicating.infra.adapters.outbound.graphframes_adapter.GraphFrame")
-@patch("deduplicating.infra.adapters.outbound.graphframes_adapter.F")
+@patch("cidacsrl.adapters.outbound.graph.graphframes_adapter.GraphFrame")
+@patch("cidacsrl.adapters.outbound.graph.graphframes_adapter.F")
 def test_find_clusters_instantiates_graphframe(mock_F, mock_graphframe_cls):
     df_pairs = MagicMock()
     df_vertices = MagicMock()
@@ -64,8 +64,8 @@ def test_find_clusters_instantiates_graphframe(mock_F, mock_graphframe_cls):
     assert result is df_renamed
 
 
-@patch("deduplicating.infra.adapters.outbound.graphframes_adapter.GraphFrame")
-@patch("deduplicating.infra.adapters.outbound.graphframes_adapter.F")
+@patch("cidacsrl.adapters.outbound.graph.graphframes_adapter.GraphFrame")
+@patch("cidacsrl.adapters.outbound.graph.graphframes_adapter.F")
 def test_find_clusters_uses_correct_column_aliases(mock_F, mock_graphframe_cls):
     df_pairs = MagicMock()
     df_src = MagicMock()

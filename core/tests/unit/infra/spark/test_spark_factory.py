@@ -1,11 +1,11 @@
 import pytest
 from unittest.mock import MagicMock, call, patch
 
-from core.infra.spark.spark_factory import spark_session_context
+from cidacsrl.adapters.outbound.spark.spark_factory import spark_session_context
 
 pytestmark = pytest.mark.unit
 
-_MODULE = "core.infra.spark.spark_factory"
+_MODULE = "cidacsrl.adapters.outbound.spark.spark_factory"
 
 
 @patch(f"{_MODULE}.create_spark_session")

@@ -2,7 +2,7 @@ import pytest
 from pathlib import Path
 from pyspark.sql import SparkSession
 
-from core.infra.adapters.outbound.spark_data_ingestion_adapter import SparkDataIngestionAdapter
+from cidacsrl.adapters.outbound.spark.data_ingestion_adapter import SparkDataIngestionAdapter
 from cidacsrl.config.models.storage_config import SourceStorageConfig
 
 @pytest.fixture(scope="module")

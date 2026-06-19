@@ -2,7 +2,7 @@ import pytest
 from pyspark.sql import SparkSession, Row
 from pyspark.sql.types import StructType, StructField, StringType, IntegerType, FloatType
 
-from core.infra.adapters.outbound.spark_scoring_adapter import SparkScoringAdapter
+from cidacsrl.adapters.outbound.spark.scoring_adapter import SparkScoringAdapter
 from cidacsrl.domain.linkage.matching_rules import ComparisonRule
 from cidacsrl.domain.linkage.linkage_specification import BlockingPhaseContext, BlockingPhaseTargetFields
 

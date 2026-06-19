@@ -1,6 +1,6 @@
 from cidacsrl.domain.linkage.matching_rules import ComparisonRule
 from cidacsrl.config.models.indexed_dataset_filter import IndexedDatasetFilterItem
-from core.infra.adapters.outbound.elasticsearch.query_builder import ElasticsearchQueryBuilder
+from cidacsrl.adapters.outbound.elasticsearch.query_builder import ElasticsearchQueryBuilder
 
 def test_build_query_with_single_rule():
     # Arrange
