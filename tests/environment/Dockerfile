@@ -92,7 +92,7 @@ RUN --mount=type=cache,target=/root/.cache/pypoetry \
 
 COPY . .
 
-ENV PYTHONPATH=/app/src:/app
+ENV PYTHONPATH=/app
 
 CMD ["tail", "-f", "/dev/null"]
 
