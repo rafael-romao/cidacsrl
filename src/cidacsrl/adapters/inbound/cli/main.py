@@ -82,6 +82,7 @@ def main() -> None:
 
         use_case, spec, spark = build_indexing_use_case(
             storage_config_data=env_data.get("storage", {}),
+            execution_config_data=env_data.get("execution", {}),
             indexing_spec_data=indexing_spec_data,
             es_config_data=env_data.get("elasticsearch", {}),
             spark_config_data=env_data.get("spark", {}),

@@ -55,6 +55,7 @@ def test_bootstrap_elasticsearch_indexing_execution(test_paths):
     ):
         use_case, spec, spark = build_indexing_use_case(
             storage_config_data=storage_config_data,
+            execution_config_data={},
             indexing_spec_data=indexing_spec_data,
             es_config_data=es_config_data,
             spark_config_data=spark_config_data,

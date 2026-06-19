@@ -2,10 +2,12 @@ import dataclasses
 import json
 from pathlib import Path
 
-from cidacsrl.adapters.outbound.telemetry.events.linkage_events import (
+from cidacsrl.adapters.outbound.telemetry.events.indexing_events import (
     IndexEnsuredEvent,
     IndexingCompleteEvent,
     IndexingStartEvent,
+)
+from cidacsrl.adapters.outbound.telemetry.events.linkage_events import (
     JobRecord,
     PhaseRecord,
     UnitRecord,
@@ -123,8 +125,8 @@ class JsonlIndexingTelemetryAdapter(IndexingTelemetryPort):
     def log_indexing_start(self, source_table: str, index_name: str, column_count: int) -> None:
         self._append(IndexingStartEvent(source_table=source_table, index_name=index_name, column_count=column_count))
 
-    def log_index_ensured(self, index_name: str, duration: float) -> None:
-        self._append(IndexEnsuredEvent(index_name=index_name, duration_s=duration))
+    def log_index_ensured(self, source_table: str, index_name: str, duration: float) -> None:
+        self._append(IndexEnsuredEvent(source_table=source_table, index_name=index_name, duration_s=duration))
 
     def log_indexing_completion(self, source_table: str, index_name: str, total_duration: float) -> None:
         self._append(IndexingCompleteEvent(

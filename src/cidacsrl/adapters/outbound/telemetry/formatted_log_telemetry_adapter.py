@@ -91,7 +91,7 @@ class FormattedLogTelemetryAdapter(TelemetryPort, IndexingTelemetryPort):
         logger.info(f" INDEXAÇÃO | Tabela: '{source_table}' → Índice: '{index_name}' | Colunas: {f'{column_count:,}'.replace(',', '.')}")
         logger.info("=========================================================================")
 
-    def log_index_ensured(self, index_name: str, duration: float) -> None:
+    def log_index_ensured(self, source_table: str, index_name: str, duration: float) -> None:
         logger.info(f"  ├── Índice '{index_name}' pronto em {duration:.2f}s ({duration/60:.2f} min)")
 
     def log_indexing_completion(self, source_table: str, index_name: str, total_duration: float) -> None:

@@ -8,7 +8,7 @@ class IndexingTelemetryPort(ABC):
         pass
 
     @abstractmethod
-    def log_index_ensured(self, index_name: str, duration: float) -> None:
+    def log_index_ensured(self, source_table: str, index_name: str, duration: float) -> None:
         pass
 
     @abstractmethod

@@ -81,7 +81,7 @@ def test_index_dataset_use_case_emits_telemetry():
         column_count=2,
     )
     mock_telemetry.log_index_ensured.assert_called_once_with(
-        index_name="idx_nascimentos", duration=ANY
+        source_table="tabela_origem", index_name="idx_nascimentos", duration=ANY
     )
     mock_telemetry.log_indexing_completion.assert_called_once_with(
         source_table="tabela_origem",

@@ -1,5 +1,4 @@
 import logging
-from datetime import datetime
 from typing import Any, Dict, Tuple
 
 from pyspark.sql import SparkSession
@@ -26,6 +25,7 @@ from cidacsrl.application.indexing.index_dataset_use_case import (
 from cidacsrl.config.loader import (
     parse_dataset_indexing_specification,
     parse_es_config,
+    parse_execution_config,
 )
 from cidacsrl.config.models.storage_config import SourceStorageConfig
 from cidacsrl.domain.indexing.indexing_specification import (
@@ -40,9 +40,11 @@ def build_indexing_use_case(
     indexing_spec_data: Dict[str, Any],
     es_config_data: Dict[str, Any],
     spark_config_data: Dict[str, Any],
+    execution_config_data: Dict[str, Any] = None,
 ) -> Tuple[IndexDatasetUseCase, DatasetIndexingSpecification, SparkSession]:
     logger.info("Building Indexing use case...")
 
+    execution_config = parse_execution_config(execution_config_data or {})
     source_config = SourceStorageConfig(
         source_path=storage_config_data["source_path"],
         source_format=storage_config_data.get("source_format", "parquet"),
@@ -61,13 +63,16 @@ def build_indexing_use_case(
     ingestion_adapter = SparkDataIngestionAdapter(spark_session=spark, storage_config=source_config)
     indexing_adapter = SparkESIndexingAdapter(es_config=es_config)
 
-    run_ts = datetime.now().strftime("%Y%m%d_%H%M%S")
-    telemetry_dir = storage_config_data.get("telemetry_path", "./telemetry")
-    jsonl_path = f"{telemetry_dir}/{indexing_spec.index_config.name}_{run_ts}_indexing_telemetry.jsonl"
-    telemetry_adapter = CompositeIndexingTelemetryAdapter([
-        FormattedLogTelemetryAdapter(),
-        JsonlIndexingTelemetryAdapter(file_path=jsonl_path),
-    ])
+    telemetry_adapters = [FormattedLogTelemetryAdapter()]
+    if execution_config.audit_log_path:
+        index_name = indexing_spec.index_config.name
+        job_dir = (
+            f"{execution_config.audit_log_path}"
+            f"/indexing_{index_name}"
+            f"/{execution_config.job_id}"
+        )
+        telemetry_adapters.append(JsonlIndexingTelemetryAdapter(file_path=f"{job_dir}/indexing.jsonl"))
+    telemetry_adapter = CompositeIndexingTelemetryAdapter(telemetry_adapters)
 
     use_case = IndexDatasetUseCase(
         ingestion_port=ingestion_adapter,

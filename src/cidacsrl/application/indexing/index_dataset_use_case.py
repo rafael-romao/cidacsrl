@@ -32,7 +32,7 @@ class IndexDatasetUseCase:
 
         step_start = time.time()
         self.indexing_port.ensure_index_with_mapping(spec)
-        self.telemetry.log_index_ensured(index_name=index_name, duration=time.time() - step_start)
+        self.telemetry.log_index_ensured(source_table=source_table, index_name=index_name, duration=time.time() - step_start)
 
         df_source = self.ingestion_port.read_all(table_name=source_table)
         index_columns = [col.name for col in spec.index_columns]

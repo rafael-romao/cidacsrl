@@ -64,7 +64,7 @@ def test_linkage_resolves_spec_path_from_env_yaml(mock_build, mock_load_yaml):
 @patch(f"{_MODULE}.build_indexing_use_case")
 def test_indexing_command_executes_and_stops_spark(mock_build, mock_load_yaml):
     env_data = {
-        "storage": {}, "elasticsearch": {}, "spark": {},
+        "storage": {}, "execution": {"audit_log_path": "tests/data/audit_logs"}, "elasticsearch": {}, "spark": {},
         "specification": {},
     }
     spec_data = {"dataset": "births"}
@@ -79,6 +79,7 @@ def test_indexing_command_executes_and_stops_spark(mock_build, mock_load_yaml):
 
     mock_build.assert_called_once_with(
         storage_config_data=env_data["storage"],
+        execution_config_data=env_data["execution"],
         indexing_spec_data=spec_data,
         es_config_data=env_data["elasticsearch"],
         spark_config_data=env_data["spark"],
