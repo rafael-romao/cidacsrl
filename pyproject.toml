@@ -32,13 +32,15 @@ classifiers = [
 "Código" = "https://github.com/rafael-romao/cidacsrl"
 "Bug Tracker" = "https://github.com/rafael-romao/cidacsrl/issues"
 
+[project.scripts]
+cidacsrl = "cidacsrl.adapters.inbound.cli:main"
+
 [tool.poetry]
 requires-poetry = ">=2.0.0"
 packages = [
     { include = "core", from = "." },
     { include = "cleaning", from = "." },
     { include = "deduplicating", from = "." },
-    { include = "cli.py", from = "." },
     { include = "cidacsrl", from = "src" }
 ]
 
