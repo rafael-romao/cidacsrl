@@ -64,8 +64,8 @@ services:
 
   cidacsrl_runner:
     build:
-      context: ../../../
-      dockerfile: Dockerfile
+      context: ../../
+      dockerfile: tests/environment/Dockerfile
       target: runner-dev
     profiles: ["runner"]
     container_name: cidacsrl_runner
@@ -88,8 +88,8 @@ services:
   jupyter:
     profiles: ["jupyter"]
     build:
-      context: ../../../
-      dockerfile: Dockerfile
+      context: ../../
+      dockerfile: tests/environment/Dockerfile
       target: jupyter-dev
     container_name: cidacsrl_jupyter
     ports:
