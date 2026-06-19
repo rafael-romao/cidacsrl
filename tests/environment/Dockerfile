@@ -4,8 +4,8 @@ FROM python:3.10-slim AS builder
 WORKDIR /build
 RUN pip install --no-cache-dir build
 
-COPY pyproject.toml ./
-COPY cidacsrl_rlp ./cidacsrl_rlp
+COPY pyproject.toml README.md ./
+COPY src/cidacsrl ./src/cidacsrl
 
 RUN python -m build && \
     mkdir -p spark_packages && \
@@ -46,7 +46,7 @@ ENV PATH=/opt/spark/bin:$PATH
 COPY --from=builder /build/spark_packages /opt/spark/pyfiles
 RUN pip install --no-cache-dir /opt/spark/pyfiles/*.whl
 
-COPY cidacsrl_rlp/ ./cidacsrl_rlp/
+COPY src/cidacsrl/ ./src/cidacsrl/
 COPY pyproject.toml ./
 
 EXPOSE 4040
@@ -75,20 +75,24 @@ FROM python:3.12-slim AS runner-dev
 
 WORKDIR /app
 
-RUN apt-get update && apt-get install -y default-jdk procps curl
+RUN apt-get update && apt-get install -y --no-install-recommends default-jre-headless procps curl \
+    && rm -rf /var/lib/apt/lists/*
 
 COPY pyproject.toml poetry.lock* ./
 
 
-RUN pip install --no-cache-dir poetry
+RUN --mount=type=cache,target=/root/.cache/pip \
+    pip install poetry
 
+ENV POETRY_VIRTUALENVS_CREATE=false
 
-RUN poetry install --no-root
+RUN --mount=type=cache,target=/root/.cache/pypoetry \
+    poetry install --no-root --without doc
 
 
 COPY . .
 
-ENV PYTHONPATH=/app
+ENV PYTHONPATH=/app/src:/app
 
 CMD ["tail", "-f", "/dev/null"]
 
@@ -114,7 +118,7 @@ RUN pip install --no-cache-dir \
         pyspark==3.5.8 && \
     rm -rf /tmp/spark_packages
 
-COPY cidacsrl_rlp/ ./cidacsrl_rlp/
+COPY src/cidacsrl/ ./src/cidacsrl/
 COPY pyproject.toml ./
 COPY --from=es-jar-downloader /elasticsearch-spark-30_2.12-9.2.8.jar /opt/spark/jars/
 

@@ -14,3 +14,9 @@ cidacsrl_rlp/data/
 .pytest_cache/
 .mypy_cache/
 *.log
+*.parquet
+tests/data/
+tests/output/
+tests/audit_logs/
+tests/fixtures/data/
+tests/environment/.es_data/

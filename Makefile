@@ -5,7 +5,7 @@ SPARK_PKG  := spark_packages
 VENV_PYTHON = $(shell poetry env list --full-path 2>/dev/null | awk 'NR==1{print $$1}')/bin/python
 VENV_BIN    = $(shell poetry env list --full-path 2>/dev/null | awk 'NR==1{print $$1}')/bin
 
-.PHONY: all build clean help env-check clean-docker prepare-dirs stop-all stop generate-data
+.PHONY: all build clean help env-check clean-docker prepare-dirs stop-all stop generate-data build-docker build-docker-core build-docker-jupyter
 .PHONY: up up-es up-ui up-jupyter down restart ps logs logs-engine logs-es logs-cerebro logs-jupyter shell-engine shell-es shell-jupyter
 .PHONY: test test-integration test-unit run-e2e-pipeline run-e2e-indexing-only run-e2e-dedup
 .PHONY: format format-check
@@ -139,6 +139,16 @@ build-docker:
 	@echo "--> Reconstruindo TODAS as imagens do ecossistema (PIP Global + Profiles)..."
 	$(COMPOSE) --profile elasticsearch --profile runner --profile ui --profile jupyter build
 	@echo "✅ Imagens reconstruídas com sucesso!"
+
+build-docker-core:
+	@echo "--> Reconstruindo imagens core (runner + ES)..."
+	$(COMPOSE) --profile elasticsearch --profile runner build
+	@echo "✅ Imagens core reconstruídas com sucesso!"
+
+build-docker-jupyter:
+	@echo "--> Reconstruindo imagem Jupyter..."
+	$(COMPOSE) --profile jupyter build
+	@echo "✅ Imagem Jupyter reconstruída com sucesso!"
 
 clean:
 	@echo "--> Limpando arquivos temporários e binários locais..."

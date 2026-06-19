@@ -18,11 +18,11 @@ ES_URL = os.environ.get("CIDACSRL_ES_URL", "http://elasticsearch:9200")
 
 
 def _tests_root() -> Path:
-    return Path(__file__).resolve().parents[1]
+    return Path(__file__).resolve().parents[2]
 
 
 def _configs_root() -> Path:
-    return _tests_root() / "configs"
+    return _tests_root() / "fixtures" / "configs" / "env"
 
 
 def _read_yaml(file_path: Path) -> dict:

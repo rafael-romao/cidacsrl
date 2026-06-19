@@ -1,3 +1,4 @@
+import logging
 import os
 import random
 import pandas as pd
@@ -18,8 +19,7 @@ UFS_VALIDAS = ["AC", "AL", "AP", "AM", "BA", "CE", "DF", "ES", "GO", "MA", "MT",
 fake = Faker('pt_BR')
 
 def get_input_path() -> Path:
-    """Retorna o diretório tests/data/input conforme a arquitetura do runner."""
-    return Path(__file__).resolve().parents[1] / "data" / "input"
+    return Path(__file__).resolve().parents[2] / "data" / "input"
 
 def introduce_noise(text: str) -> str:
     """Aplica ruídos ortográficos para testar a similaridade Jaro-Winkler."""
@@ -104,26 +104,25 @@ def generate_acidentes(df_obitos: pd.DataFrame, n_total: int, overlap_ratio: flo
     return df_final
 
 if __name__ == "__main__":
-    output_dir = get_input_path()
-    output_dir.mkdir(parents=True, exist_ok=True)
-    
+    input_dir = get_input_path()
+
+    path_obitos = input_dir / "obitos_example"
+    path_acidentes = input_dir / "acidentes_example"
+
+    path_obitos.mkdir(parents=True, exist_ok=True)
+
     # Geração
     df_obitos = generate_obitos(NUM_RECORDS_TARGET)
     df_acidentes = generate_acidentes(df_obitos, NUM_RECORDS_SOURCE, OVERLAP_RATIO)
-    
 
-    # Check
     logger.info(f"Óbitos: {df_obitos.shape[0]} registros gerados.")
     logger.info(f"Acidentes: {df_acidentes.shape[0]} registros gerados.")
 
     # Exportação em Parquet
-    path_obitos = output_dir / "part-00000-obitos.parquet"
-    path_acidentes = output_dir / "acidentes_example"
-    
-    logger.info(f"Salvando dados em {path_obitos} ")
-    df_obitos.to_parquet(path_obitos, index=False)
-    
+    logger.info(f"Salvando dados em {path_obitos} ...")
+    df_obitos.to_parquet(path_obitos / "part-00000-obitos.parquet", index=False)
+
     logger.info(f"Salvando dados em {path_acidentes} (particionado por uf_acidente)...")
     df_acidentes.to_parquet(path_acidentes, partition_cols=["uf_acidente"], index=False)
-    
+
     logger.info("✅ Bancos de Acidentes e Óbitos gerados com sucesso!")
