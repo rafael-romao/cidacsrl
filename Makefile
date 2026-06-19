@@ -1,8 +1,8 @@
 # Configurações de Executáveis e Variáveis
 PYTHON     := python
-COMPOSE    := docker compose -f core/tests/enviroment/docker-compose.yml
+COMPOSE    := docker compose -f core/tests/environment/docker-compose.yml
 SPARK_PKG  := spark_packages
-VENV_PYTHON := $(shell poetry env list --full-path 2>/dev/null | awk 'NR==1{print $$1}')/bin/python
+VENV_PYTHON = $(shell poetry env list --full-path 2>/dev/null | awk 'NR==1{print $$1}')/bin/python
 
 .PHONY: all build clean help env-check clean-docker prepare-dirs stop-all stop generate-data
 .PHONY: up up-es up-ui up-jupyter down restart ps logs logs-engine logs-es logs-cerebro logs-jupyter shell-engine shell-es shell-jupyter
@@ -16,30 +16,31 @@ all: help
 up: env-check
 	@echo "--> Subindo o ambiente de teste (Elasticsearch + Engine)..."
 	$(COMPOSE) --profile elasticsearch --profile runner up -d --remove-orphans
-	@echo "\n✅ Ambiente de teste disponível!"
-	@echo "\n- Elasticsearch rodando em: http://localhost:9200. Use 'make up-ui' para acessar o Cerebro."
-	@echo "\n- Use 'make run-e2e-pipeline ENV=<arquivo.yml>' para rodar o pipeline de teste completo."
-	@echo "\n- Use 'make up-jupyter' para subir o ambiente interativo Jupyter Notebook."
-	@echo "\n- Use 'make logs' para acompanhar os logs em tempo real."
-	@echo "\n- Use 'make down' para derrubar o ambiente quando terminar."
-	@echo "\n- Use 'make help' para ver todos os comandos disponíveis.\n"
+	@printf "\n✅ Ambiente de teste disponível!\n"
+	@printf "\n- Elasticsearch rodando em: http://localhost:9200. Use 'make up-ui' para acessar o Cerebro.\n"
+	@printf "\n- Use 'make run-e2e-pipeline ENV=<arquivo.yml>' para rodar o pipeline de teste completo.\n"
+	@printf "\n- Use 'make up-jupyter' para subir o ambiente interativo Jupyter Notebook.\n"
+	@printf "\n- Use 'make logs' para acompanhar os logs em tempo real.\n"
+	@printf "\n- Use 'make down' para derrubar o ambiente quando terminar.\n"
+	@printf "\n- Use 'make help' para ver todos os comandos disponíveis.\n\n"
 
 up-es: env-check
-	@echo "\n --> Subindo apenas o serviço do Elasticsearch..."
+	@printf "\n --> Subindo apenas o serviço do Elasticsearch...\n"
 	$(COMPOSE) up -d elasticsearch
 
 up-ui: env-check
-	@echo "\n --> Subindo ferramentas de monitoria Visual (Cerebro)..."
+	@printf "\n --> Subindo ferramentas de monitoria Visual (Cerebro)...\n"
 	$(COMPOSE) --profile cerebro up -d
 
 up-jupyter: env-check
-	@echo "\n --> Subindo ambiente interativo Jupyter Notebook..."
+	@printf "\n --> Subindo ambiente interativo Jupyter Notebook...\n"
 	@echo "Acessar via http://localhost:8888 (token disponível nos logs do container jupyter-notebook)"
 	$(COMPOSE) --profile jupyter up -d
 
 down:
 	@echo "--> Derrubando os contêineres locais do ambiente de teste..."
 	$(COMPOSE) --profile elasticsearch --profile runner --profile ui --profile jupyter down -v --remove-orphans
+	@rm -f core/tests/environment/.es_data/node.lock
 
 restart: down up
 
@@ -127,7 +128,7 @@ build-docker:
 clean:
 	@echo "--> Limpando arquivos temporários e binários locais..."
 	rm -rf dist/ .pytest_cache/ .coverage htmlcov/ .isort_cache/
-	
+
 	@echo "--> Limpando __pycache__ com permissões adequadas..."
 	@if docker ps --format '{{.Names}}' | grep -q "^cidacsrl_runner$$"; then \
 		echo "   [Docker ativo] Removendo via container (root)..."; \
@@ -165,8 +166,8 @@ stop-all:
 # ─── 4. AUXILIARES INTERNOS ────────────────────────────────────────────────────
 
 env-check:
-	@if [ ! -d "core/tests/enviroment" ]; then \
-		echo "❌ Erro: Diretório 'core/tests/enviroment' não encontrado. Certifique-se de estar na raiz do repositório."; \
+	@if [ ! -d "core/tests/environment" ]; then \
+		echo "❌ Erro: Diretório 'core/tests/environment' não encontrado. Certifique-se de estar na raiz do repositório."; \
 		exit 1; \
 	fi
 
@@ -179,8 +180,9 @@ help:
 	@echo "  make up-es             - Sobe estritamente o banco Elasticsearch"
 	@echo "  make up-ui             - Sobe Cerebro para inspeção visual de índices"
 	@echo "  make up-jupyter        - Abre servidor do Jupyter Notebook para análises"
-	@echo "  make down              - Desliga todos os serviços locais"
+	@echo "  make down              - Desliga todos os serviços e limpa node.lock do ES"
 	@echo "  make restart           - Reinicializa o ambiente"
+	@echo "  make build-docker      - Reconstrói todas as imagens Docker"
 	@echo "  make ps                - Lista o status dos contêineres"
 	@echo "  make logs              - Exibe logs agregados de todos os serviços"
 	@echo "  make logs-jupyter      - Logs exclusivos do servidor Jupyter"
@@ -204,4 +206,7 @@ help:
 	@echo "  make build             - Prepara pacote Wheel e dependências via Poetry"
 	@echo "  make clean             - Remove arquivos temporários de compilação"
 	@echo "  make clean-docker      - Limpa volumes, redes e artefatos Docker do ambiente"
+	@echo "  make stop-es           - Para apenas o container do Elasticsearch"
+	@echo "  make stop-jupyter      - Para apenas o container do Jupyter"
+	@echo "  make stop-cidacsrl-runner - Para apenas o container da Engine"
 	@echo "  make stop-all          - Para todos os contêineres do seu daemon Docker."
