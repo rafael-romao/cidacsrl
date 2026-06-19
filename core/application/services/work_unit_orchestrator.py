@@ -37,6 +37,10 @@ class WorkUnitOrchestrator:
 
         return execution_config.with_discovered_partitions(partitions)
 
+    def prepare_and_route(self, table_name: str, execution_config: ExecutionConfig) -> Iterable[WorkUnitPayload]:
+        enriched_config = self.prepare(table_name, execution_config)
+        return self.route(table_name, enriched_config)
+
     def route(self, table_name: str, execution_config: ExecutionConfig) -> Iterable[WorkUnitPayload]:
         """
         Transforma o escopo lógico em fatias físicas de dados e as despacha

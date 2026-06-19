@@ -30,7 +30,8 @@ def test_prepare_and_route_uses_configured_partitions_without_scanning_disk():
     orchestrator = WorkUnitOrchestrator(ingestion_port=mock_ingestion, checkpoint_port=mock_tracking)
 
     # Consome o gerador (work stream)
-    payloads = list(orchestrator.prepare_and_route(table_name="internacao_example", execution_config=config))
+    enriched_config = orchestrator.prepare(table_name="internacao_example", execution_config=config)
+    payloads = list(orchestrator.route(table_name="internacao_example", execution_config=enriched_config))
 
     # Asserções de Fluxo e Isolamento
     assert len(payloads) == 2
@@ -83,7 +84,8 @@ def test_prepare_and_route_triggers_dynamic_discovery_when_partitions_list_is_em
 
     orchestrator = WorkUnitOrchestrator(ingestion_port=mock_ingestion, checkpoint_port=mock_tracking)
 
-    payloads = list(orchestrator.prepare_and_route(table_name="internacao_example", execution_config=config))
+    enriched_config = orchestrator.prepare(table_name="internacao_example", execution_config=config)
+    payloads = list(orchestrator.route(table_name="internacao_example", execution_config=enriched_config))
 
     # Asserções de Descoberta Dinâmica
     assert len(payloads) == 3

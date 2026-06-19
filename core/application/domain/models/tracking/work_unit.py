@@ -30,7 +30,6 @@ class WorkUnitExecutionRecord:
     def to_dict(self) -> Dict[str, Any]:
         """Serializa o registro para gravação direta no arquivo JSON."""
         return {
-            "unit_id": self.unit_id,
             "filters": self.filters,
             "status": self.status.value,
             "records_processed": self.records_processed,
@@ -40,10 +39,10 @@ class WorkUnitExecutionRecord:
         }
 
     @classmethod
-    def from_dict(cls, data: Dict[str, Any]) -> "WorkUnitExecutionRecord":
+    def from_dict(cls, unit_id: str, data: Dict[str, Any]) -> "WorkUnitExecutionRecord":
         """Reconstrói o registro a partir de um bloco lido do JSON de auditoria."""
         return cls(
-            unit_id=data["unit_id"],
+            unit_id=unit_id,
             filters=data["filters"],
             status=WorkUnitStatus(data["status"]),
             records_processed=data.get("records_processed", 0),
