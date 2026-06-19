@@ -2,10 +2,10 @@ import pytest
 from unittest.mock import MagicMock, ANY
 
 from cidacsrl.domain.deduplication.deduplication_specification import DeduplicationSpecification
-from deduplicating.application.ports.outbound.data_reader_port import DataReaderPort
-from deduplicating.application.ports.outbound.graph_processing_port import GraphProcessingPort
-from deduplicating.application.ports.outbound.data_persistence_port import DataPersistencePort
-from deduplicating.application.ports.outbound.deduplication_telemetry_port import DeduplicationTelemetryPort
+from cidacsrl.ports.deduplication.data_reader_port import DataReaderPort
+from cidacsrl.ports.deduplication.graph_processing_port import GraphProcessingPort
+from cidacsrl.ports.deduplication.data_persistence_port import DataPersistencePort
+from cidacsrl.ports.deduplication.telemetry_port import DeduplicationTelemetryPort
 from deduplicating.application.use_cases.deduplicate_use_case import DeduplicateUseCase
 
 pytestmark = pytest.mark.unit

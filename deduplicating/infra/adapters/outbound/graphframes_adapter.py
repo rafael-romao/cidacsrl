@@ -4,7 +4,7 @@ from typing import Any
 import pyspark.sql.functions as F
 from graphframes import GraphFrame
 
-from deduplicating.application.ports.outbound.graph_processing_port import GraphProcessingPort
+from cidacsrl.ports.deduplication.graph_processing_port import GraphProcessingPort
 
 logger = logging.getLogger("Adapter: GraphFrames")
 

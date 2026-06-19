@@ -6,8 +6,8 @@ import itertools
 from pyspark.sql import Row
 from pyspark.sql.types import StructType, StructField, StringType, FloatType
 
-from core.application.ports.outbound.get_candidates_port import GetCandidatesPort
-from core.application.ports.outbound.search_executor import SearchExecutor
+from cidacsrl.ports.linkage.get_candidates_port import GetCandidatesPort
+from cidacsrl.ports.linkage.search_executor import SearchExecutor
 from cidacsrl.domain.linkage.linkage_specification import BlockingPhaseContext
 
 from .client import get_es_client

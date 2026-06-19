@@ -4,12 +4,12 @@ from pyspark.sql import DataFrame
 
 from core.application.use_cases.record_linkage_use_case import RecordLinkageUseCase
 from core.application.services.work_unit_orchestrator import WorkUnitOrchestrator
-from core.application.ports.outbound.data_persistence_port import DataPersistencePort
-from core.application.ports.outbound.data_transformation_port import DataTransformationPort
-from core.application.ports.outbound.get_candidates_port import GetCandidatesPort
-from core.application.ports.outbound.scoring_port import ScoringPort
-from core.application.ports.outbound.checkpoint_port import CheckpointPort
-from core.application.ports.outbound.telemetry_port import TelemetryPort
+from cidacsrl.ports.linkage.data_persistence_port import DataPersistencePort
+from cidacsrl.ports.linkage.data_transformation_port import DataTransformationPort
+from cidacsrl.ports.linkage.get_candidates_port import GetCandidatesPort
+from cidacsrl.ports.linkage.scoring_port import ScoringPort
+from cidacsrl.ports.linkage.checkpoint_port import CheckpointPort
+from cidacsrl.ports.linkage.telemetry_port import TelemetryPort
 from cidacsrl.domain.linkage.tracking.work_unit import WorkUnitPayload, WorkUnitStatus
 from cidacsrl.domain.linkage.linkage_specification import SequentialLinkageSpecification, BlockingPhaseContext
 

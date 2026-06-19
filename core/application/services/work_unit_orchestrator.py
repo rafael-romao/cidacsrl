@@ -1,8 +1,8 @@
 import logging
 from typing import Iterable, List
 
-from core.application.ports.outbound.data_ingestion_port import DataIngestionPort
-from core.application.ports.outbound.checkpoint_port import CheckpointPort
+from cidacsrl.ports.linkage.data_ingestion_port import DataIngestionPort
+from cidacsrl.ports.linkage.checkpoint_port import CheckpointPort
 from cidacsrl.domain.linkage.tracking.work_unit_factory import WorkUnitFactory
 from cidacsrl.domain.linkage.tracking.work_unit import WorkUnitExecutionRecord, WorkUnitPayload, WorkUnitStatus
 from cidacsrl.config.models.execution_config import ExecutionConfig

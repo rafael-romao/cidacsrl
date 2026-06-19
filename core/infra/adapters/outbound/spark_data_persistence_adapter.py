@@ -4,7 +4,7 @@ from typing import Optional
 from pyspark.sql import DataFrame
 from pyspark.sql import functions as F
 
-from core.application.ports.outbound.data_persistence_port import DataPersistencePort
+from cidacsrl.ports.linkage.data_persistence_port import DataPersistencePort
 from cidacsrl.config.models.storage_config import OutputStorageConfig
 
 logger = logging.getLogger("Adapter: Persistence")

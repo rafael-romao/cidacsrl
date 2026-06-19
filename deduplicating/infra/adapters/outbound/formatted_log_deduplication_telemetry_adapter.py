@@ -1,6 +1,6 @@
 import logging
 
-from deduplicating.application.ports.outbound.deduplication_telemetry_port import DeduplicationTelemetryPort
+from cidacsrl.ports.deduplication.telemetry_port import DeduplicationTelemetryPort
 
 logger = logging.getLogger("Adapter: Deduplication Telemetry")
 

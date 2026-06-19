@@ -1,7 +1,7 @@
 from typing import List
 
-from core.application.ports.outbound.telemetry_port import TelemetryPort
-from core.application.ports.outbound.indexing_telemetry_port import IndexingTelemetryPort
+from cidacsrl.ports.linkage.telemetry_port import TelemetryPort
+from cidacsrl.ports.indexing.telemetry_port import IndexingTelemetryPort
 
 
 class CompositeLinkageTelemetryAdapter(TelemetryPort):

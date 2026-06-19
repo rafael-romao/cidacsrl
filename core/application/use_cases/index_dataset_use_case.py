@@ -1,8 +1,8 @@
 import time
 
-from core.application.ports.outbound.data_ingestion_port import DataIngestionPort
-from core.application.ports.outbound.data_indexing_port import DataIndexingPort
-from core.application.ports.outbound.indexing_telemetry_port import IndexingTelemetryPort
+from cidacsrl.ports.linkage.data_ingestion_port import DataIngestionPort
+from cidacsrl.ports.indexing.data_indexing_port import DataIndexingPort
+from cidacsrl.ports.indexing.telemetry_port import IndexingTelemetryPort
 from cidacsrl.domain.indexing.indexing_specification import DatasetIndexingSpecification
 
 
