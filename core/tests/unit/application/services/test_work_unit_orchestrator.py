@@ -1,7 +1,7 @@
 import pytest
 from unittest.mock import Mock, ANY
 
-from core.application.services.work_unit_orchestrator import WorkUnitOrchestrator
+from cidacsrl.application.linkage.work_unit_orchestrator import WorkUnitOrchestrator
 from cidacsrl.domain.linkage.tracking.work_unit import WorkUnitExecutionRecord, WorkUnitStatus
 from cidacsrl.config.models.execution_config import ExecutionConfig, DataPartitioningConfig
 

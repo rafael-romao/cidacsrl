@@ -1,7 +1,7 @@
 from unittest.mock import MagicMock, ANY
 from pyspark.sql import DataFrame
 
-from core.application.use_cases.index_dataset_use_case import IndexDatasetUseCase
+from cidacsrl.application.indexing.index_dataset_use_case import IndexDatasetUseCase
 from cidacsrl.ports.linkage.data_ingestion_port import DataIngestionPort
 from cidacsrl.ports.indexing.data_indexing_port import DataIndexingPort
 from cidacsrl.ports.indexing.telemetry_port import IndexingTelemetryPort

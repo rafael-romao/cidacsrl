@@ -6,7 +6,7 @@ from cidacsrl.ports.deduplication.data_reader_port import DataReaderPort
 from cidacsrl.ports.deduplication.graph_processing_port import GraphProcessingPort
 from cidacsrl.ports.deduplication.data_persistence_port import DataPersistencePort
 from cidacsrl.ports.deduplication.telemetry_port import DeduplicationTelemetryPort
-from deduplicating.application.use_cases.deduplicate_use_case import DeduplicateUseCase
+from cidacsrl.application.deduplication.deduplicate_use_case import DeduplicateUseCase
 
 pytestmark = pytest.mark.unit
 

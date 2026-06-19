@@ -10,7 +10,7 @@ from deduplicating.infra.adapters.outbound.spark_data_persistence_adapter import
 from deduplicating.infra.adapters.outbound.formatted_log_deduplication_telemetry_adapter import FormattedLogDeduplicationTelemetryAdapter
 from deduplicating.infra.adapters.outbound.jsonl_deduplication_telemetry_adapter import JsonlDeduplicationTelemetryAdapter
 from deduplicating.infra.adapters.outbound.composite_deduplication_telemetry_adapter import CompositeDeduplicationTelemetryAdapter
-from deduplicating.application.use_cases.deduplicate_use_case import DeduplicateUseCase
+from cidacsrl.application.deduplication.deduplicate_use_case import DeduplicateUseCase
 
 logger = logging.getLogger("Bootstrapper: Deduplication")
 

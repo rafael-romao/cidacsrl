@@ -11,7 +11,7 @@ from core.infra.adapters.outbound.elasticsearch.spark_es_indexing_adapter import
 from core.infra.adapters.outbound.formatted_log_telemetry_adapter import FormattedLogTelemetryAdapter
 from core.infra.adapters.outbound.jsonl_telemetry_adapter import JsonlIndexingTelemetryAdapter
 from core.infra.adapters.outbound.composite_telemetry_adapter import CompositeIndexingTelemetryAdapter
-from core.application.use_cases.index_dataset_use_case import IndexDatasetUseCase
+from cidacsrl.application.indexing.index_dataset_use_case import IndexDatasetUseCase
 
 logger = logging.getLogger("Bootstrapper: Elasticsearch Indexing")
 

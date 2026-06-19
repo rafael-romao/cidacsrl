@@ -2,8 +2,8 @@ import pytest
 from unittest.mock import MagicMock, ANY
 from pyspark.sql import DataFrame
 
-from core.application.use_cases.record_linkage_use_case import RecordLinkageUseCase
-from core.application.services.work_unit_orchestrator import WorkUnitOrchestrator
+from cidacsrl.application.linkage.record_linkage_use_case import RecordLinkageUseCase
+from cidacsrl.application.linkage.work_unit_orchestrator import WorkUnitOrchestrator
 from cidacsrl.ports.linkage.data_persistence_port import DataPersistencePort
 from cidacsrl.ports.linkage.data_transformation_port import DataTransformationPort
 from cidacsrl.ports.linkage.get_candidates_port import GetCandidatesPort

@@ -22,8 +22,8 @@ from core.infra.adapters.outbound.formatted_log_telemetry_adapter import Formatt
 from core.infra.adapters.outbound.jsonl_telemetry_adapter import JsonlLinkageTelemetryAdapter
 from core.infra.adapters.outbound.composite_telemetry_adapter import CompositeLinkageTelemetryAdapter
 
-from core.application.services.work_unit_orchestrator import WorkUnitOrchestrator
-from core.application.use_cases.record_linkage_use_case import RecordLinkageUseCase
+from cidacsrl.application.linkage.work_unit_orchestrator import WorkUnitOrchestrator
+from cidacsrl.application.linkage.record_linkage_use_case import RecordLinkageUseCase
 from cidacsrl.domain.linkage.linkage_specification import SequentialLinkageSpecification
 from core.infra.elasticsearch.models.service_config import ElasticsearchConfig
 from cidacsrl.config.models.execution_config import ExecutionConfig
