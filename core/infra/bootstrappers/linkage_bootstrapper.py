@@ -108,12 +108,16 @@ def bootstrap_sequential_linkage(
         )
         telemetry_adapters = [FormattedLogTelemetryAdapter()]
         if execution_config.audit_log_path:
-            jsonl_path = (
+            job_dir = (
                 f"{execution_config.audit_log_path}"
                 f"/{linkage_spec.linkage_project_name}"
-                f"/{job_id}_telemetry.jsonl"
+                f"/{job_id}"
             )
-            telemetry_adapters.append(JsonlLinkageTelemetryAdapter(file_path=jsonl_path))
+            telemetry_adapters.append(JsonlLinkageTelemetryAdapter(
+                phases_path=f"{job_dir}/phases.jsonl",
+                units_path=f"{job_dir}/units.jsonl",
+                job_path=f"{job_dir}/job.jsonl",
+            ))
         telemetry_adapter = CompositeLinkageTelemetryAdapter(telemetry_adapters)
 
         _run_preflight_validations(linkage_spec, execution_config, es_config, ingestion_adapter)

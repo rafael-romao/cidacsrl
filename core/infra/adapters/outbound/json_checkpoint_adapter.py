@@ -18,7 +18,9 @@ class JSONCheckpointAdapter(CheckpointPort):
         os.makedirs(self.project_path, exist_ok=True)
 
     def _resolve_checkpoint_path(self, job_id: str) -> str:
-        return os.path.join(self.project_path, f"{job_id}_state.json")
+        job_dir = os.path.join(self.project_path, job_id)
+        os.makedirs(job_dir, exist_ok=True)
+        return os.path.join(job_dir, "state.json")
 
     def _read_raw_file(self, file_path: str) -> Dict[str, Any]:
         if not os.path.exists(file_path):

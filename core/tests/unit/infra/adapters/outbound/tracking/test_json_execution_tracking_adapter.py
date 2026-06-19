@@ -30,7 +30,7 @@ def test_initialize_job_state_creates_new_json_file(adapter, project_dir):
 
     adapter.initialize_job_state(job_id, work_units)
 
-    checkpoint_file = project_dir / f"{job_id}_state.json"
+    checkpoint_file = project_dir / job_id / "state.json"
     assert checkpoint_file.exists()
 
     with open(checkpoint_file, "r") as f:
@@ -41,7 +41,9 @@ def test_initialize_job_state_creates_new_json_file(adapter, project_dir):
 
 def test_initialize_job_state_does_not_overwrite_existing_progress(adapter, project_dir):
     job_id = "job_resilient_02"
-    file_path = project_dir / f"{job_id}_state.json"
+    job_dir = project_dir / job_id
+    job_dir.mkdir(parents=True, exist_ok=True)
+    file_path = job_dir / "state.json"
 
     pre_existing_state = {
         "uf_BA": {
@@ -69,7 +71,9 @@ def test_initialize_job_state_does_not_overwrite_existing_progress(adapter, proj
 
 def test_get_pending_work_units_filters_out_completed_records(adapter, project_dir):
     job_id = "job_filter_03"
-    file_path = project_dir / f"{job_id}_state.json"
+    job_dir = project_dir / job_id
+    job_dir.mkdir(parents=True, exist_ok=True)
+    file_path = job_dir / "state.json"
 
     mixed_state = {
         "uf_BA": {"unit_id": "uf_BA", "status": WorkUnitStatus.COMPLETED.value, "filters": {"uf": "BA"}},
@@ -94,7 +98,7 @@ def test_update_work_unit_status_transitions_correctly(adapter, project_dir):
     adapter.initialize_job_state(job_id, work_units)
     adapter.update_work_unit_status(job_id, "uf_BA", WorkUnitStatus.PROCESSING)
 
-    checkpoint_file = project_dir / f"{job_id}_state.json"
+    checkpoint_file = project_dir / job_id / "state.json"
     with open(checkpoint_file, "r") as f:
         saved_state = json.load(f)
 
