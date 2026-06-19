@@ -7,7 +7,7 @@ def configure_logging() -> None:
     for handler in logging.root.handlers[:]:
         logging.root.removeHandler(handler)
 
-    log_format = "%(asctime)s | %(levelname)-5s | %(name)s | %(message)s"
+    log_format = "%(asctime)s | %(levelname)-5s | %(name)-32s | %(message)s"
     date_format ='%Y-%m-%d %H:%M:%S'
 
     
