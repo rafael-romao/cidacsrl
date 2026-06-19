@@ -108,3 +108,23 @@ def test_update_work_unit_status_raises_value_error_if_unit_not_mapped(adapter):
     with pytest.raises(ValueError) as exc_info:
         adapter.update_work_unit_status("invalid_job", "missing_unit", WorkUnitStatus.PROCESSING)
     assert "Tentativa de atualizar unidade inexistente no tracking" in str(exc_info.value)
+
+def test_corrupted_checkpoint_file_is_backed_up_and_state_resets(adapter, project_dir):
+    job_id = "job_corrupt_05"
+    job_dir = project_dir / job_id
+    job_dir.mkdir(parents=True, exist_ok=True)
+    checkpoint_file = job_dir / "state.json"
+    checkpoint_file.write_text("{invalid json{{", encoding="utf-8")
+
+    work_units = [WorkUnitExecutionRecord(unit_id="uf_BA", status=WorkUnitStatus.PENDING, filters={"uf": "BA"})]
+    adapter.initialize_job_state(job_id, work_units)
+
+    backup_file = job_dir / "state.json.corrupt"
+    assert backup_file.exists(), "Arquivo corrompido deve ser movido para .corrupt"
+    assert checkpoint_file.exists(), "Novo state.json deve ser criado"
+
+    with open(checkpoint_file, "r", encoding="utf-8") as f:
+        new_state = json.load(f)
+
+    assert "uf_BA" in new_state
+    assert new_state["uf_BA"]["status"] == "PENDING"
