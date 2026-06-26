@@ -16,6 +16,12 @@ class DataPartitioningConfig:
     partition_column: Optional[str] = None
     filter_partitions: List[str] = field(default_factory=list)
 
+    def __post_init__(self) -> None:
+        if self.filter_partitions and not self.partition_column:
+            raise ValueError(
+                "'filter_partitions' requer 'partition_column' definido."
+            )
+
     @property
     def has_filters(self) -> bool:
         return bool(self.partition_column and self.filter_partitions)
@@ -42,6 +48,11 @@ class ExecutionConfig:
         if not self.job_id:
             timestamp_str = datetime.now().strftime("%Y%m%d_%H%M%S")
             object.__setattr__(self, "job_id", f"job_{timestamp_str}")
+        if self.sample_fraction is not None and not (0 < self.sample_fraction <= 1.0):
+            raise ValueError(
+                f"'sample_fraction' deve estar entre 0 (exclusivo) e 1.0 (inclusivo), "
+                f"recebido: {self.sample_fraction}."
+            )
 
     def with_discovered_partitions(self, partitions: List[str]) -> "ExecutionConfig":
         """Retorna nova instância com as partições descobertas substituindo filter_partitions.

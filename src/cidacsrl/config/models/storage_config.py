@@ -8,12 +8,15 @@ class SourceStorageConfig:
     source_path: str
     source_format: str = "parquet"
 
+    def __post_init__(self) -> None:
+        if not self.source_path:
+            raise ValueError("'source_path' é obrigatório no bloco de storage.")
+
     @classmethod
     def from_dict(cls, data: Dict[str, Any]) -> "SourceStorageConfig":
-        if not data or not data.get("source_path"):
-            raise ValueError("'source_path' é obrigatório no bloco de storage.")
+        data = data or {}
         return cls(
-            source_path=data["source_path"],
+            source_path=data.get("source_path", ""),
             source_format=data.get("source_format", "parquet"),
         )
 
@@ -24,11 +27,14 @@ class OutputStorageConfig:
     output_path: str
     output_format: str = "parquet"
 
+    def __post_init__(self) -> None:
+        if not self.output_path:
+            raise ValueError("'output_path' é obrigatório no bloco de storage.")
+
     @classmethod
     def from_dict(cls, data: Dict[str, Any]) -> "OutputStorageConfig":
-        if not data or not data.get("output_path"):
-            raise ValueError("'output_path' é obrigatório no bloco de storage.")
+        data = data or {}
         return cls(
-            output_path=data["output_path"],
+            output_path=data.get("output_path", ""),
             output_format=data.get("output_format", "parquet"),
         )
