@@ -1,66 +1,134 @@
 # Guia de Uso: Indexação no Elasticsearch
 
-O processo de busca e comparação do CIDACS-RL ocorre a partir da requisição a índices Elasticsearch. O módulo **elasticsearch_indexing** é responsável por carregar  dados no motor de busca.
+Antes de executar o linkage, a **base alvo** precisa estar indexada no Elasticsearch. O índice é o que permite ao Spark recuperar, de forma eficiente, apenas um subconjunto pequeno de candidatos plausíveis para cada registro de origem — em vez de comparar tudo contra tudo.
 
 ## Visão Geral do Processo
 
-O módulo **elasticsearch_indexing** executa as seguintes etapas:
+O subcomando `cidacsrl indexing` executa três etapas:
 
-1.  **Leitura dos dados**: Carrega um conjunto de dados de entrada no formato Parquet.
-2.  **Criação do índice**: Conecta-se ao Elasticsearch e cria um novo índice (semelhante a uma tabela em um banco de dados) com a estrutura pré-definida no arquivo de configuração
-3.  **Ingestão dos dados**: Transfere os registros do arquivo Parquet para o índice recém-criado no Elasticsearch.
+1. **Leitura dos dados**: Carrega o arquivo Parquet da base alvo.
+2. **Criação do índice**: Conecta-se ao Elasticsearch e cria o índice com o mapeamento definido na especificação.
+3. **Ingestão dos dados**: Transfere os registros do Parquet para o índice.
 
-## Configurando o Índice
+---
 
-A estrutura do índice no Elasticsearch, também conhecida como  **mapeamento (mapping)**, é definida em um arquivo de configuração YAML. No mapeamento é especificado o tipo de cada campo (ex: texto, data, número) e outras configurações de análise que otimizem as buscas.
+## Estrutura de Configuração
 
+A indexação usa dois arquivos YAML separados:
 
-### Exemplo de Configuração de Índice
+- **`env.yaml`** — configurações do ambiente: onde estão os dados, onde gravar, como conectar ao Elasticsearch e ao Spark. Reutilizável entre projetos.
+- **`spec.yaml`** — especificação do índice: quais colunas indexar e como. Específico para cada dataset.
 
-Abaixo, um exemplo de como definir regras para indexar colunas de nome, nome da mãe, município e UF:
+O `spec.yaml` pode ser referenciado diretamente no `env.yaml` ou passado via argumento na CLI.
+
+---
+
+## Arquivo de Ambiente (`env.yaml`)
 
 ```yaml
-# Exemplo de arquivo index_config.yaml
-index_name: "pacientes"
-source_table: "cleaned_pacientes"
-columns:
+# env.yaml
+storage:
+  source_path: "/data/cleaned/pacientes.parquet"
+  source_format: "parquet"   # padrão; pode ser omitido
+  output_path: "/data/output" # não utilizado na indexação, mas obrigatório no schema
+
+elasticsearch:
+  es_connection_url: "http://localhost:9200"
+  verify_certs: false
+  request_timeout: 60
+  # es_user: "elastic"        # opcional
+  # es_password: "senha"      # opcional
+  # api_key: "chave"          # opcional
+
+spark:
+  spark_configs:
+    spark.executor.memory: "4g"
+    spark.driver.memory: "2g"
+
+# Opcional: embute o caminho da spec diretamente no env
+specification:
+  indexing_path: "/configs/pacientes_spec.yaml"
+```
+
+### Campos do bloco `elasticsearch`
+
+| Campo | Obrigatório | Padrão | Descrição |
+|---|---|---|---|
+| `es_connection_url` | Sim | — | URL completa do cluster ES |
+| `verify_certs` | Não | `true` | Verificação TLS |
+| `request_timeout` | Não | `30` | Timeout de requisição em segundos |
+| `es_user` / `es_password` | Não | — | Autenticação básica |
+| `api_key` | Não | — | Autenticação via API key |
+
+---
+
+## Arquivo de Especificação do Índice (`spec.yaml`)
+
+```yaml
+# pacientes_spec.yaml
+source_config:
+  source_table: "pacientes"   # nome lógico do dataset (usado em logs)
+  id_field: "id_paciente"     # campo do Parquet usado como _id no Elasticsearch
+
+index_config:
+  name: "pacientes"           # nome do índice no Elasticsearch
+  id_from_source: true        # usa id_field como _id do documento ES
+  number_of_shards: 3         # paralelismo de busca; 1 shard por nó é um bom ponto de partida
+  number_of_replicas: 0       # 0 para índices de leitura intensiva sem necessidade de HA
+  refresh_interval: "30s"     # intervalo maior acelera a ingestão; reduza após indexar
+
+index_columns:
   - name: nome_completo
-    type: string
-    index_as: text
-    index: true
+    type: text
+
   - name: nome_da_mae
-    type: string
-    index_as: text
-    index: true
+    type: text
+
   - name: municipio_nascimento
     type: integer
-    index: true
+
   - name: uf_nascimento
     type: integer
-    index: true
+
+  - name: data_nascimento
+    type: keyword              # campos de data usados em comparação exata são indexados como keyword
+    index_as: keyword
 ```
+
+### Campos de `index_columns`
+
+| Campo | Obrigatório | Descrição |
+|---|---|---|
+| `name` | Sim | Nome da coluna no Parquet e no índice ES |
+| `type` | Sim | Tipo ES: `text`, `keyword`, `integer`, `long`, `float`, `date`, etc. |
+| `index_as` | Não | Estratégia alternativa de indexação (ex: `keyword` para um campo `text`) |
+
+**Dica:** use `type: text` para campos comparados com Jaro-Winkler e `type: keyword` ou `type: integer` para campos comparados com similaridade exata. Isso garante que o analisador do ES não tokenize valores que devem ser tratados como unidade.
+
+---
 
 ## Como Executar
 
-A execução do módulo **elasticsearch_indexing** é configurável a partir de um arquivo YAML. A exemplo:
+```bash
+# Com spec referenciada no env.yaml (via specification.indexing_path)
+cidacsrl indexing --env-config /configs/env.yaml
 
-```yaml
-# Exemplo de arquivo cleaning_config.yaml
-spark_config_path: "/path/to/spark_config.yaml"
-columns_config_path: "/path/to/columns_config.yaml"
-source_data_path: "/path/to/raw_data.parquet"
-log_level: "INFO"
+# Ou passando a spec explicitamente
+cidacsrl indexing --env-config /configs/env.yaml --spec-config /configs/pacientes_spec.yaml
 ```
 
-Para executar o módulo **elasticsearch_indexing**, é necessário fornecer o caminho para o arquivo de configuração.
+O argumento `--spec-config` tem precedência sobre `specification.indexing_path` no `env.yaml`.
+
+Para aumentar o nível de log durante a ingestão:
 
 ```bash
-python -m cidacsrl_rlp.src.workflows.elasticsearch_indexing_workflow --config-path /path/to/elasticsearch_indexing_config.yaml
+cidacsrl --log-level DEBUG indexing --env-config /configs/env.yaml
 ```
 
-
-Para obter instruções detalhadas sobre os comandos e todos os argumentos disponíveis, consulte a [Referência Técnica do Workflow de Indexação](../reference/elasticsearch_indexing_workflow.md).
+---
 
 ## Próximos Passos
 
-Com os dados devidamente indexados no Elasticsearch, é possível seguir para o [linkage](./linkage.md) entre uma fonte e o novo índice.
+Com o índice criado, siga para a execução do linkage entre a base fonte e o índice recém-criado.
+
+**➡️ [Linkage de Dados](./linkage.md)**
