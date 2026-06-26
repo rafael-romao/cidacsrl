@@ -1,29 +1,36 @@
-site_name: CIDACSRL Record Linkage Platform
-site_description: CIDACSRL-RLP Documentation
+site_name: CIDACS-RL Record Linkage Platform
+site_description: CIDACS-RL Documentation
 site_author: "Rafael Romão"
-repo_url: https://github.com/rafael-romao/cidacsrl-rlp
-repo_name: rafael-romao/cidacsrl-rlp
+repo_url: https://github.com/rafael-romao/cidacsrl
+repo_name: rafael-romao/cidacsrl
 edit_uri: tree/main/docs/
-theme: 
+theme:
   name: material
   language: pt-BR
 
 plugins:
   - mkdocstrings:
-      handlers: 
+      handlers:
           python:
-              paths: [cidacsrl_rlp.src]
+              paths: [src]
+
+markdown_extensions:
+  - pymdownx.superfences:
+      custom_fences:
+        - name: mermaid
+          class: mermaid
+          format: !!python/name:pymdownx.superfences.fence_code_format
+
+extra_javascript:
+  - https://unpkg.com/mermaid@11/dist/mermaid.min.js
 
 nav:
   - 'Início': 'index.md'
+  - 'Arquitetura':
+    - 'Visão Geral': 'architecture/overview.md'
+    - 'Fluxos de Execução': 'architecture/execution-flows.md'
   - 'Guias de Uso':
     - 'Limpeza de Dados': 'user-guide/cleaning.md'
     - 'Indexação no Elasticsearch': 'user-guide/elasticsearch_indexing.md'
     - 'Linkage de Dados': 'user-guide/linkage.md'
-  - 'Referência Técnica': 
-    - 'Workflows de Limpeza': 'reference/cleaning_workflow.md'
-    - 'Limpador de Colunas': 'reference/column_cleaner.md'
-    - 'Workflow de Indexação': 'reference/elasticsearch_indexing_workflow.md'
-    - 'Operações de Indexação': 'reference/indexing_operations.md'
-    - 'Carregador de Configuração': 'reference/loader.md'
-    - 'Workflow de Linkage': 'reference/sequential_linkage_workflow.md'
+    - 'Deduplicação': 'user-guide/deduplicate.md'
