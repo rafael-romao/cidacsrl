@@ -9,6 +9,8 @@ Engine de **linkage probabilístico de registros** para conectar bases de dados 
 
 Projetada para escala: usa **Apache Spark** para processamento distribuído e **Elasticsearch** como motor de blocagem, operando sobre dezenas de milhões de registros com controle fino de performance e rastreabilidade.
 
+Implementa o algoritmo descrito em **Barbosa et al. (2020)** — [*CIDACS-RL: a novel indexing search and scoring-based record linkage system for huge datasets with high accuracy and scalability*](https://doi.org/10.1186/s12911-020-01285-w), BMC Medical Informatics and Decision Making, 20:289.
+
 ## Como Funciona
 
 O pipeline é composto por quatro etapas. As três últimas são orquestradas pela CLI `cidacsrl`:
@@ -36,6 +38,8 @@ Dados Brutos (CSV / Parquet)
                                           (resolve cadeias de pares
                                            em grupos únicos)
 ```
+
+Esse fluxo corresponde às cinco etapas de um linkage bem-sucedido definidas no artigo original (Barbosa et al., 2020, p. 2): **(i)** pré-processamento (limpeza), **(ii)** blocagem (indexação no Elasticsearch), **(iii)** comparação par-a-par (cálculo de score no Spark), **(iv)** classificação dos pares (threshold), e **(v)** avaliação de acurácia.
 
 ## Pré-requisitos
 
@@ -99,6 +103,8 @@ Guias disponíveis:
 ## Arquitetura
 
 O projeto segue o padrão **Hexagonal (Ports & Adapters)** com três verticais independentes: Linkage, Indexing e Deduplication. Cada vertical possui seu próprio conjunto de ports (interfaces) e adapters (implementações), orquestrado por um use case na camada de aplicação. A injeção de dependências é feita manualmente via camada de Bootstrap.
+
+Este projeto é uma reimplementação do [fully-distributed-cidacs-rl](https://github.com/pierrepita/fully-distributed-cidacs-rl) (Pita et al.), que estendeu o algoritmo original de Barbosa et al. (2020) — onde a blocagem era feita via **Apache Lucene** — substituindo-o por **Elasticsearch** e adotando **Apache Spark** para processamento distribuído em cluster. A lógica de cascade de fases (exata → fuzzy, Algorithm 1 do artigo original) e as funções de similaridade (Jaro-Winkler para nomes, Hamming para datas) são preservadas; as principais contribuições desta versão são a adoção de **Elasticsearch Multisearch** para envio de queries em lote (reduzindo drasticamente a latência de rede em relação a queries individuais), a **execução particionada por coluna** com checkpoint e retomada automática de jobs interrompidos, uma **CLI instalável com configuração declarativa em YAML** em substituição a notebooks, e uma **arquitetura hexagonal** (Ports & Adapters) que desacopla motor de busca, motor de scoring e persistência — facilitando testes, substituição de componentes e evolução independente de cada vertical.
 
 ## Contribuição
 
