@@ -33,6 +33,8 @@ from cidacsrl.adapters.outbound.spark.scoring_adapter import (
     SparkScoringAdapter,
 )
 from cidacsrl.adapters.outbound.spark.spark_factory import create_spark_session
+from cidacsrl.ports.linkage.search_executor import SearchExecutor
+from cidacsrl.ports.linkage.telemetry_port import TelemetryPort
 from cidacsrl.adapters.outbound.telemetry.composite_linkage_telemetry_adapter import (
     CompositeLinkageTelemetryAdapter,
 )
@@ -61,6 +63,37 @@ from cidacsrl.domain.linkage.linkage_specification import (
 )
 
 logger = logging.getLogger("Bootstrap: Record Linkage")
+
+
+def _resolve_search_executor(es_config: ElasticsearchConfig) -> SearchExecutor:
+    strategy_name = es_config.get("search_strategy", "multisearch").lower()
+    if strategy_name == "single":
+        return SingleSearchExecutor()
+    if strategy_name == "multisearch":
+        return MultiSearchExecutor()
+    raise ValueError(f"Estratégia de busca Elasticsearch desconhecida: '{strategy_name}'.")
+
+
+def _build_telemetry_adapter(
+    execution_config: ExecutionConfig,
+    linkage_spec: SequentialLinkageSpecification,
+    job_id: str,
+) -> TelemetryPort:
+    adapters = [FormattedLogTelemetryAdapter()]
+    if execution_config.audit_log_path:
+        job_dir = (
+            f"{execution_config.audit_log_path}"
+            f"/{linkage_spec.linkage_project_name}"
+            f"/{job_id}"
+        )
+        adapters.append(
+            JsonlLinkageTelemetryAdapter(
+                phases_path=f"{job_dir}/phases.jsonl",
+                units_path=f"{job_dir}/units.jsonl",
+                job_path=f"{job_dir}/job.jsonl",
+            )
+        )
+    return CompositeLinkageTelemetryAdapter(adapters)
 
 
 def _run_preflight_validations(
@@ -142,13 +175,7 @@ def build_linkage_use_case(
     job_id = execution_config.job_id
     logger.info(f"Contexto operacional resolvido. Job ID: '{job_id}'")
 
-    strategy_name = es_config.get("search_strategy", "multisearch").lower()
-    if strategy_name == "single":
-        search_executor = SingleSearchExecutor()
-    elif strategy_name == "multisearch":
-        search_executor = MultiSearchExecutor()
-    else:
-        raise ValueError(f"Estratégia de busca Elasticsearch desconhecida: '{strategy_name}'.")
+    search_executor = _resolve_search_executor(es_config)
 
     spark = create_spark_session(
         app_name=f"CIDACS-RL Linkage - {linkage_spec.source_table}_{linkage_spec.target_es_index}",
@@ -172,21 +199,7 @@ def build_linkage_use_case(
         project_name=linkage_spec.linkage_project_name,
     )
 
-    telemetry_adapters = [FormattedLogTelemetryAdapter()]
-    if execution_config.audit_log_path:
-        job_dir = (
-            f"{execution_config.audit_log_path}"
-            f"/{linkage_spec.linkage_project_name}"
-            f"/{job_id}"
-        )
-        telemetry_adapters.append(
-            JsonlLinkageTelemetryAdapter(
-                phases_path=f"{job_dir}/phases.jsonl",
-                units_path=f"{job_dir}/units.jsonl",
-                job_path=f"{job_dir}/job.jsonl",
-            )
-        )
-    telemetry_adapter = CompositeLinkageTelemetryAdapter(telemetry_adapters)
+    telemetry_adapter = _build_telemetry_adapter(execution_config, linkage_spec, job_id)
 
     _run_preflight_validations(linkage_spec, execution_config, es_config, ingestion_adapter)
 
