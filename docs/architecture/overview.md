@@ -75,12 +75,13 @@ flowchart TB
     end
 
     CLI2 --> BOOTSTRAP
+    CLI2 -->|"executa"| APP
     BOOTSTRAP --> CONFIG
     BOOTSTRAP --> APP
-    BOOTSTRAP --> PORTS
+    BOOTSTRAP --> OUTBOUND
     APP --> PORTS
     APP --> DOMAIN
-    PORTS --> OUTBOUND
+    OUTBOUND -.->|"implementa"| PORTS
 ```
 
 ---
@@ -91,13 +92,27 @@ flowchart TB
 flowchart LR
     subgraph SRC["src/cidacsrl/"]
         direction TB
-        PKG_A["adapters/\n  inbound/cli/\n  outbound/spark/\n  outbound/elasticsearch/\n  outbound/graph/\n  outbound/telemetry/\n  outbound/checkpoint/"]
-        PKG_B["application/\n  linkage/\n  indexing/\n  deduplication/"]
-        PKG_C["bootstrap/\n  linkage_bootstrap\n  indexing_bootstrap\n  deduplication_bootstrap"]
-        PKG_D["config/\n  loader · dedup_loader\n  models/"]
-        PKG_E["domain/\n  linkage/\n  indexing/\n  deduplication/\n  cleaning/"]
-        PKG_F["ports/\n  linkage/\n  indexing/\n  deduplication/"]
+        PKG_IN["adapters/inbound/\n  cli/"]
+        PKG_OUT["adapters/outbound/\n  spark · elasticsearch\n  graph · telemetry · checkpoint"]
+        PKG_B["application/\n  linkage · indexing · deduplication"]
+        PKG_C["bootstrap/\n  linkage · indexing · deduplication"]
+        PKG_D["config/\n  loader · dedup_loader · models/"]
+        PKG_E["domain/\n  linkage · indexing\n  deduplication · cleaning"]
+        PKG_F["ports/\n  linkage · indexing · deduplication"]
     end
+
+    PKG_IN --> PKG_C
+    PKG_C --> PKG_OUT
+    PKG_C --> PKG_B
+    PKG_C --> PKG_D
+    PKG_B --> PKG_F
+    PKG_B --> PKG_E
+    PKG_B --> PKG_D
+    PKG_OUT -.->|"implementa"| PKG_F
+    PKG_OUT --> PKG_E
+    PKG_OUT --> PKG_D
+    PKG_F --> PKG_E
+    PKG_D --> PKG_E
 ```
 
 ---

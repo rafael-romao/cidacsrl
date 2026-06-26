@@ -41,16 +41,16 @@ flowchart TD
 
         subgraph PHASE["Por Fase"]
             I --> J{Registros\nrestantes > 0?}
-            J -- Não --> K[Fase esgotada — próxima WU]
             J -- Sim --> L[SparkESSearchAdapter\nbusca candidatos no ES]
             L --> M[SparkScoringAdapter\ncalcula score de similaridade]
             M --> N[DataTransformationAdapter\nfiltra por threshold]
             N --> O[SparkDataPersistenceAdapter\nsalva pares fase N]
             O --> P[DataTransformationAdapter\nexclui pareados — left-anti join]
             P --> Q[Telemetry: log de fase]
-            Q --> I
+            Q -->|"próxima fase"| I
         end
 
+        J -- Não --> K[Fases esgotadas]
         K --> R[JSONCheckpointAdapter\natualiza status COMPLETED]
     end
 
