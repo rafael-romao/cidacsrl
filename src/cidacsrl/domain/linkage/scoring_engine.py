@@ -19,10 +19,26 @@ SIMILARITY_FUNCTION_MAP: Dict[str, Callable[[Any, Any], float]] = {
 
 def calculate_pair_scores_and_similarities(
     source_row_dict: Dict[str, Any],
-    candidate_data_dict: Dict[str, Any], 
+    candidate_data_dict: Dict[str, Any],
     rules: List[ComparisonRule],
     debug: bool = False,
 ) -> Dict[str, Any]:
+    """Calcula o score composto e as similaridades individuais entre um par de registros.
+
+    Para cada regra aplica a função de similaridade configurada e pondera pelo weight.
+    Valores nulos disparam penalty (se configurado). O score final é normalizado
+    pelo peso total das regras e clampado a [0.0, 1.0].
+
+    Args:
+        source_row_dict: Campos do registro de origem como dicionário.
+        candidate_data_dict: Campos do registro candidato como dicionário.
+        rules: Lista de regras de comparação com pesos e funções de similaridade.
+        debug: Se True, inclui breakdown detalhado por regra em '_debug'. Defaults to False.
+
+    Returns:
+        Dicionário com 'match_score' (float), 'sim_<column>' por regra,
+        e '_debug' (se debug=True).
+    """
     if not rules:
         if debug:
             return {

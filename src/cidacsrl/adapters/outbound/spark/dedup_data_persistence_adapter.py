@@ -10,6 +10,8 @@ logger = logging.getLogger("Adapter: SparkDataPersistence")
 
 
 class SparkDataPersistenceAdapter(DataPersistencePort):
+    """Adapter de persistência do resultado deduplicado em storage."""
+
     def __init__(self, storage: OutputStorageConfig):
         self._storage = storage
 

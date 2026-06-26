@@ -10,12 +10,23 @@ from cidacsrl.ports.linkage.data_transformation_port import (
 
 
 class SparkDataTransformationAdapter(DataTransformationPort):
+    """Adapter de transformações de DataFrame para o pipeline de linkage."""
 
     def add_phase_marker(self, df: DataFrame, phase_name: str) -> DataFrame:
         return df.withColumn("phase_match", F.lit(phase_name))
 
     
     def exclude_records(self, primary_dataset: DataFrame, records_to_exclude: DataFrame, join_key: str) -> DataFrame:
+        """Remove do dataset fonte os registros já pareados em fases anteriores.
+
+        Args:
+            primary_dataset: DataFrame de origem com os registros a filtrar.
+            records_to_exclude: DataFrame de pares já pareados, com coluna 'source_<join_key>'.
+            join_key: Nome da coluna de ID na tabela de origem.
+
+        Returns:
+            DataFrame com os registros ainda não pareados.
+        """
         join_condition = primary_dataset[join_key] == records_to_exclude[f"source_{join_key}"]
         return primary_dataset.join(records_to_exclude, on=join_condition, how="left_anti")
     

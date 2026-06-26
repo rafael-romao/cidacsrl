@@ -46,6 +46,20 @@ class RecordLinkageUseCase:
         self.telemetry = telemetry_port
 
     def execute(self, specification: SequentialLinkageSpecification, job_id: str, execution_config: ExecutionConfig) -> None:
+        """Executa o pipeline multifases de linkage para todas as work units.
+
+        Para cada work unit, itera pelas fases em sequência, removendo via left-anti
+        join os registros já pareados antes de cada fase subsequente. Persiste os
+        pares de cada fase e mantém o arquivo de checkpoint atualizado.
+
+        Args:
+            specification: Especificação do projeto com fases, regras e colunas.
+            job_id: Identificador do job (usado em checkpoint e telemetria).
+            execution_config: Configuração de execução com particionamento e paths.
+
+        Raises:
+            Exception: Propaga qualquer erro de execução após registrar falha no checkpoint.
+        """
         project_name = specification.linkage_project_name
         logger.info(f"[{job_id}] - Linkage '{project_name}' - Fonte: '{specification.source_table}' - Índice: '{specification.target_es_index}'.")
 

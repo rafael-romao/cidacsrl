@@ -69,6 +69,21 @@ def _run_preflight_validations(
     es_config: ElasticsearchConfig,
     ingestion_adapter: SparkDataIngestionAdapter,
 ) -> None:
+    """Valida infraestrutura e schemas antes de iniciar o pipeline de linkage.
+
+    Verifica acessibilidade do storage de origem, presença das colunas requeridas
+    na tabela fonte (incluindo coluna de partição, se configurada) e consistência
+    do mapeamento do índice Elasticsearch com as colunas esperadas.
+
+    Args:
+        linkage_spec: Especificação do projeto com tabela fonte e índice alvo.
+        execution_config: Configuração com coluna de partição e paths de auditoria.
+        es_config: Configuração de conexão com o Elasticsearch.
+        ingestion_adapter: Adapter de ingestão já instanciado para validações de schema.
+
+    Raises:
+        ValueError: Se o storage estiver inacessível ou alguma coluna requerida estiver ausente.
+    """
     logger.info("Iniciando validações de pré-execução...")
 
     errors = ingestion_adapter.check_health(linkage_spec.source_table)
@@ -98,6 +113,24 @@ def build_linkage_use_case(
     es_config_data: Dict[str, Any],
     spark_config_data: Dict[str, Any],
 ) -> Tuple[RecordLinkageUseCase, SequentialLinkageSpecification, ExecutionConfig, SparkSession]:
+    """Constrói e retorna o use case de linkage com todas as dependências injetadas.
+
+    Realiza parsing das configurações, instancia todos os adapters (Spark, ES, telemetria,
+    checkpoint), executa validações de pré-execução e inicializa o orquestrador de work units.
+
+    Args:
+        storage_config_data: Configuração bruta de storage (origem e saída).
+        execution_config_data: Configuração de execução (job ID, particionamento, auditoria).
+        linkage_spec_data: Especificação bruta do projeto de linkage (fases e regras).
+        es_config_data: Configuração de conexão e estratégia de busca no Elasticsearch.
+        spark_config_data: Configurações da SparkSession.
+
+    Returns:
+        Tupla com (use_case, linkage_spec, execution_config, spark_session).
+
+    Raises:
+        ValueError: Se a estratégia de busca ES for inválida ou as validações falharem.
+    """
     logger.info("Building Sequential Linkage use case...")
 
     linkage_spec = parse_sequential_linkage_specification(linkage_spec_data)

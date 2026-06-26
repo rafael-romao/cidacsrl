@@ -11,6 +11,8 @@ from cidacsrl.ports.linkage.data_persistence_port import DataPersistencePort
 logger = logging.getLogger("Adapter: Persistence")
 
 class SparkDataPersistenceAdapter(DataPersistencePort):
+    """Adapter de persistência dos pares por fase, particionando o output dinamicamente."""
+
     def __init__(self, output_config: OutputStorageConfig):
         self.config = output_config
 

@@ -36,6 +36,14 @@ def _load_yaml(file_path: Union[str, Path]) -> Dict[str, Any]:
 
 
 def load_deduplicate_workflow_config(path: Union[str, Path]) -> DeduplicateWorkflowConfig:
+    """Carrega e parseia a configuração do workflow de deduplicação a partir de YAML.
+
+    Args:
+        path: Caminho para o arquivo YAML de configuração.
+
+    Returns:
+        DeduplicateWorkflowConfig pronta para uso.
+    """
     logger.info(f"Carregando configuração do workflow: '{path}'")
     data = _load_yaml(path)
     config = DeduplicateWorkflowConfig.from_dict(data)

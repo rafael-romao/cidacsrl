@@ -42,6 +42,21 @@ def build_indexing_use_case(
     spark_config_data: Dict[str, Any],
     execution_config_data: Dict[str, Any] = None,
 ) -> Tuple[IndexDatasetUseCase, DatasetIndexingSpecification, SparkSession]:
+    """Constrói e retorna o use case de indexação com todas as dependências injetadas.
+
+    Instancia adapters de ingestão Spark, indexação ES e telemetria (log formatado
+    e JSONL opcional, se audit_log_path configurado).
+
+    Args:
+        storage_config_data: Configuração de storage com source_path e source_format.
+        indexing_spec_data: Especificação bruta do índice (nome, settings, colunas).
+        es_config_data: Configuração de conexão com o Elasticsearch.
+        spark_config_data: Configurações da SparkSession.
+        execution_config_data: Configuração de execução para auditoria. Defaults to None.
+
+    Returns:
+        Tupla com (use_case, indexing_spec, spark_session).
+    """
     logger.info("Building Indexing use case...")
 
     execution_config = parse_execution_config(execution_config_data or {})

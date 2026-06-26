@@ -9,6 +9,14 @@ from cidacsrl.ports.linkage.data_ingestion_port import DataIngestionPort
 
 
 class IndexDatasetUseCase:
+    """Caso de uso para criação de índice Elasticsearch e ingestão de dados.
+
+    Args:
+        ingestion_port: Porta para leitura da tabela de origem.
+        indexing_port: Porta para criação do índice e ingestão no ES.
+        telemetry_port: Porta para registro de telemetria de indexação.
+    """
+
     def __init__(
         self,
         ingestion_port: DataIngestionPort,
@@ -20,6 +28,11 @@ class IndexDatasetUseCase:
         self.telemetry = telemetry_port
 
     def execute(self, spec: DatasetIndexingSpecification) -> None:
+        """Executa o pipeline de indexação: garante o índice e ingere os dados.
+
+        Args:
+            spec: Especificação completa do dataset a indexar (fonte, índice, colunas).
+        """
         source_table = spec.source_config.source_table
         index_name = spec.index_config.name
         total_start = time.time()

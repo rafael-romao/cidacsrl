@@ -39,6 +39,18 @@ _CHECKPOINT_DIR = "/tmp/cidacsrl_dedup_checkpoint"
 def build_deduplication_use_case(
     config: DeduplicateWorkflowConfig,
 ) -> Tuple[DeduplicateUseCase, SparkSession]:
+    """Constrói e retorna o use case de deduplicação com todas as dependências injetadas.
+
+    Cria SparkSession com suporte a GraphFrames (checkpoint dir configurado),
+    instancia adapters de leitura, processamento de grafo, persistência e telemetria
+    (log formatado + JSONL derivado do output_path).
+
+    Args:
+        config: Configuração completa do workflow de deduplicação.
+
+    Returns:
+        Tupla com (use_case, spark_session).
+    """
     logger.info("Building Deduplication use case...")
 
     spark = create_spark_session(

@@ -11,6 +11,8 @@ from cidacsrl.ports.linkage.data_ingestion_port import DataIngestionPort
 logger = logging.getLogger("Adapter: SparkDataIngestionAdapter")
 
 class SparkDataIngestionAdapter(DataIngestionPort):
+    """Adapter de ingestão de dados via Spark."""
+
     def __init__(self, spark_session: SparkSession, storage_config: SourceStorageConfig):
         self.spark = spark_session
         self.storage_config = storage_config
@@ -90,4 +92,14 @@ class SparkDataIngestionAdapter(DataIngestionPort):
         return df
         
     def get_partitioned_sample(self, table_name: str, fraction: float, seed: Optional[int] = None, **kwargs) -> DataFrame:
+        """Retorna uma amostra aleatória da tabela de origem.
+
+        Args:
+            table_name: Nome da tabela a amostrar.
+            fraction: Fração dos dados a retornar (0.0–1.0).
+            seed: Semente para reprodutibilidade. Defaults to None.
+
+        Returns:
+            DataFrame com a fração amostrada da tabela.
+        """
         return self.read_source_data(table_name).sample(withReplacement=False, fraction=fraction, seed=seed)

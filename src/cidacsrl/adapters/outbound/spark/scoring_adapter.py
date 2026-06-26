@@ -12,6 +12,7 @@ from cidacsrl.ports.linkage.scoring_port import ScoringPort
 
 
 class SparkScoringAdapter(ScoringPort):
+    """Adapter de scoring via UDF Spark, aplicando calculate_pair_scores_and_similarities por par."""
 
     def _build_score_schema(self, phase_context: BlockingPhaseContext, debug: bool = False) -> StructType:
         fields = [StructField("match_score", FloatType(), nullable=True)]

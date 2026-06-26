@@ -8,6 +8,8 @@ logger = logging.getLogger("Adapter: SparkDataReader")
 
 
 class SparkDataReaderAdapter(DataReaderPort):
+    """Adapter de leitura dos pares linkados para o pipeline de deduplicação."""
+
     def __init__(self, spark: Any, storage: SourceStorageConfig):
         self._spark = spark
         self._storage = storage

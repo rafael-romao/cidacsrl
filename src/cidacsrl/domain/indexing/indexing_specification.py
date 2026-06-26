@@ -4,6 +4,13 @@ from typing import Any, Dict, List, Optional
 
 @dataclass
 class SourceConfig:
+    """Configuração da tabela de origem para indexação.
+
+    Attributes:
+        source_table: Nome da tabela a ser indexada.
+        id_field: Campo da tabela usado como _id no Elasticsearch.
+    """
+
     source_table: str
     id_field: str
 
@@ -16,6 +23,16 @@ class SourceConfig:
 
 @dataclass
 class IndexSettingsConfig:
+    """Configurações de infraestrutura do índice Elasticsearch.
+
+    Attributes:
+        name: Nome do índice.
+        id_from_source: Se True, usa id_field da tabela como _id do documento ES. Defaults to False.
+        number_of_shards: Número de shards primários. Defaults to 1.
+        number_of_replicas: Número de réplicas. Defaults to 0.
+        refresh_interval: Intervalo de refresh do índice. Defaults to "1s".
+    """
+
     name: str
     id_from_source: Optional[bool] = False
     number_of_shards: int = 1
@@ -34,6 +51,14 @@ class IndexSettingsConfig:
 
 @dataclass
 class IndexColumnConfig:
+    """Definição de uma coluna a ser indexada no Elasticsearch.
+
+    Attributes:
+        name: Nome da coluna na tabela de origem e no índice ES.
+        type: Tipo de dado ES (ex.: 'text', 'keyword', 'integer').
+        index_as: Estratégia de indexação alternativa (ex.: 'keyword' para um campo 'text'). Optional.
+    """
+
     name: str
     type: str
     index_as: Optional[str] = None
@@ -48,6 +73,14 @@ class IndexColumnConfig:
 
 @dataclass
 class DatasetIndexingSpecification:
+    """Especificação completa para indexação de um dataset no Elasticsearch.
+
+    Attributes:
+        source_config: Configuração da tabela de origem e campo de ID.
+        index_config: Configurações de infraestrutura do índice (nome, shards, replicas).
+        index_columns: Definição das colunas a indexar com tipos e estratégias.
+    """
+
     source_config: SourceConfig
     index_config: IndexSettingsConfig
     index_columns: List[IndexColumnConfig] = field(default_factory=list)

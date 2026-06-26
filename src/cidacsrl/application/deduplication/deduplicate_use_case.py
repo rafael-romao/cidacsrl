@@ -44,6 +44,11 @@ class DeduplicateUseCase:
         self.telemetry = telemetry
 
     def execute(self, spec: DeduplicationSpecification) -> None:
+        """Executa o pipeline de deduplicação sobre os pares linkados.
+
+        Args:
+            spec: Especificação com nomes das colunas de ID e da coluna de saída do cluster.
+        """
         total_start = time.time()
         self.telemetry.log_deduplication_start(
             id_source=spec.id_source_column,

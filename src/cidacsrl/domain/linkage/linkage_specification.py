@@ -19,6 +19,14 @@ def _dedupe_fields(fields: Iterable[str]) -> List[str]:
 
 @dataclass
 class BlockingPhaseTargetFields:
+    """Campos do índice Elasticsearch requeridos por uma fase de blocagem.
+
+    Attributes:
+        comparison_fields: Campos usados diretamente nas regras de comparação.
+        required_fields: Campos obrigatórios no resultado (ex.: ID do alvo).
+        extra_fields: Campos adicionais a retornar além dos requeridos e de comparação.
+    """
+
     comparison_fields: List[str] = field(default_factory=list)
     required_fields: List[str] = field(default_factory=list)
     extra_fields: List[str] = field(default_factory=list)
@@ -30,6 +38,7 @@ class BlockingPhaseTargetFields:
 
     @property
     def fetch_fields(self) -> List[str]:
+        """Todos os campos a buscar no ES, sem duplicatas, na ordem (required, comparison, extra)."""
         return _dedupe_fields(
             [
                 *self.required_fields,
@@ -40,15 +49,30 @@ class BlockingPhaseTargetFields:
 
     @property
     def result_fields(self) -> List[str]:
+        """Todos os campos a projetar no resultado final, sem duplicatas."""
         return _dedupe_fields([
-            *self.required_fields, 
+            *self.required_fields,
             *self.comparison_fields,
-            *self.extra_fields       
+            *self.extra_fields
         ])
 
 
 @dataclass
 class BlockingPhaseContext:
+    """Contexto de execução de uma fase de blocagem, resolvido a partir da especificação.
+
+    Attributes:
+        phase_name: Nome único da fase.
+        phase_description: Descrição opcional da fase.
+        enabled: Se False, a fase é pulada no pipeline. Defaults to True.
+        candidate_limit: Número máximo de candidatos por registro de origem. Defaults to 10.
+        strong_match_score_threshold: Score mínimo para considerar um par como match forte. Defaults to 0.9.
+        rules: Regras de comparação com pesos e funções de similaridade.
+        target_fields: Campos do índice ES requeridos pela fase.
+        indexed_dataset_filter: Filtros estáticos aplicados a todas as queries ES da fase.
+        source_output_fields: Campos da tabela fonte a incluir no output da fase.
+    """
+
     phase_name: str
     phase_description: Optional[str] = None
     enabled: bool = True
@@ -99,6 +123,17 @@ class SequentialLinkageSpecification:
         return f"linkage_{self.source_table}_{self.target_es_index}"
 
     def build_blocking_phase_context(self, phase: BlockingPhase) -> BlockingPhaseContext:
+        """Constrói o contexto de execução de uma fase de blocagem.
+
+        Resolve filtros (da fase ou do nível global) e agrega os campos alvo
+        com o ID do índice e os campos extras da especificação.
+
+        Args:
+            phase: Configuração da fase a converter em contexto de execução.
+
+        Returns:
+            BlockingPhaseContext pronto para uso pelo pipeline.
+        """
         raw_filters = phase.indexed_dataset_filter if getattr(phase, "indexed_dataset_filter", None) is not None else self.indexed_dataset_filter
 
         parsed_filters = None
@@ -121,12 +156,24 @@ class SequentialLinkageSpecification:
         )
 
     def build_blocking_phase_contexts(self) -> List[BlockingPhaseContext]:
+        """Constrói os contextos de execução de todas as fases da especificação.
+
+        Returns:
+            Lista de BlockingPhaseContext na mesma ordem das fases configuradas.
+        """
         return [
             self.build_blocking_phase_context(phase)
             for phase in self.blocking_phases
         ]
     
     def get_required_target_columns(self) -> set[str]:
+        """Coleta todas as colunas requeridas do índice Elasticsearch.
+
+        Agrega os fetch_fields de todas as fases e inclui o ID do alvo.
+
+        Returns:
+            Conjunto de nomes de colunas que devem existir no índice ES.
+        """
         required_fields = set()
         for phase_context in self.build_blocking_phase_contexts():
             for field in phase_context.target_fields.fetch_fields:
@@ -135,6 +182,13 @@ class SequentialLinkageSpecification:
         return required_fields
 
     def get_required_source_columns(self) -> set[str]:
+        """Coleta todas as colunas requeridas da tabela de origem.
+
+        Inclui o ID da fonte e as source_columns de todas as regras de todas as fases.
+
+        Returns:
+            Conjunto de nomes de colunas que devem existir na tabela fonte.
+        """
         required_fields = {self.id_source_table}
         for phase in self.blocking_phases:
             for rule in phase.rules:

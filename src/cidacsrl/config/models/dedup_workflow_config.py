@@ -12,6 +12,16 @@ from cidacsrl.domain.deduplication.deduplication_specification import (
 
 @dataclass(frozen=True)
 class DeduplicateWorkflowConfig:
+    """Configuração completa do workflow de deduplicação.
+
+    Attributes:
+        source_storage: Configuração de leitura dos pares linkados de entrada.
+        output_storage: Configuração de escrita do resultado deduplicado.
+        deduplication_spec: Mapeamento das colunas de ID e da coluna de cluster de saída.
+        app_name: Nome da SparkSession. Defaults to "CIDACS-RL Deduplication".
+        spark_configs: Parâmetros adicionais da SparkSession.
+    """
+
     source_storage: SourceStorageConfig
     output_storage: OutputStorageConfig
     deduplication_spec: DeduplicationSpecification

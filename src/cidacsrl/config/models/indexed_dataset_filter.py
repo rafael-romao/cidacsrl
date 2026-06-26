@@ -65,8 +65,16 @@ class IndexedDatasetFilterItem:
 
 
 def parse_indexed_dataset_filter(data: Any) -> Optional[List[Dict[str, Any]]]:
-    """
-    Validates indexed_dataset_filter structure and returns a normalized list of dicts.
+    """Valida e normaliza a estrutura de filtros de dataset indexado.
+
+    Args:
+        data: Lista de dicionários de filtro, ou None.
+
+    Returns:
+        Lista normalizada de dicionários de filtro, ou None se data for None.
+
+    Raises:
+        ValueError: Se data não for uma lista ou algum item for inválido.
     """
     if data is None:
         return None
