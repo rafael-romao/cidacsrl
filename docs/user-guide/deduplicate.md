@@ -25,6 +25,21 @@ O processo:
 
 ---
 
+## Colunas no Output do Linkage
+
+O output do linkage nomeia as colunas com prefixos para distinguir a origem dos dados:
+
+- **`source_{coluna}`** — campos originados da tabela fonte (ex: `source_codigo_acidente`, `source_nome_completo`)
+- **`candidate_{coluna}`** — campos originados do índice Elasticsearch (ex: `candidate_codigo_obito`, `candidate_nome_completo`)
+- **`match_score`** — score final do par (média ponderada das similaridades)
+- **`es_score`** — score de relevância retornado pelo Elasticsearch
+- **`sim_{coluna}`** — score individual de similaridade por regra (ex: `sim_nome_completo`)
+- **`phase_match`** — nome da fase de blocagem que gerou o par
+
+Os campos `id_source_column` e `id_target_column` no config de deduplicação devem usar esses nomes prefixados.
+
+---
+
 ## Configuração
 
 A deduplicação usa um único arquivo YAML:
@@ -48,17 +63,21 @@ spark:
   spark_configs:
     spark.executor.memory: "4g"
     spark.driver.memory: "2g"
+    spark.jars.packages: "graphframes:graphframes:0.8.3-spark3.5-s_2.12"
+    spark.jars.repositories: "https://repos.spark-packages.org/"
 ```
 
 ### Campos de `deduplication`
 
 | Campo | Obrigatório | Padrão | Descrição |
 |---|---|---|---|
-| `id_source_column` | Sim | — | Coluna de ID da fonte no output do linkage |
-| `id_target_column` | Sim | — | Coluna de ID do alvo no output do linkage |
+| `id_source_column` | Sim | — | Coluna de ID da fonte no output do linkage (inclui prefixo `source_`) |
+| `id_target_column` | Sim | — | Coluna de ID do alvo no output do linkage (inclui prefixo `candidate_`) |
 | `output_group_id_column` | Não | `cidacs_cluster_id` | Nome da coluna de cluster no output |
 
 > `id_source_column` e `id_target_column` não podem ser iguais.
+
+**Sobre o GraphFrames:** o algoritmo de componentes conectados requer o pacote `graphframes`, que não está no repositório Maven padrão. Use `spark.jars.packages` junto com `spark.jars.repositories` apontando para `https://repos.spark-packages.org/`.
 
 ---
 

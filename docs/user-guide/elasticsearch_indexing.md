@@ -28,22 +28,23 @@ O `spec.yaml` pode ser referenciado diretamente no `env.yaml` ou passado via arg
 ```yaml
 # env.yaml
 storage:
-  source_path: "/data/cleaned/pacientes.parquet"
-  source_format: "parquet"   # padrão; pode ser omitido
-  output_path: "/data/output" # não utilizado na indexação, mas obrigatório no schema
+  source_path: "/data/cleaned"
+  source_format: "parquet"
+  output_path: "/data/output"   # não utilizado na indexação, mas obrigatório no schema
 
 elasticsearch:
   es_connection_url: "http://localhost:9200"
   verify_certs: false
   request_timeout: 60
-  # es_user: "elastic"        # opcional
-  # es_password: "senha"      # opcional
-  # api_key: "chave"          # opcional
+  # es_user: "elastic"          # opcional
+  # es_password: "senha"        # opcional
+  # api_key: "chave"            # opcional
 
 spark:
   spark_configs:
     spark.executor.memory: "4g"
     spark.driver.memory: "2g"
+    spark.jars.packages: "org.elasticsearch:elasticsearch-spark-30_2.12:9.1.8"
 
 # Opcional: embute o caminho da spec diretamente no env
 specification:
@@ -101,9 +102,15 @@ index_columns:
 |---|---|---|
 | `name` | Sim | Nome da coluna no Parquet e no índice ES |
 | `type` | Sim | Tipo ES: `text`, `keyword`, `integer`, `long`, `float`, `date`, etc. |
-| `index_as` | Não | Estratégia alternativa de indexação (ex: `keyword` para um campo `text`) |
+| `index_as` | Não | Estratégia alternativa de indexação para campos `text` ou `keyword`: `"keyword"`, `"text"` ou `"both"` |
+| `format` | Não | Formato de data (ex: `"yyyy-MM-dd"`); aplicável quando `type: date` |
 
-**Dica:** use `type: text` para campos comparados com Jaro-Winkler e `type: keyword` ou `type: integer` para campos comparados com similaridade exata. Isso garante que o analisador do ES não tokenize valores que devem ser tratados como unidade.
+**Sobre `index_as: both`:** cria o campo como `text` (com análise para busca por token) e adiciona automaticamente um subcampo `.keyword` (sem análise). Isso permite usar o mesmo campo tanto em queries `match` (busca fuzzy de texto) quanto em queries `term` (comparação exata). Recomendado para campos de nome usados com Jaro-Winkler.
+
+**Sobre tipos e similaridade no linkage:**
+- Use `type: text` + `index_as: both` para campos comparados com Jaro-Winkler (ex: nomes)
+- Use `type: keyword` para campos comparados com similaridade exata (ex: UF, código de município)
+- Use `type: date` com `format` para campos de data
 
 ---
 

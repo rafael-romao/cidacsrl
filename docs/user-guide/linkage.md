@@ -43,8 +43,8 @@ Se um dos campos for nulo, a `penalty` da regra é subtraída do score.
 
 O threshold define o score mínimo para considerar um par como match forte em uma fase. Um par com score ≥ threshold é gravado como resultado e o registro fonte é removido das fases seguintes.
 
-- Valores **altos** (ex: 0.95): muita precisão, menor recall — apenas os pares mais seguros são capturados.
-- Valores **baixos** (ex: 0.60): maior recall, mais falsos positivos — útil em fases finais para capturar casos difíceis.
+- Valores **altos** (ex: 0.99): muita precisão, menor recall — apenas os pares mais seguros são capturados.
+- Valores **baixos** (ex: 0.75): maior recall, mais falsos positivos — útil em fases finais para capturar casos difíceis.
 
 ### `es_clause_type`: `must` vs `should`
 
@@ -57,7 +57,7 @@ O `es_clause_type` determina o papel do campo na query Elasticsearch que recuper
 | `filter` | Como `must`, mas sem afetar o score de relevância do ES. Bom para filtros de partição. |
 | `must_not` | O documento **não deve** ter match neste campo. |
 
-**Regra prática:** use `must` para campos que são condição necessária para a busca (ex: nome em fase exata). Use `should` para campos que refinam o ranking mas não devem excluir candidatos (ex: nome da mãe em fase mais flexível).
+**Regra prática:** use `must` em fases exatas para campos que são condição necessária. Use `should` em fases fuzzy para campos que refinam o ranking mas não devem excluir candidatos.
 
 ### `query_type`: como o Elasticsearch interpreta o valor
 
@@ -67,6 +67,13 @@ O `es_clause_type` determina o papel do campo na query Elasticsearch que recuper
 | `term` | Campos de valor exato (keyword, integer); sem análise |
 | `match_phrase` | Campos onde a ordem das palavras importa (ex: logradouro) |
 | `prefix` | Busca por prefixo; útil para nomes quando apenas os primeiros caracteres são confiáveis |
+
+### `is_fuzzy`
+
+Quando `is_fuzzy: true`, a query `match` enviada ao Elasticsearch usa `fuzziness: AUTO`, permitindo que o ES recupere candidatos com pequenas variações ortográficas já na fase de blocagem. Só pode ser usado com `query_type: match` (o padrão).
+
+- **Fase exata:** `is_fuzzy: false` (padrão) — blocagem restrita, apenas correspondências exatas ou próximas do analisador de texto.
+- **Fase fuzzy:** `is_fuzzy: true` — blocagem ampla, recupera candidatos mesmo com erros de digitação.
 
 ### Funções de Similaridade
 
@@ -89,7 +96,7 @@ A função de `similarity` é aplicada **após** a recuperação dos candidatos,
 
 ## Estrutura de Configuração
 
-O linkage também usa dois arquivos YAML separados.
+O linkage usa dois arquivos YAML separados.
 
 ### Arquivo de Ambiente (`env.yaml`)
 
@@ -122,6 +129,7 @@ spark:
   spark_configs:
     spark.executor.memory: "8g"
     spark.driver.memory: "4g"
+    spark.jars.packages: "org.elasticsearch:elasticsearch-spark-30_2.12:9.1.8"
 
 # Opcional: embute o caminho da spec no env
 specification:
@@ -225,6 +233,19 @@ blocking_phases:
 ```
 
 > Fases com `enabled: false` são silenciosamente ignoradas durante a execução.
+
+### Campos de uma regra de comparação
+
+| Campo | Obrigatório | Padrão | Descrição |
+|---|---|---|---|
+| `source_column` | Sim | — | Coluna na tabela fonte |
+| `target_column` | Sim | — | Campo no índice Elasticsearch |
+| `es_clause_type` | Sim | — | `must`, `should`, `filter` ou `must_not` |
+| `similarity` | Sim | — | `jaro_winkler`, `exact` ou `hamming` |
+| `weight` | Sim | — | Peso da regra no score final (valor positivo) |
+| `query_type` | Não | `match` | `match`, `term`, `match_phrase` ou `prefix` |
+| `is_fuzzy` | Não | `false` | Usa `fuzziness:AUTO` na query ES (só com `query_type: match`) |
+| `penalty` | Não | `0.0` | Valor subtraído do score quando um dos campos for nulo |
 
 ---
 
