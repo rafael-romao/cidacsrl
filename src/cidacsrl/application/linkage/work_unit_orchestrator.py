@@ -55,12 +55,7 @@ class WorkUnitOrchestrator:
         partitions = list(execution_config.partitioning.filter_partitions)
         job_id = execution_config.job_id
 
-        logical_scope = WorkUnitFactory.create_execution_scope(partition_col, partitions)
-
-        records_to_init: List[WorkUnitExecutionRecord] = [
-            WorkUnitExecutionRecord(unit_id=metadata.unit_id, filters=metadata.filters)
-            for metadata in logical_scope
-        ]
+        records_to_init = WorkUnitFactory.create_execution_scope(partition_col, partitions)
 
         self.checkpoint.initialize_job_state(job_id, records_to_init)
 

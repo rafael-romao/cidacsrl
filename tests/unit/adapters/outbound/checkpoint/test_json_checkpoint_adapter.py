@@ -1,7 +1,7 @@
 import json
 from pathlib import Path
 import pytest
-from cidacsrl.domain.linkage.tracking.work_unit import WorkUnitMetadata, WorkUnitStatus, WorkUnitExecutionRecord
+from cidacsrl.domain.linkage.tracking.work_unit import WorkUnitStatus, WorkUnitExecutionRecord
 from cidacsrl.adapters.outbound.checkpoint.json_checkpoint_adapter import JSONCheckpointAdapter
 
 PROJECT_NAME = "test_project"
@@ -61,7 +61,7 @@ def test_initialize_job_state_does_not_overwrite_existing_progress(adapter, proj
     with open(file_path, "w", encoding="utf-8") as f:
         json.dump(pre_existing_state, f)
 
-    work_units = [WorkUnitMetadata(unit_id="uf_BA", filters={"uf": "BA"})]
+    work_units = [WorkUnitExecutionRecord(unit_id="uf_BA", filters={"uf": "BA"})]
 
     adapter.initialize_job_state(job_id, work_units)
 

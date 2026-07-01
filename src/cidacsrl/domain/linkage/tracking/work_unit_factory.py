@@ -1,16 +1,16 @@
-from typing import Any, Dict, List, Optional
+from typing import Any, List, Optional
 
-from cidacsrl.domain.linkage.tracking.work_unit import WorkUnitMetadata
+from cidacsrl.domain.linkage.tracking.work_unit import WorkUnitExecutionRecord
 
 
 class WorkUnitFactory:
     @staticmethod
     def create_execution_scope(
-        partition_column: Optional[str], 
+        partition_column: Optional[str],
         filter_partitions: List[Any]
-    ) -> List[WorkUnitMetadata]:
+    ) -> List[WorkUnitExecutionRecord]:
         if not partition_column:
-            return [WorkUnitMetadata(unit_id="global", filters={})]
+            return [WorkUnitExecutionRecord(unit_id="global", filters={})]
 
         if not filter_partitions:
             raise ValueError(
@@ -22,12 +22,12 @@ class WorkUnitFactory:
         for partition_value in filter_partitions:
             sanitized_value = str(partition_value).strip().replace(" ", "_")
             unit_id = f"{partition_column}_{sanitized_value}"
-            
+
             work_units.append(
-                WorkUnitMetadata(
+                WorkUnitExecutionRecord(
                     unit_id=unit_id,
                     filters={partition_column: partition_value}
                 )
             )
-            
+
         return work_units

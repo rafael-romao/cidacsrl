@@ -11,12 +11,6 @@ class WorkUnitStatus(str, Enum):
     FAILED = "FAILED"
 
 @dataclass(frozen=True)
-class WorkUnitMetadata:
-    """Representação lógica de uma fatia de dados planejada no Domínio."""
-    unit_id: str
-    filters: Dict[str, Any]
-
-@dataclass(frozen=True)
 class WorkUnitExecutionRecord:
     """Representa o registro real de execução de uma Work Unit dentro do arquivo de Tracking."""
     unit_id: str
