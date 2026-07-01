@@ -3,8 +3,6 @@ from datetime import datetime
 from enum import Enum
 from typing import Any, Dict, Optional
 
-from pyspark.sql import DataFrame
-
 
 class WorkUnitStatus(str, Enum):
     PENDING = "PENDING"
@@ -57,4 +55,4 @@ class WorkUnitExecutionRecord:
 class WorkUnitPayload:
     """Contêiner que transporta a fatia física de dados (DataFrame) acoplada ao ID."""
     unit_id: str
-    dataframe: DataFrame
+    dataframe: Any
