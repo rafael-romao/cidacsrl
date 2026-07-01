@@ -6,7 +6,7 @@ Aceito / Implementado
 
 ## Contexto
 
-Antes do refactor, o acionamento de cada fluxo (Linkage, Deduplicação, Indexação) ocorria por scripts de workflow procedurais (ex.: `cidacsrl_rlp/cli.py` e os antigos `*_workflow.py`) que misturavam, no mesmo lugar: parse de argumentos, criação da sessão Spark, carregamento de configuração e a própria sequência lógica do negócio. Isso tornava os fluxos difíceis de testar isoladamente e impedia reaproveitar a lógica de orquestração fora do contexto de linha de comando.
+No CIDACS-RL 3, cada fluxo (Linkage, Deduplicação, Indexação) era um script próprio e independente (`cidacsrl_rlp/src/workflows/sequential_linkage_workflow.py`, `deduplicate_workflow.py`, `elasticsearch_indexing_workflow.py`), cada um com seu próprio `argparse` e um único `main()` procedural misturando, no mesmo lugar: parse de argumentos, criação da sessão Spark, carregamento de configuração e a própria sequência lógica do negócio. Isso tornava os fluxos difíceis de testar isoladamente e impedia reaproveitar a lógica de orquestração fora do contexto de linha de comando.
 
 ## Decisão
 

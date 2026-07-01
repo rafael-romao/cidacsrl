@@ -6,7 +6,7 @@ Aceito / Implementado
 
 ## Contexto
 
-A prática de instanciar e conectar manualmente as dependências de um fluxo já existia desde versões bem anteriores do projeto — por exemplo, `linkage_runner.py` (renomeado para `linkage_bootstrapper.py` no commit `1571745`) já montava adapters concretos e injetava no Use Case à mão, sem nenhum framework de DI.
+No CIDACS-RL 3 não havia nenhuma camada de wiring dedicada: o `main()` de cada workflow (`sequential_linkage_workflow.py`, etc.) chamava as funções de processamento diretamente, sem um passo explícito de "montar dependências". A primeira formalização de uma função de bootstrap dedicada veio já dentro deste esforço de refactor — `linkage_runner.py` (renomeado para `linkage_bootstrapper.py` no commit `1571745`) já montava adapters concretos e injetava no Use Case à mão, sem nenhum framework de DI.
 
 O que mudou com a ADR-001 (adoção de Ports and Adapters) foi a **quantidade** de peças a montar: cada vertical passou a ter múltiplos ports (ingestão, persistência, transformação, busca de candidatos, scoring, checkpoint, telemetria) e múltiplos adapters concretos possíveis para alguns deles (ex.: estratégia de busca `single` vs. `multisearch` no Elasticsearch, adapters de telemetria formatada vs. JSONL combinados via Composite). Isso aumentou a superfície de wiring manual dentro de cada função de bootstrap, criando pressão para introduzir algum mecanismo automatizado de injeção.
 
