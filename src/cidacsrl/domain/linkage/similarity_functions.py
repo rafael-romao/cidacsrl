@@ -1,5 +1,5 @@
 import logging
-from typing import Any, Optional
+from typing import Any, Callable, Dict, Optional
 
 import jellyfish
 
@@ -97,3 +97,11 @@ def hamming_score_func(s1: str, s2: str) -> float:
     except Exception as e:
         logger.error(f"Error calculating Hamming similarity for '{s1_str}' vs '{s2_str}': {e}", exc_info=True)
         return 0.0
+
+
+SIMILARITY_FUNCTION_MAP: Dict[str, Callable[[str, str], float]] = {
+    "overlap": exact_score_func,
+    "exact": exact_score_func,
+    "jaro_winkler": jaro_winkler_score_func,
+    "hamming": hamming_score_func,
+}

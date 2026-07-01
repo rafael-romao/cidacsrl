@@ -1,21 +1,10 @@
 import logging
-from typing import Any, Callable, Dict, List
+from typing import Any, Dict, List
 
 from cidacsrl.domain.linkage.matching_rules import ComparisonRule
-from cidacsrl.domain.linkage.similarity_functions import (
-    exact_score_func,
-    hamming_score_func,
-    jaro_winkler_score_func,
-)
+from cidacsrl.domain.linkage.similarity_functions import SIMILARITY_FUNCTION_MAP
 
 logger = logging.getLogger("Service: ScoringEngine")
-
-SIMILARITY_FUNCTION_MAP: Dict[str, Callable[[Any, Any], float]] = {
-    "overlap": exact_score_func,
-    "exact": exact_score_func,
-    "jaro_winkler": jaro_winkler_score_func,
-    "hamming": hamming_score_func,
-}
 
 def calculate_pair_scores_and_similarities(
     source_row_dict: Dict[str, Any],
