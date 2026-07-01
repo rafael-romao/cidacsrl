@@ -93,6 +93,8 @@ elasticsearch:
   wan_only: true
 ```
 
+Se o Elasticsearch exigir certificado (CA interna/self-signed ou mTLS), veja a seção **[TLS e Certificados](./elasticsearch_indexing.md#tls-e-certificados)** do guia de indexação — que detalha `ca_certs`/`client_cert`/`client_key` (cliente de consulta) e o truststore Java necessário para a escrita em massa via Spark.
+
 Isso evita que o conector tente descobrir e se conectar diretamente aos nós internos do ES, usando somente a URL pública informada.
 
 ---

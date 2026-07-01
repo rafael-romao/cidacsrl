@@ -130,6 +130,23 @@ def test_parse_es_config_missing_url_raises_error():
     with pytest.raises(ValueError, match="es_connection_url' é obrigatória"):
         parse_es_config(invalid_es_data)
 
+def test_parse_es_config_forwards_tls_and_raw_es_options():
+    es_data = {
+        "es_connection_url": "https://elasticsearch.exemplo.com:9243",
+        "verify_certs": True,
+        "ca_certs": "/certs/ca.pem",
+        "client_cert": "/certs/client.pem",
+        "client_key": "/certs/client.key",
+        "wan_only": False,
+        "es.net.ssl.truststore.location": "/certs/truststore.jks",
+    }
+    resolved_config = parse_es_config(es_data)
+    assert resolved_config["ca_certs"] == "/certs/ca.pem"
+    assert resolved_config["client_cert"] == "/certs/client.pem"
+    assert resolved_config["client_key"] == "/certs/client.key"
+    assert resolved_config["wan_only"] is False
+    assert resolved_config["es.net.ssl.truststore.location"] == "/certs/truststore.jks"
+
 
 # =========================================================================
 # 3. ESPECIFICAÇÕES DE WORKFLOW (Domínio)

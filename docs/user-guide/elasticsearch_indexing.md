@@ -39,6 +39,10 @@ elasticsearch:
   # es_user: "elastic"          # opcional
   # es_password: "senha"        # opcional
   # api_key: "chave"            # opcional
+  # ca_certs: "/certs/ca.pem"           # opcional; CA customizada/self-signed
+  # client_cert: "/certs/client.pem"    # opcional; mTLS
+  # client_key: "/certs/client.key"     # opcional; mTLS
+  # wan_only: true                      # opcional; ver seção "TLS e Certificados" abaixo
 
 spark:
   spark_configs:
@@ -55,11 +59,57 @@ specification:
 
 | Campo | Obrigatório | Padrão | Descrição |
 |---|---|---|---|
-| `es_connection_url` | Sim | — | URL completa do cluster ES |
-| `verify_certs` | Não | `true` | Verificação TLS |
+| `es_connection_url` | Sim | — | URL completa do cluster ES (o esquema `https://` habilita TLS na escrita via Spark) |
+| `verify_certs` | Não | `true` | Verificação TLS. `false` aceita certificados self-signed |
+| `ca_certs` | Não | — | Caminho para o CA cert (PEM) usado para validar o servidor, quando a CA não é pública |
+| `client_cert` / `client_key` | Não | — | Certificado e chave do cliente (PEM), para mTLS |
 | `request_timeout` | Não | `30` | Timeout de requisição em segundos |
 | `es_user` / `es_password` | Não | — | Autenticação básica |
 | `api_key` | Não | — | Autenticação via API key |
+| `wan_only` | Não | `true` | Repassado como `es.nodes.wan.only` ao conector Spark na etapa `indexing` (ver abaixo) |
+
+---
+
+## TLS e Certificados
+
+O bloco `elasticsearch:` alimenta **dois clientes diferentes**, e certificados se aplicam de forma um pouco distinta a cada um:
+
+1. **Cliente de consulta** (`elasticsearch-py`) — usado para criar/verificar o índice (`indexing` e `linkage`) e para as queries de blocagem (`linkage`). Usa diretamente `verify_certs`, `ca_certs`, `client_cert` e `client_key` como arquivos **PEM**.
+2. **Escrita em massa via Spark** (`org.elasticsearch.spark.sql`, usada apenas na etapa `indexing` para gravar o DataFrame no índice) — usa o conector ES-Hadoop, que enxerga TLS de forma diferente: `es.net.ssl` é ligado automaticamente quando `es_connection_url` começa com `https://`; `verify_certs: false` mapeia para `es.net.ssl.cert.allow.self.signed`. Esse conector, no entanto, **não aceita CA/cliente em PEM** — ele espera um *truststore*/*keystore* Java (`.jks` ou `.p12`).
+
+Para apontar um truststore/keystore Java para a escrita em massa (ex: quando a CA do cluster ES não é pública), use as chaves cruas do conector — qualquer chave prefixada com `es.` no bloco `elasticsearch:` é repassada como está para o `DataFrameWriter`, sem precisar de suporte nomeado explícito:
+
+```yaml
+elasticsearch:
+  es_connection_url: "https://elasticsearch.exemplo.com:9243"
+  verify_certs: true
+  ca_certs: "/certs/ca.pem"              # usado pelo cliente de consulta (indices.create, ping)
+  es.net.ssl.truststore.location: "/certs/truststore.jks"   # usado pela escrita em massa via Spark
+  es.net.ssl.truststore.pass: "senha-do-truststore"
+```
+
+> Gere o truststore Java a partir do PEM com `keytool -importcert -file ca.pem -keystore truststore.jks -alias es-ca`.
+
+### Se a CA já está instalada no cluster
+
+Se o time de infraestrutura já distribuiu a CA (self-signed ou interna) nos **trust stores padrão de todos os nós** — driver e executors —, nenhuma configuração extra de certificado é necessária no YAML: basta `verify_certs: true` (o padrão) e a conexão funciona para os dois clientes, sem `ca_certs` nem `es.net.ssl.truststore.location`.
+
+Isso porque os dois clientes usam trust stores diferentes, então a CA precisa estar instalada em **ambos** os lugares:
+
+- **Cliente de consulta** (`elasticsearch-py`) confia no trust store **do sistema operacional** por padrão (ex: `/etc/ssl/certs` em Debian/Ubuntu). Basta a CA ter sido adicionada via `update-ca-certificates` (ou equivalente da distro) na máquina onde o driver roda.
+- **Escrita em massa via Spark** (conector ES-Hadoop) confia no trust store **da JVM** (`$JAVA_HOME/lib/security/cacerts`) por padrão. A CA precisa ter sido importada nesse keystore com `keytool` — e, como o job pode rodar em qualquer executor, isso precisa estar replicado em **todos os nós do cluster** (normalmente via provisionamento/imagem base, não por job).
+
+Como conferir se já está instalada:
+
+```bash
+# Trust store do sistema operacional
+openssl s_client -connect elasticsearch.exemplo.com:9243 -CApath /etc/ssl/certs </dev/null
+
+# Trust store da JVM
+keytool -list -keystore "$JAVA_HOME/lib/security/cacerts" -storepass changeit | grep -i es-ca
+```
+
+Se ambos confirmarem a CA como confiável, `ca_certs`/`es.net.ssl.truststore.location` só voltam a ser necessários se algum nó novo for adicionado ao cluster sem o provisionamento da CA, ou se você quiser isolar a confiança apenas para o job do `cidacsrl` em vez de todo o sistema.
 
 ---
 

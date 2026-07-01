@@ -123,16 +123,27 @@ def parse_es_config(data: Dict[str, Any]) -> ElasticsearchConfig:
     if "es_connection_url" not in data:
         raise ValueError("A propriedade 'es_connection_url' é obrigatória dentro do bloco elasticsearch.")
 
-    return ElasticsearchConfig(
+    config = ElasticsearchConfig(
         es_connection_url=data["es_connection_url"],
         verify_certs=data.get("verify_certs", True),
+        ca_certs=data.get("ca_certs"),
+        client_cert=data.get("client_cert"),
+        client_key=data.get("client_key"),
         request_timeout=data.get("request_timeout", 30),
         msearch_batch_size=data.get("msearch_batch_size", 100),
         es_user=data.get("es_user"),
         es_password=data.get("es_password"),
         api_key=data.get("api_key"),
-        search_strategy=data.get("search_strategy", "multisearch")
+        search_strategy=data.get("search_strategy", "multisearch"),
+        wan_only=data.get("wan_only")
     )
+
+    # Repassa opções cruas do conector Spark ES-Hadoop (prefixo "es.", ex:
+    # "es.net.ssl.truststore.location") sem exigir um campo nomeado para cada uma,
+    # no mesmo espírito do bloco "spark.spark_configs" em spark_factory.py.
+    config.update({k: v for k, v in data.items() if k.startswith("es.")})
+
+    return config
 
 
 def parse_sequential_linkage_specification(data: Dict[str, Any]) -> SequentialLinkageSpecification:

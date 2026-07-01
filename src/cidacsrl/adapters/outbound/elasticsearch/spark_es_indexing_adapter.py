@@ -57,16 +57,20 @@ class SparkESIndexingAdapter(DataIndexingPort):
         else:
             logger.info(f"Index '{index_name}' already exists. Spark will append the data.")
 
-    def index_dataframe(self, df: DataFrame, spec: DatasetIndexingSpecification) -> None:
-        index_name = spec.index_config.name
-        id_field = spec.source_config.id_field if spec.index_config.id_from_source else None
+    def _build_es_write_options(self, id_field: str | None) -> Dict[str, Any]:
         es_url = self.es_config.get("es_connection_url", "http://localhost:9200")
         parsed = urlparse(es_url)
         es_options = {
             "es.nodes": parsed.hostname,
             "es.port": str(parsed.port or 9200),
-            "es.nodes.wan.only": "true"
+            "es.nodes.wan.only": str(self.es_config.get("wan_only", True)).lower(),
         }
+
+        if parsed.scheme == "https":
+            es_options["es.net.ssl"] = "true"
+
+        if self.es_config.get("verify_certs", True) is False:
+            es_options["es.net.ssl.cert.allow.self.signed"] = "true"
 
         if id_field:
             es_options["es.write.operation"] = "upsert"
@@ -75,9 +79,20 @@ class SparkESIndexingAdapter(DataIndexingPort):
         else:
             es_options["es.write.operation"] = "index"
 
-        if "username" in self.es_config and "password" in self.es_config:
-            es_options["es.net.http.auth.user"] = self.es_config["username"]
-            es_options["es.net.http.auth.pass"] = self.es_config["password"]
+        if self.es_config.get("es_user") is not None:
+            es_options["es.net.http.auth.user"] = self.es_config["es_user"]
+            es_options["es.net.http.auth.pass"] = self.es_config.get("es_password")
+
+        # Opções cruas do conector (prefixo "es.") têm precedência sobre os
+        # defaults calculados acima — ex: "es.net.ssl.truststore.location" para mTLS.
+        es_options.update({k: v for k, v in self.es_config.items() if k.startswith("es.")})
+
+        return es_options
+
+    def index_dataframe(self, df: DataFrame, spec: DatasetIndexingSpecification) -> None:
+        index_name = spec.index_config.name
+        id_field = spec.source_config.id_field if spec.index_config.id_from_source else None
+        es_options = self._build_es_write_options(id_field)
 
         try:
             df.write \
