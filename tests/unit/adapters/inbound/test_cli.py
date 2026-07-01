@@ -1,3 +1,4 @@
+import logging
 import sys
 import pytest
 from unittest.mock import patch, MagicMock
@@ -5,6 +6,20 @@ from unittest.mock import patch, MagicMock
 from cidacsrl.adapters.inbound.cli.main import main
 
 _MODULE = "cidacsrl.adapters.inbound.cli.main"
+
+
+@pytest.fixture(autouse=True)
+def _restore_root_logging_state():
+    """main() chama configure_logging(), que prende um StreamHandler ao sys.stdout
+    capturado pelo pytest naquele teste. Sem isso, o handler sobrevive com uma
+    referência a um stream já fechado, e qualquer log emitido depois (ex.: o
+    finalizador do gateway py4j no teardown da fixture Spark) explode com
+    'I/O operation on closed file'."""
+    original_handlers = logging.root.handlers[:]
+    original_level = logging.root.level
+    yield
+    logging.root.handlers[:] = original_handlers
+    logging.root.setLevel(original_level)
 
 
 @patch(f"{_MODULE}.load_yaml")
