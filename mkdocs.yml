@@ -45,3 +45,4 @@ nav:
     - 'Indexação no Elasticsearch': 'user-guide/elasticsearch_indexing.md'
     - 'Linkage de Dados': 'user-guide/linkage.md'
     - 'Deduplicação': 'user-guide/deduplicate.md'
+    - 'Execução em Cluster Spark': 'user-guide/cluster_execution.md'
