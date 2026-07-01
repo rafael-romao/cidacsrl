@@ -19,7 +19,7 @@ O estado de cada Work Unit (`PENDING`/`PROCESSING`/`COMPLETED`/`FAILED`) é pers
 **Positivas:** Resiliência extrema a falhas de infraestrutura. Permite pausa e retomada de rotinas massivas de linkage de forma nativa e sem corrupção de dados, sem exigir que o usuário liste partições manualmente.
 
 **Negativas:**
-- O checkpoint rastreia o estado por Work Unit inteira, não por fase — retomar uma unidade após falha na fase N recomputa as fases 1..N-1 já persistidas. Isso só não duplica registros porque a camada de persistência sobrescreve dinamicamente cada partição `phase_match=<fase>` em vez de fazer append, conforme o layout descrito na [ADR 010](adr-010-layout-particionamento-phase-match.md).
+- O checkpoint rastreia o estado por Work Unit inteira, não por fase — retomar uma unidade após falha na fase N recomputa as fases 1..N-1 já persistidas. Isso só não duplica registros porque a camada de persistência sobrescreve dinamicamente cada partição `phase_match=<fase>` em vez de fazer append, conforme o layout descrito na [ADR 009](adr-009-layout-particionamento-phase-match.md).
 - Toda unidade `FAILED` é reprocessada automaticamente a cada restart, sem limite de tentativas nem backoff — um erro determinístico (ex.: dado malformado numa partição específica) faz o job falhar sempre no mesmo ponto indefinidamente.
 - O estado de todas as Work Units de um job vive em um único arquivo `state.json`; jobs com milhares de partições reescrevem esse arquivo inteiro a cada atualização de status de uma única unidade, e uma futura operação distribuída do orquestrador (hoje centralizado no nó driver) exigiria resolver a concorrência de escrita nesse arquivo.
 
@@ -28,5 +28,5 @@ O estado de cada Work Unit (`PENDING`/`PROCESSING`/`COMPLETED`/`FAILED`) é pers
 - `src/cidacsrl/application/linkage/work_unit_orchestrator.py`
 - `src/cidacsrl/adapters/outbound/checkpoint/json_checkpoint_adapter.py`
 - `src/cidacsrl/ports/linkage/checkpoint_port.py`
-- Relacionada: [ADR 010](adr-010-layout-particionamento-phase-match.md) (o layout de saída particionado por `phase_match` é o que torna segura a retomada por Work Unit inteira)
+- Relacionada: [ADR 009](adr-009-layout-particionamento-phase-match.md) (o layout de saída particionado por `phase_match` é o que torna segura a retomada por Work Unit inteira)
 

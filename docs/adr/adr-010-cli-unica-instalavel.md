@@ -1,4 +1,4 @@
-# ADR 011: Empacotamento como CLI única instalável em vez de scripts `spark-submit` individuais
+# ADR 010: Empacotamento como CLI única instalável em vez de scripts `spark-submit` individuais
 
 ## Status
 

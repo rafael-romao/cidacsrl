@@ -38,7 +38,8 @@ nav:
       - 'ADR 006 - Documentação Arquitetural': 'adr/adr-006-documentacao-arquitetural.md'
       - 'ADR 007 - Reorganização Layer/Feature': 'adr/adr-007-reorganizacao-layer-feature.md'
       - 'ADR 008 - Bootstrap sem DI': 'adr/adr-008-bootstrap-sem-container-di.md'
-      - 'ADR 010 - Layout de Particionamento': 'adr/adr-010-layout-particionamento-phase-match.md'
+      - 'ADR 009 - Layout de Particionamento': 'adr/adr-009-layout-particionamento-phase-match.md'
+      - 'ADR 010 - CLI Única Instalável': 'adr/adr-010-cli-unica-instalavel.md'
   - 'Guias de Uso':
     - 'Limpeza de Dados': 'user-guide/cleaning.md'
     - 'Indexação no Elasticsearch': 'user-guide/elasticsearch_indexing.md'

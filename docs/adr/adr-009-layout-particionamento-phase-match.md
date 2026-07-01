@@ -1,4 +1,4 @@
-# ADR 010: Layout de saída particionado uniformemente por `phase_match`
+# ADR 009: Layout de saída particionado uniformemente por `phase_match`
 
 ## Status
 
