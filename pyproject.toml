@@ -51,6 +51,7 @@ ipykernel = "^6.29.4"
 faker = "^40.23.0"
 pyarrow = "^24.0.0"
 matplotlib = "^3.11.0"
+setuptools = "^82.0.1"
 
 [tool.poetry.group.doc.dependencies]
 mkdocs-material = "^9.6.15"
