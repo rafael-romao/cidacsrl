@@ -1,29 +1,48 @@
-site_name: CIDACSRL Record Linkage Platform
-site_description: CIDACSRL-RLP Documentation
+site_name: CIDACS-RL Record Linkage Platform
+site_description: CIDACS-RL Documentation
 site_author: "Rafael Romão"
-repo_url: https://github.com/rafael-romao/cidacsrl-rlp
-repo_name: rafael-romao/cidacsrl-rlp
+repo_url: https://github.com/rafael-romao/cidacsrl
+repo_name: rafael-romao/cidacsrl
 edit_uri: tree/main/docs/
-theme: 
+theme:
   name: material
   language: pt-BR
 
 plugins:
   - mkdocstrings:
-      handlers: 
+      handlers:
           python:
-              paths: [cidacsrl_rlp.src]
+              paths: [src]
+
+markdown_extensions:
+  - pymdownx.superfences:
+      custom_fences:
+        - name: mermaid
+          class: mermaid
+          format: !!python/name:pymdownx.superfences.fence_code_format
+
+extra_javascript:
+  - https://unpkg.com/mermaid@11/dist/mermaid.min.js
 
 nav:
   - 'Início': 'index.md'
+  - 'Arquitetura':
+    - 'Visão Geral': 'architecture/overview.md'
+    - 'Fluxos de Execução': 'architecture/execution-flows.md'
+    - 'Decisões de Arquitetura (ADR)':
+      - 'ADR 001 - Arquitetura Hexagonal': 'adr/adr-001-arquitetura-hexagonal.md'
+      - 'ADR 002 - Isolamento de Infraestrutura': 'adr/adr-002-isolamento-infraestrutura.md'
+      - 'ADR 003 - Use Case Pattern': 'adr/adr-003-transicao-workflow-use-case.md'
+      - 'ADR 004 - Work Units': 'adr/adr-004-work-units.md'
+      - 'ADR 005 - Telemetria': 'adr/adr-005-telemetria.md'
+      - 'ADR 006 - Documentação Arquitetural': 'adr/adr-006-documentacao-arquitetural.md'
+      - 'ADR 007 - Reorganização Layer/Feature': 'adr/adr-007-reorganizacao-layer-feature.md'
+      - 'ADR 008 - Bootstrap sem DI': 'adr/adr-008-bootstrap-sem-container-di.md'
+      - 'ADR 009 - Layout de Particionamento': 'adr/adr-009-layout-particionamento-phase-match.md'
+      - 'ADR 010 - CLI Única Instalável': 'adr/adr-010-cli-unica-instalavel.md'
   - 'Guias de Uso':
     - 'Limpeza de Dados': 'user-guide/cleaning.md'
     - 'Indexação no Elasticsearch': 'user-guide/elasticsearch_indexing.md'
     - 'Linkage de Dados': 'user-guide/linkage.md'
-  - 'Referência Técnica': 
-    - 'Workflows de Limpeza': 'reference/cleaning_workflow.md'
-    - 'Limpador de Colunas': 'reference/column_cleaner.md'
-    - 'Workflow de Indexação': 'reference/elasticsearch_indexing_workflow.md'
-    - 'Operações de Indexação': 'reference/indexing_operations.md'
-    - 'Carregador de Configuração': 'reference/loader.md'
-    - 'Workflow de Linkage': 'reference/sequential_linkage_workflow.md'
+    - 'Deduplicação': 'user-guide/deduplicate.md'
+    - 'Execução em Cluster Spark': 'user-guide/cluster_execution.md'

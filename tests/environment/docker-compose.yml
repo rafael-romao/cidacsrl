@@ -1,0 +1,100 @@
+networks:
+  cidacsrl_network:
+    name: cidacsrl_network
+    driver: bridge
+
+volumes:
+  shared_storage:
+    driver: local
+    driver_opts:
+      type: none
+      device: ../../tests/data/
+      o: bind
+
+services:
+  elasticsearch:
+    profiles: ["elasticsearch", "es-indexing", "linkage"]
+    image: elasticsearch:9.1.8
+    container_name: cidacsrl_elasticsearch
+    environment:
+      - discovery.type=single-node
+      - xpack.security.enabled=false
+      - ES_JAVA_OPTS=-Xms1g -Xmx1g -Xlog:gc*,gc+age=trace,safepoint:file=/usr/share/elasticsearch/logs/gc.log:utctime,level,pid,tags:filecount=32,filesize=64m
+    ports:
+      - "9200:9200"
+    networks:
+      - cidacsrl_network
+    volumes:
+      - ./.es_data:/usr/share/elasticsearch/data
+    healthcheck:
+      test: ["CMD-SHELL", "curl -s http://localhost:9200/_cluster/health | grep -q '\"status\":\"green\"\\|\"status\":\"yellow\"'"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+      start_period: 30s
+
+  kibana:
+    profiles: ["kibana"]
+    image: kibana:9.1.8
+    container_name: cidacsrl_kibana
+    ports:
+      - "5601:5601"
+    environment:
+      - ELASTICSEARCH_HOSTS=http://elasticsearch:9200
+    networks:
+      - cidacsrl_network
+    depends_on:
+      elasticsearch:
+        condition: service_healthy
+  
+  cerebro:
+    profiles: ["cerebro"]
+    image: lmenezes/cerebro:0.9.4
+    container_name: cidacsrl_cerebro
+    ports:
+      - "9000:9000"
+    networks:
+      - cidacsrl_network
+    environment:
+      - CEREBRO_PORT=9000
+    command: -Dhosts.0.host=http://elasticsearch:9200 -Dhosts.0.name="CIDACS-RL Local Cluster"
+    depends_on:
+      elasticsearch:
+        condition: service_healthy
+
+  cidacsrl_runner:
+    build:
+      context: ../../
+      dockerfile: tests/environment/Dockerfile
+      target: runner-dev
+    profiles: ["runner"]
+    container_name: cidacsrl_runner
+    depends_on:
+      elasticsearch:
+        condition: service_healthy
+    volumes:
+      - ../../:/app
+      - shared_storage:/mnt/storage
+    environment:
+      - PYTHONPATH=/app/src:/app
+      - CIDACSRL_ES_URL=http://elasticsearch:9200
+      - PYSPARK_SUBMIT_ARGS=--packages org.elasticsearch:elasticsearch-spark-30_2.12:9.1.8 pyspark-shell
+    working_dir: /app
+    networks:
+      - cidacsrl_network
+    command: tail -f /dev/null
+  
+  jupyter:
+    profiles: ["jupyter"]
+    build:
+      context: ../../
+      dockerfile: tests/environment/Dockerfile
+      target: jupyter-dev
+    container_name: cidacsrl_jupyter
+    ports:
+      - "8888:8888"
+    volumes:
+      - ../notebooks:/app/notebooks
+      - ./:/app
+      - ../data:/app/data
+      - ../config:/app/configs

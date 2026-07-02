@@ -1,0 +1,33 @@
+source_config:
+  source_table: "obitos_example"
+  id_field: "codigo_obito"
+
+
+index_config:  
+  name: "obitos_example_index"
+  id_from_source: True  
+  number_of_shards: 1
+  number_of_replicas: 0
+  refresh_interval: "1s"
+
+index_columns:
+  - name: "codigo_obito"
+    type: "keyword"
+  - name: "nome_completo"
+    type: "text"
+    index_as: "both"
+  - name: "nome_mae"
+    type: "text"
+    index_as: "both"
+  - name: "data_nascimento"
+    type: "date"
+    format: "yyyy-MM-dd"
+  - name: "data_obito"
+    type: "date"
+    format: "yyyy-MM-dd"
+  - name: "municipio_obito"
+    type: "keyword"
+  - name: "uf_obito"
+    type: "keyword"
+  - name: "causa_basica"
+    type: "text"

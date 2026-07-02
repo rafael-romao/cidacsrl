@@ -1,65 +1,121 @@
 # Guia de Uso: Limpeza de Dados
 
-O módulo **cleaning** foi projetado para tratar da etapa de limpeza de dados brutos - com tratamento de inconsistência, valores ausentes, padronização das formatações variadas -  e harmonização das variáveis.
+A limpeza de dados é um **pré-requisito externo** ao pipeline da CIDACS-RL: a CLI não expõe um subcomando de limpeza. Esta etapa é de responsabilidade do usuário e pode ser realizada com qualquer ferramenta (script PySpark, notebook, dbt, etc.).
 
-## Visão Geral do Processo
+Este guia explica o que precisa ser feito nessa etapa e como o pacote `cidacsrl` pode ajudar com utilitários de configuração e execução.
 
-O módulo **cleaning** segue as seguintes tarefas:
+---
 
-1.  **Leitura dos dados brutos**: Carrega um conjunto de dados de entrada (por exemplo, um arquivo CSV ou Parquet).
-2.  **Aplicação de regras de limpeza**: Executa uma série de transformações pré-definidas em colunas específicas, que pode incluir a remoção de acentos, a padronização de campos de texto para maiúsculas, a padronização de datas e a extração de inconsistências de nomes.
-3.  **Seleção e Renomeação**: Mantém apenas as colunas necessárias para o linkage e as renomeia para nomes padronizados.
-4.  **Salvamento dos dados limpos**: Grava o resultado em um novo arquivo (geralmente no formato Parquet), pronto para ser usado na próxima etapa.
+## Por que a limpeza afeta diretamente a qualidade do linkage
 
-## Configurando as Regras de Limpeza
+O score de similaridade calculado no linkage compara os valores dos campos **da fonte** com os valores dos campos **do índice Elasticsearch** caractere a caractere. Se os dois lados não estiverem harmonizados da mesma forma, o score vai penalizar diferenças que não representam entidades diferentes.
 
-Todas as regras de limpeza são definidas em um arquivo de configuração YAML. Dessa forma é possível documentar e versionar o processo para as características específicas do conjunto de dados sem precisar alterar o código.
+Exemplos concretos de como a falta de limpeza derruba o score:
 
-### Exemplo de Configuração de Limpeza
+| Campo | Fonte (não limpa) | Índice (limpo) | Score Jaro-Winkler |
+|---|---|---|---|
+| nome | `Maria José Silva` | `MARIA JOSE SILVA` | ~0.92 (penaliza caixa e acento) |
+| nome | `MARIA JOSE SILVA` | `MARIA JOSE SILVA` | 1.0 |
+| município | `123456-7` | `123456` | 0.0 (exact) |
+| município | `123456` | `123456` | 1.0 |
 
-Abaixo, um exemplo de como definir regras para limpar colunas de nome, nome da mãe, município e UF:
+**A regra prática:** aplique as mesmas transformações nos dois lados — na base que será indexada e na base que será usada como fonte no linkage.
 
-```yaml
-# Exemplo de arquivo database_cleaning.yaml
-columns:
-  - name: NOME_PACIENTE
-    cleaned_name: nome_completo
-    chars_to_remove: '[^\w\s]'
-    standardize_case: upper
-    normalize_chars: true
-  - name: NOME_MAE
-    cleaned_name: nome_da_mae
-    chars_to_remove: '[^\w\s]'
-    standardize_case: upper
-    normalize_chars: true
-  - name: ID_IBGE_MUNICIPIO
-    cleaned_name: municipio_nascimento
-    truncate_length: 6
-    invalid_value: "NÃO INFORMADO"
-  - name: SIGLA_IBGE_UF
-    cleaned_name: uf_nascimento
-    truncate_length: 2
-    invalid_value: 99
+---
+
+## O que fazer nesta etapa
+
+1. **Remover acentos e caracteres especiais** de campos de texto usados nas regras de comparação
+2. **Padronizar caixa** (recomendado: `upper`) em campos de nome
+3. **Truncar ou reformatar** campos de código (ex: código IBGE de 7 para 6 dígitos)
+4. **Substituir valores inválidos** por nulo (ex: `"NÃO INFORMADO"`, `"99"`, `""`)
+5. **Renomear colunas** para nomes padronizados que serão usados nas regras de linkage
+6. **Salvar em Parquet** — o formato esperado tanto para a indexação quanto para a fonte do linkage
+
+---
+
+## Utilitários disponíveis no pacote
+
+O pacote oferece dois componentes para uso em scripts e notebooks:
+
+- **`ColumnConfig`** — dataclass para declarar as transformações de cada coluna
+- **`SparkCleaningAdapter`** — aplica as configurações declaradas a um DataFrame Spark
+
+### Exemplo de uso
+
+```python
+from cidacsrl.domain.cleaning import ColumnConfig
+from cidacsrl.adapters.outbound.spark.cleaning_adapter import SparkCleaningAdapter
+
+configs = [
+    ColumnConfig(
+        name="NOME_PACIENTE",
+        cleaned_name="nome_completo",
+        trim_whitespace=True,
+        normalize_chars=True,
+        standardize_case="upper",
+    ),
+    ColumnConfig(
+        name="NOME_MAE",
+        cleaned_name="nome_da_mae",
+        trim_whitespace=True,
+        normalize_chars=True,
+        standardize_case="upper",
+    ),
+    ColumnConfig(
+        name="ID_IBGE_MUNICIPIO",
+        cleaned_name="municipio_nascimento",
+        truncate_length=6,
+        invalid_values=["NÃO INFORMADO", "9999999"],
+    ),
+    ColumnConfig(
+        name="SIGLA_IBGE_UF",
+        cleaned_name="uf_nascimento",
+        truncate_length=2,
+        invalid_values=["99"],
+        replace_empty_with_null=True,
+    ),
+]
+
+df_limpo = SparkCleaningAdapter().apply(df, configs)
+df_limpo.write.parquet("hdfs://.../<dataset>_limpo")
 ```
 
-## Como Executar
+---
 
-A execução do módulo **cleaning_workflow** é configurável a partir de um arquivo YAML. A exemplo:
+## Referência: `ColumnConfig`
 
-```yaml
-# Exemplo de arquivo cleaning_config.yaml
-spark_config_path: "/path/to/spark_config.yaml"
-columns_config_path: "/path/to/columns_config.yaml"
-source_data_path: "/path/to/raw_data.parquet"
-log_level: "INFO"
-```
+| Campo | Tipo | Descrição |
+|---|---|---|
+| `name` | `str` | Nome original da coluna no DataFrame |
+| `cleaned_name` | `str` (opcional) | Nome da coluna no output; usa `name` se omitido |
+| `invalid_values` | `List[str]` | Valores a serem substituídos por nulo (ex: `["99", "NÃO INFORMADO"]`) |
+| `replace_empty_with_null` | `bool` | Substitui strings vazias (`""`) por nulo |
+| `trim_whitespace` | `bool` | Remove espaços em branco no início e fim da string |
+| `normalize_chars` | `bool` | Remove acentos e diacríticos (ex: `"ção"` → `"cao"`) |
+| `chars_to_remove` | `str` (opcional) | String com os caracteres a remover (ex: `".-/"` remove pontos, hífens e barras) |
+| `standardize_case` | `str` (opcional) | `"upper"`, `"lower"` ou `"title"` |
+| `truncate_length` | `int` (opcional) | Comprimento máximo da string |
+| `cast_to` | `str` (opcional) | Tipo Spark destino (ex: `"integer"`) |
 
-Para executar o módulo **cleaning_workflow**, é necessário fornecer o caminho para o arquivo de configuração:
+### Ordem de aplicação
 
-```bash
-python -m cidacsrl_rlp.src.workflows.cleaning_workflow --config-path /path/to/cleaning_config.yaml
-```
+As transformações são aplicadas nesta ordem, independentemente da ordem em que os campos são declarados:
 
-## Próximos Passos
+1. `trim_whitespace`
+2. `invalid_values`
+3. `replace_empty_with_null`
+4. `chars_to_remove`
+5. `normalize_chars`
+6. `standardize_case`
+7. `truncate_length`
+8. `cast_to`
+9. Renomeação (`cleaned_name`)
 
-Com os dados devidamente limpos e padronizados, é possível seguir para a [indexação no Elasticsearch](./elasticsearch_indexing.md) ou para o [linkage de dados](./linkage.md) com uma base já indexada.
+---
+
+## Próximos passos
+
+Com os dados limpos e salvos em Parquet, siga para a indexação da base alvo:
+
+**➡️ [Indexação no Elasticsearch](./elasticsearch_indexing.md)**

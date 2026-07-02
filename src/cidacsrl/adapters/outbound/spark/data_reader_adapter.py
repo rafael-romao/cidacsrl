@@ -1,0 +1,24 @@
+import logging
+from typing import Any
+
+from cidacsrl.config.models.storage_config import SourceStorageConfig
+from cidacsrl.ports.deduplication.data_reader_port import DataReaderPort
+
+logger = logging.getLogger("Adapter: SparkDataReader")
+
+
+class SparkDataReaderAdapter(DataReaderPort):
+    """Adapter de leitura dos pares linkados para o pipeline de deduplicação."""
+
+    def __init__(self, spark: Any, storage: SourceStorageConfig):
+        self._spark = spark
+        self._storage = storage
+
+    def read_linked_pairs(self) -> Any:
+        logger.info(
+            f"Lendo pares linkados de '{self._storage.source_path}' "
+            f"(formato: {self._storage.source_format})."
+        )
+        df = self._spark.read.format(self._storage.source_format).load(self._storage.source_path)
+        logger.info(f"Pares carregados: {df.count():,} registros.")
+        return df

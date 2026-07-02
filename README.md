@@ -1,125 +1,119 @@
-# CIDACS-RL 3
+# CIDACS-RL
 
 [![Python Version](https://img.shields.io/badge/python-3.12+-blue.svg)](https://www.python.org/downloads/)
+[![Version](https://img.shields.io/badge/version-3.1.0a1-orange.svg)](https://github.com/rafael-romao/cidacsrl)
 [![code style: blue](https://img.shields.io/badge/code%20style-blue-blue.svg)](https://github.com/grantjenks/blue)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
+Engine de **linkage probabilístico de registros** para conectar bases de dados que se referem à mesma entidade — por exemplo, um mesmo paciente em sistemas de saúde distintos — mesmo sem identificador único universal.
 
-O projeto **CIDACS-RL 3**  apresenta uma nova versão para a reconhecida ferramenta de integração de grandes bases de dados.
-Esta implementação adiciona um conjunto de ferramentas para que pesquisadores, engenheiros de dados ou demais interessados automatizem as etapas do processo de linkage com CIDACS-RL.
+Projetada para escala: usa **Apache Spark** para processamento distribuído e **Elasticsearch** como motor de blocagem, operando sobre dezenas de milhões de registros com controle fino de performance e rastreabilidade.
 
-## Principais Etapas do Processo
+Implementa o algoritmo descrito em **Barbosa et al. (2020)** — [*CIDACS-RL: a novel indexing search and scoring-based record linkage system for huge datasets with high accuracy and scalability*](https://doi.org/10.1186/s12911-020-01285-w), BMC Medical Informatics and Decision Making, 20:289.
 
-A plataforma CIDACS-RL 3 oferece fluxo automatizado para quatro etapas de integração de dados com CIDACS-RL:
+## Como Funciona
 
-1.  **[Limpeza e padronização de dados](./docs/user-guide/cleaning.md)**
-2.  **[Indexação no Elasticsearch](./docs/user-guide/elasticsearch_indexing.md)**
-3.  **[Linkage de Dados](./docs/user-guide/linkage.md)**
-4.  **[Deduplicação de Pares](./docs/user-guide/deduplicate.md)**
+O pipeline é composto por quatro etapas. As três últimas são orquestradas pela CLI `cidacsrl`:
+
+```
+Dados Brutos (CSV / Parquet)
+         │
+         ▼
+  [ Limpeza e Harmonização ]   ← pré-requisito externo (script / notebook)
+         │
+         ▼
+  Dados Limpos (Parquet)
+         │
+         ├──────────────────────────────────────────┐
+         ▼                                          ▼
+  cidacsrl indexing                         cidacsrl linkage
+  (indexa a base alvo                       (consulta o índice,
+   no Elasticsearch)                         compara e pontua pares)
+                                                     │
+                                                     ▼
+                                          Pares Linkados (Parquet)
+                                                     │
+                                                     ▼
+                                          cidacsrl deduplication
+                                          (resolve cadeias de pares
+                                           em grupos únicos)
+```
+
+Esse fluxo corresponde às cinco etapas de um linkage bem-sucedido definidas no artigo original (Barbosa et al., 2020, p. 2): **(i)** pré-processamento (limpeza), **(ii)** blocagem (indexação no Elasticsearch), **(iii)** comparação par-a-par (cálculo de score no Spark), **(iv)** classificação dos pares (threshold), e **(v)** avaliação de acurácia.
+
+## Pré-requisitos
+
+- Python 3.12+
+- Java 11+ (requerido pelo Apache Spark)
+- Elasticsearch 9+
+- [Poetry](https://python-poetry.org/) (para desenvolvimento)
 
 ## Instalação
 
-1. **Clone o repositório**:
 ```bash
-git clone https://github.com/rafael-romao/cidacsrl-rlp.git
-cd cidacsrl-rlp
+git clone https://github.com/rafael-romao/cidacsrl.git
+cd cidacsrl
+poetry install
 ```
 
-2. **(Opcional, mas recomendado) Crie e ative um ambiente virtual**:
-```bash
-python -m venv .venv
-source .venv/bin/activate
-```
-3. **Instale a ferramenta de build**:
-```bash
-pip install build
-```
-
-Caso o ambiente de execução tenha os requisitos do projeto instalados, você pode pular esta etapa.
-
-4. **Build o pacote e suas dependências**: Execute o make abaixo na raiz do projeto. Isso criará um pacote `wheel` do projeto, além de baixar o `wheels` de todas as suas dependências para um único diretório.
-```bash
-make build
-```
-
-## Executando fluxos com `spark-submit`
-
-Para executar a biblioteca em um job Spark, é necessário enviar os pacotes gerados no passo anterior (spark_packages) para os executores do cluster usando a flag `--py-files`.
-
-1. **Prepare a lista de arquivos**: O comando a seguir cria uma lista separa por vírgulas de todos os pacotes no diretório `spark_packages`.
+Para instalar apenas as dependências de produção (sem ferramentas de dev):
 
 ```bash
-PY_FILES=$(ls spark_packages/*.whl | tr '\n' ',')
+poetry install --only main
 ```
 
-2. **Execute o fluxo desejado com `spark-submit` incluindo a variável `PY_FILES`**:
+## Uso Rápido
+
+Cada etapa do pipeline é um subcomando da CLI `cidacsrl`:
 
 ```bash
-spark-submit \
-  --master set_your_master \
-  --deploy-mode set_your_deploy_mode \
-  --py-files "$PY_FILES" \
-  cidacsrl_rlp/src/workflows/sequential_linkage_workflow.py \
-  --config-path /caminho/completo/no/cluster/para/linkage_config_workflow.yaml
+# 1. Indexar a base alvo no Elasticsearch
+cidacsrl indexing --env-config configs/env.yaml --spec-config configs/indexing_spec.yaml
+
+# 2. Executar o linkage probabilístico
+cidacsrl linkage --env-config configs/env.yaml --spec-config configs/linkage_spec.yaml
+
+# 3. Deduplicar os pares linkados em grupos únicos
+cidacsrl deduplication --config-path configs/deduplication_config.yaml
 ```
 
-Importante: O caminho para o arquivo de configuração deve ser acessível por todos os nós do cluster.
-
-2.1 **Fluxo de deduplicação**
-
-O fluxo de deduplicação tem o pacote `graphframes` como dependência. Como não é possível incluir pacotes adicionais na flag `--py-files`, é necessário usar a flag `--packages` do Spark para baixar o pacote diretamente do repositório Maven ou `--jars` com o caminho para o arquivo JAR.
+O flag `--log-level` é global e aceita `DEBUG`, `INFO` (padrão), `WARNING`, `ERROR`, `CRITICAL`:
 
 ```bash
-GRAPHFRAMES_VERSION="0.8.2"
+cidacsrl --log-level DEBUG linkage --env-config configs/env.yaml
 ```
-
-
-```bash
-spark-submit \
-  --master set_your_master \
-  --deploy-mode set_your_deploy_mode \
-  --packages "graphframes:graphframes:${GRAPHFRAMES_VERSION}" \
-  --py-files "$PY_FILES" \
-  cidacsrl_rlp/src/workflows/deduplicate_workflow.py \
-  --config-path /caminho/completo/no/cluster/para/configs/deduplicate_config.yaml
-```
-
-## Executando fluxos com PySpark em modo local
-Como todas as dependências instaladas localmente, você pode executar os fluxos diretamente com o Python.
-
-Para executar os fluxos em modo local, adicione a raiz do projeto ao PYTHONPATH:
-```bash
-export PYTHONPATH=$(pwd):$PYTHONPATH
-```
-Agora é possível executar o módulo desejado:
-```bash
-python3 -m cidacsrl_rlp.src.workflows.deduplicate_workflow --config-path ...
-```
-
-## Exemplos de Uso
-
-Para instruções detalhadas, consulte os **[Guias de Uso](./docs/user-guide/cleaning.md)**.
 
 ## Documentação
 
-A documentação completa do projeto, incluindo guias de uso e referência técnica da API, está disponível. Para visualizá-la localmente, execute:
+A documentação completa inclui guias de uso passo a passo, referência de configuração e diagramas de arquitetura. Para visualizá-la localmente:
 
 ```bash
 poetry run mkdocs serve
 ```
 
-Em seguida, acesse `http://127.0.0.1:8000` no seu navegador.
+Acesse `http://127.0.0.1:8000` no navegador.
+
+Guias disponíveis:
+- [Limpeza de Dados](./docs/user-guide/cleaning.md)
+- [Indexação no Elasticsearch](./docs/user-guide/elasticsearch_indexing.md)
+- [Linkage de Dados](./docs/user-guide/linkage.md)
+- [Deduplicação](./docs/user-guide/deduplicate.md)
+- [Visão Geral da Arquitetura](./docs/architecture/overview.md)
+
+## Arquitetura
+
+O projeto segue o padrão **Hexagonal (Ports & Adapters)** com três verticais independentes: Linkage, Indexing e Deduplication. Cada vertical possui seu próprio conjunto de ports (interfaces) e adapters (implementações), orquestrado por um use case na camada de aplicação. A injeção de dependências é feita manualmente via camada de Bootstrap.
+
+Este projeto é uma reimplementação do [fully-distributed-cidacs-rl](https://github.com/pierrepita/fully-distributed-cidacs-rl) (Pita et al.), que estendeu o algoritmo original de Barbosa et al. (2020) — onde a blocagem era feita via **Apache Lucene** — substituindo-o por **Elasticsearch** e adotando **Apache Spark** para processamento distribuído em cluster. A lógica de cascade de fases (exata → fuzzy, Algorithm 1 do artigo original) e as funções de similaridade (Jaro-Winkler para nomes, Hamming para datas) são preservadas; as principais contribuições desta versão são a adoção de **Elasticsearch Multisearch** para envio de queries em lote (reduzindo drasticamente a latência de rede em relação a queries individuais), a **execução particionada por coluna** com checkpoint e retomada automática de jobs interrompidos, uma **CLI instalável com configuração declarativa em YAML** em substituição a notebooks, e uma **arquitetura hexagonal** (Ports & Adapters) que desacopla motor de busca, motor de scoring e persistência — facilitando testes, substituição de componentes e evolução independente de cada vertical.
 
 ## Contribuição
 
-Contribuições são bem-vindas! Se você deseja contribuir, por favor:
-
-1.  Faça um fork do projeto.
-2.  Crie uma nova branch (`git checkout -b feature/nova-feature`).
-3.  Faça commit de suas alterações (`git commit -m 'feat: adiciona nova feature'`).
-4.  Envie para a branch (`git push origin feature/nova-feature`).
-5.  Abra um Pull Request.
+1. Faça um fork do projeto.
+2. Crie uma nova branch (`git checkout -b feature/nova-feature`).
+3. Faça commit de suas alterações (`git commit -m 'feat: descrição'`).
+4. Envie para a branch (`git push origin feature/nova-feature`).
+5. Abra um Pull Request.
 
 ## Licença
 
-Este projeto está licenciado sob a Licença MIT.
+Este projeto está licenciado sob a [Licença MIT](./LICENSE).

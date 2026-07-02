@@ -1,33 +1,237 @@
-PYTHON := python
-SPARK_PKG_DIR := spark_packages
+# Configurações de Executáveis e Variáveis
+PYTHON     := python
+COMPOSE    := docker compose -f tests/environment/docker-compose.yml
+SPARK_PKG  := spark_packages
+VENV_PYTHON = $(shell poetry env list --full-path 2>/dev/null | awk 'NR==1{print $$1}')/bin/python
+VENV_BIN    = $(shell poetry env list --full-path 2>/dev/null | awk 'NR==1{print $$1}')/bin
 
+.PHONY: all build clean help env-check clean-docker prepare-dirs stop-all stop generate-data build-docker build-docker-core build-docker-jupyter
+.PHONY: up up-es up-ui up-jupyter down restart ps logs logs-engine logs-es logs-cerebro logs-jupyter shell-engine shell-es shell-jupyter
+.PHONY: test test-integration test-unit run-e2e-pipeline run-e2e-indexing-only run-e2e-dedup
+.PHONY: format format-check
 
-.PHONY: all build clean help
+all: help
 
+# ─── 1. GERENCIAMENTO DO LABORATÓRIO E2E (DOCKER COMPOSE) ───────────────────────
 
-all: build
+up: env-check
+	@echo "--> Subindo o ambiente de teste (Elasticsearch + Engine)..."
+	$(COMPOSE) --profile elasticsearch --profile runner up -d --remove-orphans
+	@printf "\n✅ Ambiente de teste disponível!\n"
+	@printf "\n- Elasticsearch rodando em: http://localhost:9200. Use 'make up-ui' para acessar o Cerebro.\n"
+	@printf "\n- Use 'make run-e2e-pipeline ENV=<arquivo.yml>' para rodar o pipeline de teste completo.\n"
+	@printf "\n- Use 'make up-jupyter' para subir o ambiente interativo Jupyter Notebook.\n"
+	@printf "\n- Use 'make logs' para acompanhar os logs em tempo real.\n"
+	@printf "\n- Use 'make down' para derrubar o ambiente quando terminar.\n"
+	@printf "\n- Use 'make help' para ver todos os comandos disponíveis.\n\n"
+
+up-es: env-check
+	@printf "\n --> Subindo apenas o serviço do Elasticsearch...\n"
+	$(COMPOSE) up -d elasticsearch
+
+up-ui: env-check
+	@printf "\n --> Subindo ferramentas de monitoria Visual (Cerebro)...\n"
+	$(COMPOSE) --profile cerebro up -d
+
+up-jupyter: env-check
+	@printf "\n --> Subindo ambiente interativo Jupyter Notebook...\n"
+	@echo "Acessar via http://localhost:8888 (token disponível nos logs do container jupyter-notebook)"
+	$(COMPOSE) --profile jupyter up -d
+
+down:
+	@echo "--> Derrubando os contêineres locais do ambiente de teste..."
+	$(COMPOSE) --profile elasticsearch --profile runner --profile ui --profile jupyter down -v --remove-orphans
+	@rm -f tests/environment/.es_data/node.lock
+
+restart: down up
+
+ps:
+	$(COMPOSE) ps
+
+logs:
+	$(COMPOSE) logs -f
+
+logs-engine:
+	$(COMPOSE) logs -f cidacsrl_runner
+
+logs-es:
+	$(COMPOSE) logs -f elasticsearch
+
+logs-cerebro:
+	$(COMPOSE) logs -f cerebro
+
+logs-jupyter:
+	$(COMPOSE) logs -f jupyter
+
+shell-engine:
+	docker exec -it cidacsrl_runner bash
+
+shell-es:
+	docker exec -it cidacsrl_elasticsearch bash
+
+shell-jupyter:
+	docker exec -it cidacsrl_jupyter bash
+
+# ─── 2. EXECUÇÃO DE PIPELINES E TESTES ─────────────────────────────────────────
+
+generate-data: up
+	@echo "Gerando dados de teste..."
+	$(COMPOSE) exec cidacsrl_runner python tests/e2e/linkage/generate_e2e_data_acidentes.py
+
+run-e2e-pipeline: up
+	@if [ -z "$(ENV)" ]; then echo "❌ Erro: Variável ENV é obrigatória. Uso: make run-e2e-pipeline ENV=nome_do_arquivo.yml"; exit 1; fi
+	@echo "Pipeline executando: verificação de índice + linkage usando $(ENV)"
+	$(COMPOSE) exec cidacsrl_runner \
+		python tests/e2e/linkage/run_e2e_pipeline.py --env-name $(ENV)
+
+run-e2e-indexing-only: up
+	@if [ -z "$(ENV)" ]; then echo "❌ Erro: Variável ENV é obrigatória. Uso: make run-e2e-indexing-only ENV=nome_do_arquivo.yml"; exit 1; fi
+	@echo "Pipeline executando apenas com indexação usando $(ENV)"
+	$(COMPOSE) exec cidacsrl_runner \
+		python tests/e2e/linkage/run_e2e_pipeline.py --env-name $(ENV) --skip-linkage
+
+run-e2e-dedup:
+	@echo "--> Executando pipeline E2E de deduplicação com dados locais de teste..."
+	@if [ -z "$(VENV_PYTHON)" ]; then echo "❌ Erro: virtualenv Poetry não encontrado em ~/.cache/pypoetry/virtualenvs/"; exit 1; fi
+	$(VENV_PYTHON) tests/e2e/deduplication/run_e2e_deduplication.py $(if $(CONFIG),--config-path $(CONFIG),)
+
+ES_CONNECTOR_PKG := org.elasticsearch:elasticsearch-spark-30_2.12:9.1.8
+PYSPARK_ENV     := -e CIDACSRL_ES_URL=http://elasticsearch:9200 -e "PYSPARK_SUBMIT_ARGS=--packages $(ES_CONNECTOR_PKG) pyspark-shell"
+
+test: up
+	@echo "--> Executando toda a suíte de testes..."
+	$(COMPOSE) exec $(PYSPARK_ENV) cidacsrl_runner pytest tests/ -v
+
+test-integration: up
+	@echo "--> Executando testes de integração..."
+	$(COMPOSE) exec $(PYSPARK_ENV) cidacsrl_runner pytest tests/integration/ -m integration -v
+
+test-unit:
+	@echo "--> Executando testes unitários..."
+	@if [ -z "$(VENV_PYTHON)" ]; then echo "❌ Erro: virtualenv Poetry não encontrado em ~/.cache/pypoetry/virtualenvs/"; exit 1; fi
+	$(VENV_PYTHON) -m pytest tests/unit/ -m unit -v --tb=short
+
+# ─── 3. FORMATAÇÃO E QUALIDADE DE CÓDIGO ───────────────────────────────────────
+
+format:
+	@if [ -z "$(VENV_BIN)" ]; then echo "❌ Erro: virtualenv Poetry não encontrado."; exit 1; fi
+	@echo "--> Organizando imports com isort..."
+	$(VENV_BIN)/isort src/ tests/
+	@echo "--> Formatando código com blue..."
+	$(VENV_BIN)/blue src/ tests/
+	@echo "✅ Formatação concluída!"
+
+format-check:
+	@if [ -z "$(VENV_BIN)" ]; then echo "❌ Erro: virtualenv Poetry não encontrado."; exit 1; fi
+	@echo "--> Verificando imports com isort (dry-run)..."
+	$(VENV_BIN)/isort src/ tests/ --check-only --diff
+	@echo "--> Verificando formatação com blue (dry-run)..."
+	$(VENV_BIN)/blue src/ tests/ --check
+	@echo "✅ Verificação concluída!"
+
+# ─── 4. COMPILAÇÃO, EMPACOTAMENTO E LIMPEZA ────────────────────────────────────
 
 build:
-	@echo "--> 1/4: Construindo o pacote wheel do projeto..."
-	$(PYTHON) -m build
-	@echo "--> 2/4: Criando o diretório de pacotes: $(SPARK_PKG_DIR)/"
-	mkdir -p $(SPARK_PKG_DIR)
-	@echo "--> 3/4: Baixando as dependências do projeto para $(SPARK_PKG_DIR)/"
-	$(PYTHON) -m pip download . -d $(SPARK_PKG_DIR)/
-	@echo "--> 4/4: Copiando o wheel do projeto para $(SPARK_PKG_DIR)/"
-	cp dist/*.whl $(SPARK_PKG_DIR)/
-	@echo "\n✅ Pacote para Spark criado com sucesso em '$(SPARK_PKG_DIR)/'"
-	@echo "   Use o conteúdo deste diretório com a flag --py-files do spark-submit."
+	@echo "--> Preparando empacotamento via Poetry..."
+	poetry build
+
+build-docker:
+	@echo "--> Reconstruindo TODAS as imagens do ecossistema (PIP Global + Profiles)..."
+	$(COMPOSE) --profile elasticsearch --profile runner --profile ui --profile jupyter build
+	@echo "✅ Imagens reconstruídas com sucesso!"
+
+build-docker-core:
+	@echo "--> Reconstruindo imagens core (runner + ES)..."
+	$(COMPOSE) --profile elasticsearch --profile runner build
+	@echo "✅ Imagens core reconstruídas com sucesso!"
+
+build-docker-jupyter:
+	@echo "--> Reconstruindo imagem Jupyter..."
+	$(COMPOSE) --profile jupyter build
+	@echo "✅ Imagem Jupyter reconstruída com sucesso!"
 
 clean:
-	@echo "--> Limpando artefatos de build..."
-	rm -rf build/ dist/ ./*.egg-info/ $(SPARK_PKG_DIR)/
-	find . -type f -name "*.pyc" -delete
-	find . -type d -name "__pycache__" -delete
-	@echo "Limpeza concluída."
+	@echo "--> Limpando arquivos temporários e binários locais..."
+	rm -rf dist/ .pytest_cache/ .coverage htmlcov/ .isort_cache/
+
+	@echo "--> Limpando __pycache__ com permissões adequadas..."
+	@if docker ps --format '{{.Names}}' | grep -q "^cidacsrl_runner$$"; then \
+		echo "   [Docker ativo] Removendo via container (root)..."; \
+		docker exec -t cidacsrl_runner find . -type d -name "__pycache__" -exec rm -rf {} + 2>/dev/null || true; \
+	else \
+		echo "   [Docker inativo] Tentando remoção local (pode solicitar sudo se houver arquivos de root)..."; \
+		find . -type d -name "__pycache__" -exec rm -rf {} + 2>/dev/null || \
+		(echo "⚠️ Arquivos presos detectados! Executando com sudo para limpar resíduos do Docker..." && sudo find . -type d -name "__pycache__" -exec rm -rf {} +); \
+	fi
+	@echo "✅ Faxina concluída com sucesso!"
+
+clean-docker: down
+	@echo "--> Removendo volumes e faxinando o ambiente Docker..."
+	docker system prune -f --volumes
+
+stop-cidacsrl-runner:
+	@echo "--> Parando container cidacsrl_runner..."
+	docker stop cidacsrl_runner || echo "Container cidacsrl_runner não está em execução."
+	@echo "Container cidacsrl_runner parado."
+
+stop-jupyter:
+	@echo "--> Parando container cidacsrl_jupyter..."
+	docker stop cidacsrl_jupyter || echo "Container cidacsrl_jupyter não está em execução."
+	@echo "Container cidacsrl_jupyter parado."
+
+stop-es:
+	@echo "--> Parando container cidacsrl_elasticsearch..."
+	docker stop cidacsrl_elasticsearch || echo "Container cidacsrl_elasticsearch não está em execução."
+	@echo "Container cidacsrl_elasticsearch parado."
+
+stop-all:
+	@echo "⚠️ Parando TODOS os contêineres em execução no Docker..."
+	docker stop $$(docker ps -a -q) 2>/dev/null || true
+
+# ─── 5. AUXILIARES INTERNOS ────────────────────────────────────────────────────
+
+env-check:
+	@if [ ! -d "tests/environment" ]; then \
+		echo "❌ Erro: Diretório 'tests/environment' não encontrado. Certifique-se de estar na raiz do repositório."; \
+		exit 1; \
+	fi
 
 help:
-	@echo "Comandos disponíveis:"
-	@echo "  make build               - Cria o pacote wheel e baixa suas dependências para uso com Spark."
-	@echo "  make clean               - Remove todos os artefatos de build gerados."
-	@echo "  make help                - Mostra esta mensagem de ajuda."
+	@echo "========================================================================="
+	@echo "                   CIDACS-RL ENGINE - LABORATÓRIO DE DESENVOLVIMENTO      "
+	@echo "========================================================================="
+	@echo "Comandos de Infraestrutura (Docker Compose):"
+	@echo "  make up                - Inicializa Elasticsearch + Runner Node (Recomendado)"
+	@echo "  make up-es             - Sobe estritamente o banco Elasticsearch"
+	@echo "  make up-ui             - Sobe Cerebro para inspeção visual de índices"
+	@echo "  make up-jupyter        - Abre servidor do Jupyter Notebook para análises"
+	@echo "  make down              - Desliga todos os serviços e limpa node.lock do ES"
+	@echo "  make restart           - Reinicializa o ambiente"
+	@echo "  make build-docker      - Reconstrói todas as imagens Docker"
+	@echo "  make ps                - Lista o status dos contêineres"
+	@echo "  make logs              - Exibe logs agregados de todos os serviços"
+	@echo "  make logs-jupyter      - Logs exclusivos do servidor Jupyter"
+	@echo "  make logs-engine       - Logs exclusivos da Engine de processamento"
+	@echo "  make shell-jupyter     - Abre terminal bash dentro do container Jupyter"
+	@echo "  make shell-engine      - Abre terminal bash dentro do container Engine"
+	@echo ""
+	@echo "Execução de Pipelines e Testes:"
+	@echo "  make run-e2e-pipeline ENV=<arquivo.yml>      - Roda a esteira fim-a-fim linkage"
+	@echo "  make run-e2e-indexing-only ENV=<arquivo.yml> - Roda apenas a indexação"
+	@echo "  make run-e2e-dedup [CONFIG=<path.yml>]       - Pipeline E2E de deduplicação"
+	@echo "  make test                                    - Roda todos os testes via contêiner"
+	@echo "  make test-integration                        - Executa testes de integração"
+	@echo "  make test-unit                               - Executa testes unitários (local)"
+	@echo ""
+	@echo "Formatação e Qualidade de Código:"
+	@echo "  make format            - Organiza imports (isort) e formata código (blue)"
+	@echo "  make format-check      - Verifica imports e formatação sem modificar arquivos"
+	@echo ""
+	@echo "Compilação e Faxina:"
+	@echo "  make build             - Prepara pacote Wheel e dependências via Poetry"
+	@echo "  make clean             - Remove arquivos temporários de compilação"
+	@echo "  make clean-docker      - Limpa volumes, redes e artefatos Docker do ambiente"
+	@echo "  make stop-es           - Para apenas o container do Elasticsearch"
+	@echo "  make stop-jupyter      - Para apenas o container do Jupyter"
+	@echo "  make stop-cidacsrl-runner - Para apenas o container da Engine"
+	@echo "  make stop-all          - Para todos os contêineres do seu daemon Docker."
