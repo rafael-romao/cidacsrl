@@ -1,7 +1,8 @@
 import dataclasses
+import json
 from dataclasses import dataclass, field
 from datetime import datetime
-from typing import List, Optional
+from typing import Any, Dict, List, Optional
 
 
 @dataclass(frozen=True)
@@ -25,6 +26,12 @@ class DataPartitioningConfig:
     @property
     def has_filters(self) -> bool:
         return bool(self.partition_column and self.filter_partitions)
+
+    def to_dict(self) -> Dict[str, Any]:
+        return dataclasses.asdict(self)
+
+    def __str__(self) -> str:
+        return json.dumps(self.to_dict(), indent=2, ensure_ascii=False, default=str)
 
 @dataclass(frozen=True)
 class ExecutionConfig:
@@ -67,3 +74,9 @@ class ExecutionConfig:
             self,
             partitioning=dataclasses.replace(self.partitioning, filter_partitions=partitions)
         )
+
+    def to_dict(self) -> Dict[str, Any]:
+        return dataclasses.asdict(self)
+
+    def __str__(self) -> str:
+        return json.dumps(self.to_dict(), indent=2, ensure_ascii=False, default=str)

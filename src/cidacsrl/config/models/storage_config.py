@@ -1,3 +1,5 @@
+import dataclasses
+import json
 from dataclasses import dataclass
 from typing import Any, Dict
 
@@ -20,6 +22,12 @@ class SourceStorageConfig:
             source_format=data.get("source_format", "parquet"),
         )
 
+    def to_dict(self) -> Dict[str, Any]:
+        return dataclasses.asdict(self)
+
+    def __str__(self) -> str:
+        return json.dumps(self.to_dict(), indent=2, ensure_ascii=False, default=str)
+
 
 @dataclass(frozen=True)
 class OutputStorageConfig:
@@ -38,3 +46,9 @@ class OutputStorageConfig:
             output_path=data.get("output_path", ""),
             output_format=data.get("output_format", "parquet"),
         )
+
+    def to_dict(self) -> Dict[str, Any]:
+        return dataclasses.asdict(self)
+
+    def __str__(self) -> str:
+        return json.dumps(self.to_dict(), indent=2, ensure_ascii=False, default=str)

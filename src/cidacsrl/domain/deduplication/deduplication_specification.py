@@ -1,3 +1,5 @@
+import dataclasses
+import json
 from dataclasses import dataclass
 from typing import Any, Dict
 
@@ -26,3 +28,9 @@ class DeduplicationSpecification:
             id_target_column=data["id_target_column"],
             output_group_id_column=data.get("output_group_id_column", "cidacs_cluster_id"),
         )
+
+    def to_dict(self) -> Dict[str, Any]:
+        return dataclasses.asdict(self)
+
+    def __str__(self) -> str:
+        return json.dumps(self.to_dict(), indent=2, ensure_ascii=False, default=str)

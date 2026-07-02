@@ -1,3 +1,5 @@
+import dataclasses
+import json
 from dataclasses import dataclass, field
 from typing import Any, Dict, List, Optional
 
@@ -20,6 +22,12 @@ class SourceConfig:
             source_table=data["source_table"],
             id_field=data["id_field"]
         )
+
+    def to_dict(self) -> Dict[str, Any]:
+        return dataclasses.asdict(self)
+
+    def __str__(self) -> str:
+        return json.dumps(self.to_dict(), indent=2, ensure_ascii=False, default=str)
 
 @dataclass
 class IndexSettingsConfig:
@@ -49,6 +57,12 @@ class IndexSettingsConfig:
             refresh_interval=data.get("refresh_interval", "1s")
         )
 
+    def to_dict(self) -> Dict[str, Any]:
+        return dataclasses.asdict(self)
+
+    def __str__(self) -> str:
+        return json.dumps(self.to_dict(), indent=2, ensure_ascii=False, default=str)
+
 @dataclass
 class IndexColumnConfig:
     """Definição de uma coluna a ser indexada no Elasticsearch.
@@ -71,6 +85,12 @@ class IndexColumnConfig:
             index_as=data.get("index_as")
         )
 
+    def to_dict(self) -> Dict[str, Any]:
+        return dataclasses.asdict(self)
+
+    def __str__(self) -> str:
+        return json.dumps(self.to_dict(), indent=2, ensure_ascii=False, default=str)
+
 @dataclass
 class DatasetIndexingSpecification:
     """Especificação completa para indexação de um dataset no Elasticsearch.
@@ -92,3 +112,9 @@ class DatasetIndexingSpecification:
             index_config=IndexSettingsConfig.from_dict(data["index_config"]),
             index_columns=[IndexColumnConfig.from_dict(col) for col in data.get("index_columns", [])]
         )
+
+    def to_dict(self) -> Dict[str, Any]:
+        return dataclasses.asdict(self)
+
+    def __str__(self) -> str:
+        return json.dumps(self.to_dict(), indent=2, ensure_ascii=False, default=str)

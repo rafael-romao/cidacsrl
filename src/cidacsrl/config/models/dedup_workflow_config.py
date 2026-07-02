@@ -1,3 +1,5 @@
+import dataclasses
+import json
 from dataclasses import dataclass, field
 from typing import Any, Dict
 
@@ -50,3 +52,9 @@ class DeduplicateWorkflowConfig:
             app_name=data.get("app_name", "CIDACS-RL Deduplication"),
             spark_configs=spark_configs,
         )
+
+    def to_dict(self) -> Dict[str, Any]:
+        return dataclasses.asdict(self)
+
+    def __str__(self) -> str:
+        return json.dumps(self.to_dict(), indent=2, ensure_ascii=False, default=str)

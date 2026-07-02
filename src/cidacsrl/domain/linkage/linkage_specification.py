@@ -1,3 +1,5 @@
+import dataclasses
+import json
 import logging
 from dataclasses import dataclass, field
 from typing import Any, Dict, Iterable, List, Optional
@@ -56,6 +58,12 @@ class BlockingPhaseTargetFields:
             *self.extra_fields
         ])
 
+    def to_dict(self) -> Dict[str, Any]:
+        return dataclasses.asdict(self)
+
+    def __str__(self) -> str:
+        return json.dumps(self.to_dict(), indent=2, ensure_ascii=False, default=str)
+
 
 @dataclass
 class BlockingPhaseContext:
@@ -87,6 +95,12 @@ class BlockingPhaseContext:
 
     def __post_init__(self):
         self.source_output_fields = _dedupe_fields(self.source_output_fields)
+
+    def to_dict(self) -> Dict[str, Any]:
+        return dataclasses.asdict(self)
+
+    def __str__(self) -> str:
+        return json.dumps(self.to_dict(), indent=2, ensure_ascii=False, default=str)
 
 @dataclass
 class SequentialLinkageSpecification:
@@ -220,3 +234,9 @@ class SequentialLinkageSpecification:
                 ) from e
 
         return cls(blocking_phases=blocking_phases, **config_dict)
+
+    def to_dict(self) -> Dict[str, Any]:
+        return dataclasses.asdict(self)
+
+    def __str__(self) -> str:
+        return json.dumps(self.to_dict(), indent=2, ensure_ascii=False, default=str)

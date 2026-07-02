@@ -1,5 +1,7 @@
+import dataclasses
+import json
 from dataclasses import dataclass, field
-from typing import List, Optional
+from typing import Any, Dict, List, Optional
 
 _VALID_CASES = frozenset({"upper", "lower", "title"})
 
@@ -29,3 +31,9 @@ class ColumnConfig:
             raise ValueError(
                 f"truncate_length deve ser um inteiro positivo, recebeu {self.truncate_length}"
             )
+
+    def to_dict(self) -> Dict[str, Any]:
+        return dataclasses.asdict(self)
+
+    def __str__(self) -> str:
+        return json.dumps(self.to_dict(), indent=2, ensure_ascii=False, default=str)

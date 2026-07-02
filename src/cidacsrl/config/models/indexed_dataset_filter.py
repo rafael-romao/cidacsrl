@@ -1,3 +1,4 @@
+import json
 from dataclasses import dataclass
 from typing import Any, Dict, List, Optional
 
@@ -62,6 +63,9 @@ class IndexedDatasetFilterItem:
         if self.term is not None:
             return {"term": self.term}
         return {"range": self.range}
+
+    def __str__(self) -> str:
+        return json.dumps(self.to_dict(), indent=2, ensure_ascii=False, default=str)
 
 
 def parse_indexed_dataset_filter(data: Any) -> Optional[List[Dict[str, Any]]]:

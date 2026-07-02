@@ -1,3 +1,5 @@
+import dataclasses
+import json
 import logging
 from dataclasses import dataclass, field
 from typing import Any, Dict, List, Literal, Optional
@@ -50,6 +52,12 @@ class ComparisonRule:
             parsed["query_type"] = parsed["query_type"].lower()
         return cls(**parsed)
 
+    def to_dict(self) -> Dict[str, Any]:
+        return dataclasses.asdict(self)
+
+    def __str__(self) -> str:
+        return json.dumps(self.to_dict(), indent=2, ensure_ascii=False, default=str)
+
 @dataclass
 class BlockingPhase:
     """
@@ -92,3 +100,9 @@ class BlockingPhase:
         rules_data = phase_dict.pop("rules", [])
         rules = [ComparisonRule.from_dict(rule) for rule in rules_data]
         return cls(rules=rules, **phase_dict)
+
+    def to_dict(self) -> Dict[str, Any]:
+        return dataclasses.asdict(self)
+
+    def __str__(self) -> str:
+        return json.dumps(self.to_dict(), indent=2, ensure_ascii=False, default=str)
