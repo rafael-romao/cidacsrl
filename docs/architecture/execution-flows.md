@@ -55,7 +55,7 @@ flowchart TD
     end
 
     R --> S{Mais\nWork Units?}
-    S -- Sim --> G
+    S -- Sim -->|"próxima work unit"| G
     S -- Não --> T[Telemetry: log de job]
     T --> U([Fim: pares linkados em Parquet\npor fase e partição])
 ```
@@ -128,7 +128,7 @@ flowchart LR
         G2["cluster_2: C, Y"]
     end
 
-    PARES --> GRAFO --> CLUSTERS
+    PARES -->|"constrói arestas"| GRAFO -->|"calcula componentes\nconectados"| CLUSTERS
 ```
 
 ---
@@ -139,8 +139,8 @@ Todos os pipelines emitem eventos de telemetria usando o **padrão Composite**: 
 
 ```mermaid
 flowchart LR
-    UC["Use Case"] --> CT["CompositeTelemetryAdapter"]
-    CT --> FL["FormattedLogAdapter\nlog estruturado no stdout"]
-    CT --> JL["JsonlTelemetryAdapter\nevento por linha em .jsonl"]
-    JL --> DISK[("audit_log_path/\n  {projeto}/{job_id}/\n    job.jsonl\n    phases.jsonl\n    units.jsonl")]
+    UC["Use Case"] -->|"emite evento"| CT["CompositeTelemetryAdapter"]
+    CT -->|"encaminha para"| FL["FormattedLogAdapter\nlog estruturado no stdout"]
+    CT -->|"encaminha para"| JL["JsonlTelemetryAdapter\nevento por linha em .jsonl"]
+    JL -->|"grava"| DISK[("audit_log_path/\n  {projeto}/{job_id}/\n    job.jsonl\n    phases.jsonl\n    units.jsonl")]
 ```
