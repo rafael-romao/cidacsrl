@@ -142,19 +142,36 @@ Não há contêiner de DI — o **Bootstrap** instancia e conecta todos os objet
 sequenceDiagram
     actor User
     participant CLI
-    participant Bootstrap
     participant Config
+    participant Bootstrap
     participant Adapters
     participant UseCase
 
     User->>CLI: cidacsrl linkage --env-config env.yaml
     CLI->>Config: load_yaml(env_config)
-    CLI->>Bootstrap: build_linkage_use_case(configs...)
-    Bootstrap->>Config: parse specs & configs
+    Config-->>CLI: dict bruto (env_data, spec_data)
+
+    Note over CLI,UseCase: Fase de Construção — Bootstrap monta o use case
+    CLI->>Bootstrap: build_linkage_use_case(dados brutos)
+    Bootstrap->>Config: parse_execution_config · parse_sequential_linkage_specification
+    Config-->>Bootstrap: ExecutionConfig · LinkageSpecification\n(tipados e validados)
     Bootstrap->>Adapters: instancia Spark, ES, Telemetry, Checkpoint
-    Bootstrap->>Bootstrap: _run_preflight_validations()
-    Bootstrap-->>CLI: (use_case, spec, config, spark)
-    CLI->>UseCase: use_case.execute(spec, job_id, config)
-    UseCase-->>CLI: resultado / exceção
-    CLI->>CLI: spark.stop()
+    Bootstrap->>Adapters: preflight: check_health\nvalidate_source_schema · validate_elasticsearch_schema
+    alt validação falhou
+        Adapters-->>Bootstrap: erro de storage/schema
+        Bootstrap-->>CLI: raise ValueError
+        CLI->>CLI: log crítico + sys.exit(1)
+    else validação ok
+        Bootstrap->>UseCase: instancia (injeta adapters via ports)
+        Bootstrap-->>CLI: use_case, spec, enriched_config, spark
+    end
+
+    Note over CLI,UseCase: Fase de Execução — pipeline roda
+    CLI->>UseCase: execute(spec, job_id, enriched_config)
+    UseCase-->>CLI: resultado ou exceção
+    CLI->>CLI: spark.stop() (sempre, bloco finally)
 ```
+
+Dois pontos que costumam gerar confusão neste fluxo:
+- **`Config` aparece duas vezes com responsabilidades diferentes**: a CLI só lê o YAML bruto (`load_yaml`, sem validação); é o Bootstrap quem transforma esses dicts em objetos tipados e validados (`ExecutionConfig`, `LinkageSpecification`).
+- **O `enriched_config` devolvido pelo Bootstrap não é o mesmo `config` que a CLI enviou** — o `WorkUnitOrchestrator.prepare` o enriquece com metadados de particionamento antes de retorná-lo, por isso a CLI repassa esse novo objeto (e não o original) ao `use_case.execute`.
