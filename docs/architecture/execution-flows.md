@@ -55,7 +55,7 @@ flowchart TD
     end
 
     R --> S{Mais\nWork Units?}
-    S -- Sim -->|"próxima work unit"| G
+    S -->|"Sim: próxima\nwork unit"| G
     S -- Não --> T[Telemetry: log de job]
     T --> U([Fim: pares linkados em Parquet\npor fase e partição])
 ```
