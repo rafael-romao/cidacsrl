@@ -4,6 +4,23 @@ A CIDACS-RL segue o padrão **Hexagonal (Ports & Adapters)**, com três verticai
 
 ---
 
+## Legenda dos Diagramas
+
+Convenções usadas nos diagramas desta página e em [Fluxos de Execução](./execution-flows.md):
+
+| Elemento | Significado |
+|---|---|
+| `subgraph` (retângulo com borda) | Camada, agrupamento lógico ou fase que contém outros elementos |
+| `[Retângulo]` | Componente, classe ou etapa de processamento |
+| `[("Cilindro")]` | Armazenamento externo (storage, Elasticsearch) |
+| `{"Losango"}` | Ponto de decisão / condição |
+| `(["Estádio arredondado"])` | Início ou fim de um fluxo |
+| `A --> B` (seta sólida) | Chamada direta ou dependência de tempo de compilação |
+| `A -.-> B` (seta pontilhada) | Relação de **implementação** (adapter implementa port) |
+| Texto sobre a seta | Descreve a natureza da relação (o quê é feito, não apenas a direção) |
+
+---
+
 ## Contexto do Sistema
 
 O diagrama abaixo mostra como a CIDACS-RL se posiciona em relação aos atores e sistemas externos.
