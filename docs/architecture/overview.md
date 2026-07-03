@@ -74,13 +74,13 @@ flowchart TB
         A5["Checkpoint: JSONCheckpointAdapter"]
     end
 
-    CLI2 --> BOOTSTRAP
-    CLI2 -->|"executa"| APP
-    BOOTSTRAP --> CONFIG
-    BOOTSTRAP --> APP
-    BOOTSTRAP --> OUTBOUND
-    APP --> PORTS
-    APP --> DOMAIN
+    CLI2 -->|"invoca para montar\nas dependências"| BOOTSTRAP
+    CLI2 -->|"executa o use case\njá montado"| APP
+    BOOTSTRAP -->|"carrega e valida\nconfig/specs"| CONFIG
+    BOOTSTRAP -->|"instancia e injeta\nno use case"| APP
+    BOOTSTRAP -->|"instancia os\nadapters concretos"| OUTBOUND
+    APP -->|"depende de\n(interfaces)"| PORTS
+    APP -->|"orquestra regras\nde negócio"| DOMAIN
     OUTBOUND -.->|"implementa"| PORTS
 ```
 
@@ -101,18 +101,18 @@ flowchart LR
         PKG_F["ports/\n  linkage · indexing · deduplication"]
     end
 
-    PKG_IN --> PKG_C
-    PKG_C --> PKG_OUT
-    PKG_C --> PKG_B
-    PKG_C --> PKG_D
-    PKG_B --> PKG_F
-    PKG_B --> PKG_E
-    PKG_B --> PKG_D
+    PKG_IN -->|"chama"| PKG_C
+    PKG_C -->|"instancia"| PKG_OUT
+    PKG_C -->|"monta"| PKG_B
+    PKG_C -->|"carrega"| PKG_D
+    PKG_B -->|"depende de"| PKG_F
+    PKG_B -->|"orquestra"| PKG_E
+    PKG_B -->|"lê"| PKG_D
     PKG_OUT -.->|"implementa"| PKG_F
-    PKG_OUT --> PKG_E
-    PKG_OUT --> PKG_D
-    PKG_F --> PKG_E
-    PKG_D --> PKG_E
+    PKG_OUT -->|"usa tipos de"| PKG_E
+    PKG_OUT -->|"lê"| PKG_D
+    PKG_F -->|"usa tipos de"| PKG_E
+    PKG_D -->|"usa tipos de"| PKG_E
 ```
 
 ---
