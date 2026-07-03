@@ -1,7 +1,7 @@
 # CIDACS-RL
 
 [![Python Version](https://img.shields.io/badge/python-3.12+-blue.svg)](https://www.python.org/downloads/)
-[![Version](https://img.shields.io/badge/version-3.1.0a1-orange.svg)](https://github.com/rafael-romao/cidacsrl)
+[![Version](https://img.shields.io/badge/version-4.0.0b1-orange.svg)](https://github.com/rafael-romao/cidacsrl)
 [![code style: blue](https://img.shields.io/badge/code%20style-blue-blue.svg)](https://github.com/grantjenks/blue)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
