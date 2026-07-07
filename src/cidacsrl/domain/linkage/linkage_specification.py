@@ -116,7 +116,6 @@ class SequentialLinkageSpecification:
     indexed_dataset_filter: Optional[List[Dict[str, Any]]] = None
     workflow_name: Optional[str] = None
     workflow_description: Optional[str] = None
-    source_es_index_name: Optional[str] = None
     blocking_phases: List[BlockingPhase] = field(default_factory=list)
     extra_target_fields: Optional[List[str]] = field(default_factory=list)
 
