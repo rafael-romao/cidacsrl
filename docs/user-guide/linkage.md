@@ -288,7 +288,6 @@ id_source_table: "id_paciente"      # coluna de ID na tabela fonte
 target_es_index: "pacientes"        # nome do índice Elasticsearch alvo
 id_target_table: "id_sinasc"        # campo de ID no índice alvo
 
-output_base_path: "/data/output/linkage"          # opcional; sobrescreve storage.output_path
 extra_target_fields:               # campos adicionais a retornar do índice no output
   - "data_nascimento"
   - "sexo"

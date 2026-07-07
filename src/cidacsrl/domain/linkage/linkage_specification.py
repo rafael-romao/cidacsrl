@@ -125,7 +125,6 @@ class SequentialLinkageSpecification:
     source_es_partition_filter_field: Optional[str] = None
     target_es_partition_filter_field: Optional[str] = None
     blocking_phases: List[BlockingPhase] = field(default_factory=list)
-    output_base_path: Optional[str] = None
     extra_target_fields: Optional[List[str]] = field(default_factory=list)
 
 
