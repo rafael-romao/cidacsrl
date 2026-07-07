@@ -127,7 +127,6 @@ class SequentialLinkageSpecification:
     blocking_phases: List[BlockingPhase] = field(default_factory=list)
     output_base_path: Optional[str] = None
     final_output_filename: Optional[str] = "final_linked_pairs.parquet" 
-    intermediate_results_enabled: bool = True
     extra_target_fields: Optional[List[str]] = field(default_factory=list)
 
 
