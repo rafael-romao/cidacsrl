@@ -71,9 +71,9 @@ class CompositeIndexingTelemetryAdapter(IndexingTelemetryPort):
         for a in self._adapters:
             a.log_indexing_start(source_table, index_name, column_count)
 
-    def log_index_ensured(self, index_name: str, duration: float) -> None:
+    def log_index_ensured(self, source_table: str, index_name: str, duration: float) -> None:
         for a in self._adapters:
-            a.log_index_ensured(index_name, duration)
+            a.log_index_ensured(source_table, index_name, duration)
 
     def log_indexing_completion(self, source_table: str, index_name: str, total_duration: float) -> None:
         for a in self._adapters:

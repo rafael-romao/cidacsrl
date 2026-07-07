@@ -5,9 +5,9 @@ Executa o pipeline completo de deduplicação usando dados locais de teste
 e valida a saída produzida.
 
 Uso:
-    poetry run python deduplicating/tests/e2e/run_e2e_deduplication.py
-    poetry run python deduplicating/tests/e2e/run_e2e_deduplication.py \\
-        --config-path deduplicating/tests/configs/deduplicate_acidentes_obitos_env.yml
+    poetry run python tests/e2e/deduplication/run_e2e_deduplication.py
+    poetry run python tests/e2e/deduplication/run_e2e_deduplication.py \\
+        --config-path tests/fixtures/configs/env/deduplicate_acidentes_obitos_env.yml
 """
 
 import argparse
@@ -30,7 +30,10 @@ def _project_root() -> Path:
 
 
 def _default_config_path() -> Path:
-    return Path(__file__).resolve().parents[1] / "configs" / "deduplicate_acidentes_obitos_env.yml"
+    return (
+        Path(__file__).resolve().parents[2]
+        / "fixtures" / "configs" / "env" / "deduplicate_acidentes_obitos_env.yml"
+    )
 
 
 def run_deduplication_step(config_path: Path, project_root: Path) -> None:
@@ -38,7 +41,8 @@ def run_deduplication_step(config_path: Path, project_root: Path) -> None:
     result = subprocess.run(
         [
             _PYTHON, "-m",
-            "deduplicating.infra.adapters.inbound.cli",
+            "cidacsrl.adapters.inbound.cli",
+            "deduplication",
             "--config-path", str(config_path),
         ],
         cwd=str(project_root),

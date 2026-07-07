@@ -1,15 +1,34 @@
-source_table: "acidentes_example" 
+source_table: "acidentes_example"
 target_es_index: "obitos_example_index"
 id_source_table: "codigo_acidente"
 id_target_table: "codigo_obito"
 
+workflow_name: "acidentes_obitos"
+workflow_description: "Linkage de vítimas de acidentes com a base de óbitos."
+
+# Campos do índice de óbitos trazidos para o resultado do linkage, além dos usados
+# nas regras de comparação e do id do alvo. Cobrem tipos variados: text (causa_basica),
+# date (data_obito), integer (idade_obito), boolean (obito_violento) e keyword
+# (numero_declaracao, local_obito).
 extra_target_fields:
   - "causa_basica"
   - "data_obito"
+  - "idade_obito"
+  - "obito_violento"
+  - "numero_declaracao"
+  - "local_obito"
 
+# Filtro estático aplicado a TODAS as fases (nível workflow). É combinado — não
+# substituído — com o filtro específico de cada fase. Aqui, restringe candidatos
+# a óbitos plausíveis por janela temporal (range estático).
+indexed_dataset_filter:
+  - range:
+      field: "data_obito"
+      gte: "2000-01-01"
 
 blocking_phases:
   - phase_name: "fase_exata"
+    phase_description: "Match determinístico por nome completo e nome da mãe (must)."
     enabled: true
     candidate_limit: 100
     strong_match_score_threshold: 0.99
@@ -17,6 +36,7 @@ blocking_phases:
       - source_column: "nome_completo"
         target_column: "nome_completo"
         es_clause_type: "must"
+        query_type: "match"
         similarity: "exact"
         weight: 0.5
       - source_column: "nome_mae"
@@ -24,21 +44,31 @@ blocking_phases:
         es_clause_type: "must"
         similarity: "exact"
         weight: 0.3
+        penalty: 0.1          # penaliza o par quando o nome da mãe está ausente
       - source_column: "data_nascimento"
         target_column: "data_nascimento"
         es_clause_type: "should"
         similarity: "exact"
         weight: 0.2
+
   - phase_name: "fase_fuzzy"
+    phase_description: "Match probabilístico com Jaro-Winkler e reforço geográfico."
     enabled: true
     candidate_limit: 100
     strong_match_score_threshold: 0.75
+    # Filtro específico da fase (combinado com o do workflow via merge aditivo):
+    # restringe candidatos à mesma UF por comparação dinâmica de coluna.
+    indexed_dataset_filter:
+      - column:
+          source_column: "uf_acidente"
+          target_column: "uf_obito"
     rules:
       - source_column: "nome_completo"
         target_column: "nome_completo"
         similarity: "jaro_winkler"
         es_clause_type: "should"
         is_fuzzy: true
+        boost: 2.0            # prioriza a similaridade de nome no ranking do ES
         weight: 0.4
       - source_column: "nome_mae"
         target_column: "nome_mae"
@@ -46,6 +76,7 @@ blocking_phases:
         es_clause_type: "should"
         is_fuzzy: true
         weight: 0.2
+        penalty: 0.05
       - source_column: "data_nascimento"
         target_column: "data_nascimento"
         es_clause_type: "should"
@@ -53,12 +84,14 @@ blocking_phases:
         weight: 0.2
       - source_column: "uf_acidente"
         target_column: "uf_obito"
-        es_clause_type: "should"
-        similarity: "exact"
+        es_clause_type: "filter"     # cláusula 'filter' + query 'term' + similaridade 'hamming'
+        query_type: "term"
+        similarity: "hamming"        # UF tem sempre 2 caracteres (Hamming bem definido)
         weight: 0.1
       - source_column: "municipio_acidente"
         target_column: "municipio_obito"
         es_clause_type: "should"
+        query_type: "match_phrase"
         similarity: "exact"
         weight: 0.1
       - source_column: "data_acidente"
@@ -66,3 +99,18 @@ blocking_phases:
         es_clause_type: "should"
         similarity: "exact"
         weight: 0.1
+
+  # Fase desabilitada — exercita o caminho `enabled: false` (é parseada e validada,
+  # mas não executa nem gera output). Também documenta a query 'prefix'.
+  - phase_name: "fase_prefixo_desativada"
+    phase_description: "Blocking por prefixo de nome; desligada por padrão."
+    enabled: false
+    candidate_limit: 50
+    strong_match_score_threshold: 0.8
+    rules:
+      - source_column: "nome_completo"
+        target_column: "nome_completo"
+        es_clause_type: "should"
+        query_type: "prefix"
+        similarity: "jaro_winkler"
+        weight: 1.0

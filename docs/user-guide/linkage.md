@@ -54,10 +54,12 @@ O `es_clause_type` determina o papel do campo na query Elasticsearch que recuper
 |---|---|
 | `must` | O documento **deve** conter um match neste campo. Candidatos sem match são excluídos. |
 | `should` | O documento **preferencialmente** contém um match. Aumenta o score ES, mas não exclui. |
-| `filter` | Como `must`, mas sem afetar o score de relevância do ES. Bom para filtros de partição. |
+| `filter` | Como `must`, mas sem afetar o `_score` do ES. **Não recomendado em `ComparisonRule`** — o campo ainda participa do `match_score`; use [`indexed_dataset_filter`](#indexed_dataset_filter-restringindo-o-universo-de-candidatos-no-es) para restringir candidatos sem pontuar. |
 | `must_not` | O documento **não deve** ter match neste campo. |
 
 **Regra prática:** use `must` em fases exatas para campos que são condição necessária. Use `should` em fases fuzzy para campos que refinam o ranking mas não devem excluir candidatos.
+
+> **Evite `es_clause_type: filter` em uma `ComparisonRule`.** A diferença entre `must` e `filter` é só o `_score` interno do Elasticsearch (exposto como `es_score` no output), não o `match_score` usado para decidir e rankear pares. Ou seja, uma `ComparisonRule` com `filter` continua participando normalmente do score do CIDACS-RL (`weight`/`similarity`/`penalty`). Se a intenção é restringir candidatos **sem** que o campo participe do score, o `ComparisonRule` é a ferramenta errada — use [`indexed_dataset_filter`](#indexed_dataset_filter-restringindo-o-universo-de-candidatos-no-es), que foi desenhado justamente para isso.
 
 ### `query_type`: como o Elasticsearch interpreta o valor
 
@@ -75,6 +77,22 @@ Quando `is_fuzzy: true`, a query `match` enviada ao Elasticsearch usa `fuzziness
 - **Fase exata:** `is_fuzzy: false` (padrão) — blocagem restrita, apenas correspondências exatas ou próximas do analisador de texto.
 - **Fase fuzzy:** `is_fuzzy: true` — blocagem ampla, recupera candidatos mesmo com erros de digitação.
 
+### `boost`
+
+Fator opcional (> 0) que multiplica a contribuição da cláusula no `_score` **interno do Elasticsearch**, influenciando o **ranking** dos candidatos recuperados (e, com ele, quais entram no `candidate_limit`). Não altera o `match_score` do CIDACS-RL (que vem de `weight`/`similarity`). É suportado por todos os `query_type` (`match`, `term`, `match_phrase`, `prefix`).
+
+```yaml
+- source_column: "nome_completo"
+  target_column: "nome_completo"
+  similarity: "jaro_winkler"
+  es_clause_type: "should"
+  is_fuzzy: true
+  boost: 2.0        # prioriza a similaridade de nome no ranking do ES
+  weight: 0.4
+```
+
+Use para priorizar campos mais discriminativos (ex.: nome) na recuperação, garantindo que o candidato correto não seja cortado pelo `candidate_limit` em fases com muitos `should`.
+
 ### Funções de Similaridade
 
 A função de `similarity` é aplicada **após** a recuperação dos candidatos, pelo Spark, para calcular o score de cada par:
@@ -82,8 +100,8 @@ A função de `similarity` é aplicada **após** a recuperação dos candidatos,
 | Valor | Descrição | Quando usar |
 |---|---|---|
 | `jaro_winkler` | Similaridade Jaro-Winkler (0.0–1.0); favorece prefixos comuns | Nomes, logradouros, campos com possíveis erros de digitação |
-| `exact` | 1.0 se idênticos, 0.0 caso contrário | Códigos, datas, sexo, campos discretos |
-| `hamming` | Similaridade de Hamming normalizada; exige strings de mesmo comprimento | CEP, código de telefone com comprimento fixo |
+| `exact` (alias: `overlap`) | 1.0 se idênticos, 0.0 caso contrário | Códigos, datas, sexo, campos discretos |
+| `hamming` | Similaridade de Hamming normalizada; exige strings de mesmo comprimento | UF, CEP, código de telefone e outros campos de comprimento fixo |
 
 > `hamming` retorna 0.0 automaticamente se os comprimentos das strings diferirem.
 
@@ -91,6 +109,116 @@ A função de `similarity` é aplicada **após** a recuperação dos candidatos,
 
 - **`weight`**: importância relativa da regra no score final. Regras com peso maior influenciam mais o resultado.
 - **`penalty`**: valor subtraído do score quando um dos campos do par for nulo. Use para penalizar explicitamente pares com dados ausentes em campos críticos.
+
+### `indexed_dataset_filter`: restringindo o universo de candidatos no ES
+
+Diferente das `rules` (que pontuam e opcionalmente restringem candidatos por campo via `es_clause_type`), o `indexed_dataset_filter` adiciona cláusulas **fixas** na seção `filter` da query booleana enviada ao Elasticsearch — aplicadas a **toda busca de candidatos da fase**, sem participar do cálculo de score (assim como o clause type `filter` do ES, não afeta relevância).
+
+É útil para restringir o índice alvo a um subconjunto relevante antes mesmo da blocagem — por exemplo, apenas registros de um determinado ano, UF ou com um status ativo.
+
+Pode ser declarado em dois níveis, que são **combinados** (sem substituição):
+
+- **Nível do workflow** (`indexed_dataset_filter` na raiz do `spec.yaml`): aplicado a todas as fases.
+- **Nível da fase** (`indexed_dataset_filter` dentro de um item de `blocking_phases`): itens adicionais aplicados apenas àquela fase, **somados** aos do workflow (não os substituem).
+
+Não há hoje um mecanismo para uma fase *remover* um filtro herdado do workflow — se alguma fase precisa rodar sem uma restrição definida no nível global, essa restrição não deve ficar no workflow; deve ser declarada individualmente em cada fase que precisa dela.
+
+Cada item da lista aceita **exatamente uma** das quatro chaves abaixo:
+
+| Chave | Formato (YAML) | Comportamento |
+|---|---|---|
+| `term` | `term:`<br>`  campo: "valor"` | Cláusula `term` estática do ES, com valor fixo definido na configuração. |
+| `range` | `range:`<br>`  campo:`<br>`    gte: ...`<br>`    lte: ...` | Cláusula `range` estática, com limites fixos definidos na configuração. |
+| `column` | Forma curta: `column: "campo"`<br>Forma longa: `column:`<br>`  source_column: "..."`<br>`  target_column: "..."` | Cláusula `term` **dinâmica**: para cada registro de origem, filtra candidatos cujo campo no índice seja igual ao valor do campo correspondente no registro fonte. A forma curta exige o mesmo nome dos dois lados; a forma longa cobre nomes divergentes. |
+| `query` | `query:`<br>`  - term: {...}`<br>`  - range: {...}` | Lista de cláusulas ES arbitrárias, inseridas como estão na seção `filter`. Use para combinações que não se encaixam em `term`/`range`/`column`. |
+
+Exemplo — todas as fases só buscam candidatos com `status: "active"` (filtro do workflow); a fase flexível soma mais duas restrições próprias (mesma UF do registro fonte e nascidos a partir de 2015):
+
+```yaml
+# pacientes_linkage_spec.yaml
+indexed_dataset_filter:              # aplicado a todas as fases
+  - term:
+      status: "active"
+
+blocking_phases:
+  - phase_name: "fase_exata"
+    # ... (sem indexed_dataset_filter próprio -> usa só o filtro do workflow acima)
+
+  - phase_name: "fase_flexivel"
+    indexed_dataset_filter:          # somado ao filtro do workflow, só nesta fase
+      - column: "uf_nascimento"      # exige uf_nascimento igual em fonte e alvo
+      - range:
+          data_nascimento:
+            gte: "2015-01-01"
+    rules:
+      # ...
+```
+
+Nesse exemplo, a query ES da `fase_flexivel` recebe três cláusulas na seção `filter`: `status: "active"` (herdada do workflow), a igualdade dinâmica de `uf_nascimento` e o `range` de `data_nascimento` — todas aplicadas em conjunto (AND implícito do `bool.filter` do Elasticsearch).
+
+### Exemplos por tipo de filtro
+
+**`term` — valor fixo, igual para todos os registros:**
+
+```yaml
+indexed_dataset_filter:
+  - term:
+      status: "active"
+```
+
+**`range` — faixa fixa de valores:**
+
+```yaml
+indexed_dataset_filter:
+  - range:
+      data_nascimento:
+        gte: "2015-01-01"
+        lte: "2020-12-31"
+```
+
+**`column` — igualdade dinâmica entre fonte e alvo, mesmo nome de campo dos dois lados (forma curta):**
+
+```yaml
+indexed_dataset_filter:
+  - column: "uf_nascimento"   # candidato só entra se uf_nascimento (alvo) == uf_nascimento (fonte, no registro atual)
+```
+
+**`column` — igualdade dinâmica com nomes divergentes entre fonte e alvo:**
+
+```yaml
+indexed_dataset_filter:
+  - column:
+      source_column: "uf_paciente"      # nome do campo na tabela fonte
+      target_column: "uf_nascimento"    # nome do campo no índice ES
+```
+
+**`query` — cláusulas ES arbitrárias e estáticas (não fazem substituição a partir do registro fonte):**
+
+Use `query` quando nenhum dos outros tipos cobrir o caso — por exemplo:
+
+- filtrar por **múltiplos valores** com `terms` (OR entre valores fixos);
+- combinar numa mesma entrada cláusulas de tipos diferentes;
+- usar tipos de query do ES sem equivalente direto (`exists`, `wildcard`, `ids`, etc.).
+
+```yaml
+indexed_dataset_filter:
+  # Exemplo 1: OR entre municípios fixos + restrição de idade
+  - query:
+      - terms:
+          municipio_nascimento: [2927408, 2304400, 2611606]
+      - range:
+          idade_anos:
+            gte: 18
+
+  # Exemplo 2: apenas registros com o campo sexo preenchido
+  - query:
+      - exists:
+          field: "sexo"
+```
+
+> As cláusulas dentro de `query` são inseridas **como estão** na seção `filter` da query booleana do ES, sem nenhum processamento adicional. Valores não são substituídos por dados do registro fonte — para igualdade dinâmica entre fonte e alvo, use `column`.
+
+> Um `indexed_dataset_filter` inválido (mais de uma chave em `column`/`term`/`range`/`query`, chaves erradas em `column` como dict, ou nenhuma chave em um item) falha com erro descritivo assim que o contexto da fase é montado — no preflight do bootstrap, antes do pipeline processar qualquer Work Unit ou buscar candidatos no Elasticsearch.
 
 ---
 
@@ -149,6 +277,8 @@ specification:
 
 ### Arquivo de Especificação do Linkage (`spec.yaml`)
 
+> **Atenção:** `workflow_name` é usado como identificador de projeto nos caminhos de checkpoint, telemetria e dados de saída. Alterar este valor após o início de um job faz com que o pipeline não encontre o checkpoint existente e reinicie do zero.
+
 ```yaml
 # pacientes_linkage_spec.yaml
 workflow_name: "linkage_pacientes_sinasc"
@@ -160,13 +290,13 @@ id_source_table: "id_paciente"      # coluna de ID na tabela fonte
 target_es_index: "pacientes"        # nome do índice Elasticsearch alvo
 id_target_table: "id_sinasc"        # campo de ID no índice alvo
 
-output_base_path: "/data/output/linkage"          # opcional; sobrescreve storage.output_path
-final_output_filename: "final_linked_pairs.parquet"
-intermediate_results_enabled: true  # grava resultados parciais por fase
-
 extra_target_fields:               # campos adicionais a retornar do índice no output
   - "data_nascimento"
   - "sexo"
+
+indexed_dataset_filter:            # opcional; restringe candidatos no ES antes da blocagem (ver seção dedicada abaixo)
+  - term:
+      status: "active"
 
 blocking_phases:
   - phase_name: "fase_exata"

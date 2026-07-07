@@ -39,6 +39,8 @@ class IndexSettingsConfig:
         number_of_shards: Número de shards primários. Defaults to 1.
         number_of_replicas: Número de réplicas. Defaults to 0.
         refresh_interval: Intervalo de refresh do índice. Defaults to "1s".
+        analysis: Bloco 'analysis' cru do ES (custom analyzers, tokenizers, filters).
+            Repassado como está para o settings do índice. Optional.
     """
 
     name: str
@@ -46,15 +48,17 @@ class IndexSettingsConfig:
     number_of_shards: int = 1
     number_of_replicas: int = 0
     refresh_interval: str = "1s"
+    analysis: Optional[Dict[str, Any]] = None
 
     @classmethod
     def from_dict(cls, data: Dict[str, Any]) -> "IndexSettingsConfig":
         return cls(
-            name=data["name"],            
+            name=data["name"],
             id_from_source=data.get("id_from_source", False),
             number_of_shards=data.get("number_of_shards", 1),
             number_of_replicas=data.get("number_of_replicas", 0),
-            refresh_interval=data.get("refresh_interval", "1s")
+            refresh_interval=data.get("refresh_interval", "1s"),
+            analysis=data.get("analysis"),
         )
 
     def to_dict(self) -> Dict[str, Any]:
@@ -69,20 +73,37 @@ class IndexColumnConfig:
 
     Attributes:
         name: Nome da coluna na tabela de origem e no índice ES.
-        type: Tipo de dado ES (ex.: 'text', 'keyword', 'integer').
-        index_as: Estratégia de indexação alternativa (ex.: 'keyword' para um campo 'text'). Optional.
+        type: Tipo de dado ES (ex.: 'text', 'keyword', 'integer'). O alias 'string'
+            é normalizado para 'text'.
+        index_as: Estratégia de indexação para campos 'text': 'keyword' (só correspondência
+            exata), 'text' (só full-text) ou 'both' (text + subcampo .keyword). Optional.
+        format: Formato de data para campos 'date' (ex.: 'yyyy-MM-dd'). Optional.
+        analyzer: Analyzer a aplicar em campos 'text' (ex.: 'brazilian' ou um custom). Optional.
+        ignore_above: Comprimento máximo indexado para campos 'keyword'. Optional.
     """
 
     name: str
     type: str
     index_as: Optional[str] = None
+    format: Optional[str] = None
+    analyzer: Optional[str] = None
+    ignore_above: Optional[int] = None
+
+    def __post_init__(self):
+        # 'string' foi removido do ES em favor de 'text'/'keyword'; normaliza o alias
+        # para evitar emitir um tipo inválido no mapping.
+        if self.type == "string":
+            self.type = "text"
 
     @classmethod
     def from_dict(cls, data: Dict[str, Any]) -> "IndexColumnConfig":
         return cls(
             name=data["name"],
             type=data["type"],
-            index_as=data.get("index_as")
+            index_as=data.get("index_as"),
+            format=data.get("format"),
+            analyzer=data.get("analyzer"),
+            ignore_above=data.get("ignore_above"),
         )
 
     def to_dict(self) -> Dict[str, Any]:

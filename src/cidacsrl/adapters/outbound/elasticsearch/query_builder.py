@@ -85,10 +85,9 @@ class ElasticsearchQueryBuilder:
                 if filter_item.query is not None:
                     filters.extend(filter_item.query)
                 elif filter_item.column is not None:
-                    col_name = filter_item.column
                     filters.append({
                         'term': {
-                            col_name: source_record.get(col_name)
+                            filter_item.column_target_name: source_record.get(filter_item.column_source_name)
                         }
                     })
                 elif filter_item.term is not None:
