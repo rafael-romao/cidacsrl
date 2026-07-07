@@ -54,7 +54,7 @@ O `es_clause_type` determina o papel do campo na query Elasticsearch que recuper
 |---|---|
 | `must` | O documento **deve** conter um match neste campo. Candidatos sem match são excluídos. |
 | `should` | O documento **preferencialmente** contém um match. Aumenta o score ES, mas não exclui. |
-| `filter` | Como `must`, mas sem afetar o score de relevância do ES. Bom para filtros de partição. |
+| `filter` | Como `must`, mas sem afetar o `_score` do ES. **Não recomendado em `ComparisonRule`** — o campo ainda participa do `match_score`; use [`indexed_dataset_filter`](#indexed_dataset_filter-restringindo-o-universo-de-candidatos-no-es) para restringir candidatos sem pontuar. |
 | `must_not` | O documento **não deve** ter match neste campo. |
 
 **Regra prática:** use `must` em fases exatas para campos que são condição necessária. Use `should` em fases fuzzy para campos que refinam o ranking mas não devem excluir candidatos.
@@ -77,6 +77,22 @@ Quando `is_fuzzy: true`, a query `match` enviada ao Elasticsearch usa `fuzziness
 - **Fase exata:** `is_fuzzy: false` (padrão) — blocagem restrita, apenas correspondências exatas ou próximas do analisador de texto.
 - **Fase fuzzy:** `is_fuzzy: true` — blocagem ampla, recupera candidatos mesmo com erros de digitação.
 
+### `boost`
+
+Fator opcional (> 0) que multiplica a contribuição da cláusula no `_score` **interno do Elasticsearch**, influenciando o **ranking** dos candidatos recuperados (e, com ele, quais entram no `candidate_limit`). Não altera o `match_score` do CIDACS-RL (que vem de `weight`/`similarity`). É suportado por todos os `query_type` (`match`, `term`, `match_phrase`, `prefix`).
+
+```yaml
+- source_column: "nome_completo"
+  target_column: "nome_completo"
+  similarity: "jaro_winkler"
+  es_clause_type: "should"
+  is_fuzzy: true
+  boost: 2.0        # prioriza a similaridade de nome no ranking do ES
+  weight: 0.4
+```
+
+Use para priorizar campos mais discriminativos (ex.: nome) na recuperação, garantindo que o candidato correto não seja cortado pelo `candidate_limit` em fases com muitos `should`.
+
 ### Funções de Similaridade
 
 A função de `similarity` é aplicada **após** a recuperação dos candidatos, pelo Spark, para calcular o score de cada par:
@@ -84,8 +100,8 @@ A função de `similarity` é aplicada **após** a recuperação dos candidatos,
 | Valor | Descrição | Quando usar |
 |---|---|---|
 | `jaro_winkler` | Similaridade Jaro-Winkler (0.0–1.0); favorece prefixos comuns | Nomes, logradouros, campos com possíveis erros de digitação |
-| `exact` | 1.0 se idênticos, 0.0 caso contrário | Códigos, datas, sexo, campos discretos |
-| `hamming` | Similaridade de Hamming normalizada; exige strings de mesmo comprimento | CEP, código de telefone com comprimento fixo |
+| `exact` (alias: `overlap`) | 1.0 se idênticos, 0.0 caso contrário | Códigos, datas, sexo, campos discretos |
+| `hamming` | Similaridade de Hamming normalizada; exige strings de mesmo comprimento | UF, CEP, código de telefone e outros campos de comprimento fixo |
 
 > `hamming` retorna 0.0 automaticamente se os comprimentos das strings diferirem.
 
@@ -109,12 +125,12 @@ Não há hoje um mecanismo para uma fase *remover* um filtro herdado do workflow
 
 Cada item da lista aceita **exatamente uma** das quatro chaves abaixo:
 
-| Chave | Formato | Comportamento |
+| Chave | Formato (YAML) | Comportamento |
 |---|---|---|
-| `term` | `{"term": {"campo": "valor"}}` | Cláusula `term` estática do ES, com valor fixo definido na configuração. |
-| `range` | `{"range": {"campo": {"gte": ..., "lte": ...}}}` ou `{"range": {"field": "campo", "gte": ..., "lte": ...}}` | Cláusula `range` estática, com limites fixos definidos na configuração. |
-| `column` | `{"column": "uf"}` ou `{"column": {"source_column": "...", "target_column": "..."}}` | Cláusula `term` **dinâmica**: para cada registro de origem, filtra candidatos cujo campo no índice seja igual ao valor do campo correspondente no registro fonte. A forma string exige o mesmo nome dos dois lados; a forma com `source_column`/`target_column` cobre nomes divergentes. |
-| `query` | `{"query": [{"term": {...}}, {"range": {...}}]}` | Lista de cláusulas ES arbitrárias, inseridas como estão na seção `filter`. Use para combinações que não se encaixam em `term`/`range`/`column`. |
+| `term` | `term:`<br>`  campo: "valor"` | Cláusula `term` estática do ES, com valor fixo definido na configuração. |
+| `range` | `range:`<br>`  campo:`<br>`    gte: ...`<br>`    lte: ...` | Cláusula `range` estática, com limites fixos definidos na configuração. |
+| `column` | Forma curta: `column: "campo"`<br>Forma longa: `column:`<br>`  source_column: "..."`<br>`  target_column: "..."` | Cláusula `term` **dinâmica**: para cada registro de origem, filtra candidatos cujo campo no índice seja igual ao valor do campo correspondente no registro fonte. A forma curta exige o mesmo nome dos dois lados; a forma longa cobre nomes divergentes. |
+| `query` | `query:`<br>`  - term: {...}`<br>`  - range: {...}` | Lista de cláusulas ES arbitrárias, inseridas como estão na seção `filter`. Use para combinações que não se encaixam em `term`/`range`/`column`. |
 
 Exemplo — todas as fases só buscam candidatos com `status: "active"` (filtro do workflow); a fase flexível soma mais duas restrições próprias (mesma UF do registro fonte e nascidos a partir de 2015):
 
@@ -176,17 +192,31 @@ indexed_dataset_filter:
       target_column: "uf_nascimento"    # nome do campo no índice ES
 ```
 
-**`query` — cláusulas ES arbitrárias e **estáticas** (não fazem substituição a partir do registro fonte), para combinações que não se encaixam em `term`/`range`/`column`:**
+**`query` — cláusulas ES arbitrárias e estáticas (não fazem substituição a partir do registro fonte):**
+
+Use `query` quando nenhum dos outros tipos cobrir o caso — por exemplo:
+
+- filtrar por **múltiplos valores** com `terms` (OR entre valores fixos);
+- combinar numa mesma entrada cláusulas de tipos diferentes;
+- usar tipos de query do ES sem equivalente direto (`exists`, `wildcard`, `ids`, etc.).
 
 ```yaml
 indexed_dataset_filter:
+  # Exemplo 1: OR entre municípios fixos + restrição de idade
   - query:
       - terms:
-          municipio_nascimento: [2927408, 2304400, 2611606]   # OR entre múltiplos valores fixos
+          municipio_nascimento: [2927408, 2304400, 2611606]
       - range:
           idade_anos:
             gte: 18
+
+  # Exemplo 2: apenas registros com o campo sexo preenchido
+  - query:
+      - exists:
+          field: "sexo"
 ```
+
+> As cláusulas dentro de `query` são inseridas **como estão** na seção `filter` da query booleana do ES, sem nenhum processamento adicional. Valores não são substituídos por dados do registro fonte — para igualdade dinâmica entre fonte e alvo, use `column`.
 
 > Um `indexed_dataset_filter` inválido (mais de uma chave em `column`/`term`/`range`/`query`, chaves erradas em `column` como dict, ou nenhuma chave em um item) falha com erro descritivo assim que o contexto da fase é montado — no preflight do bootstrap, antes do pipeline processar qualquer Work Unit ou buscar candidatos no Elasticsearch.
 
