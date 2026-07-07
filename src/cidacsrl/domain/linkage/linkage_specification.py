@@ -79,7 +79,6 @@ class BlockingPhaseContext:
         target_fields: Campos do índice ES requeridos pela fase.
         indexed_dataset_filter: Filtros estáticos aplicados a todas as queries ES da fase
             (já resolvidos: filtros do workflow + filtros da fase, combinados).
-        source_output_fields: Campos da tabela fonte a incluir no output da fase.
     """
 
     phase_name: str
@@ -92,10 +91,6 @@ class BlockingPhaseContext:
         default_factory=BlockingPhaseTargetFields
     )
     indexed_dataset_filter: Optional[List[IndexedDatasetFilterItem]] = None
-    source_output_fields: List[str] = field(default_factory=list)
-
-    def __post_init__(self):
-        self.source_output_fields = _dedupe_fields(self.source_output_fields)
 
     def to_dict(self) -> Dict[str, Any]:
         return dataclasses.asdict(self)
