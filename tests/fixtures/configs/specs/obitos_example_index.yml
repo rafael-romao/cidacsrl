@@ -31,3 +31,16 @@ index_columns:
     type: "keyword"
   - name: "causa_basica"
     type: "text"
+    analyzer: "brazilian"        # analyzer built-in de português (stemming + stopwords)
+  # Campos numérico e booleano — cobrem mapeamentos ES além de text/keyword/date.
+  - name: "idade_obito"
+    type: "integer"
+  - name: "obito_violento"
+    type: "boolean"
+  # Campos informativos, recuperados no resultado via `extra_target_fields` da
+  # spec de linkage (não participam de regras de comparação).
+  - name: "numero_declaracao"
+    type: "keyword"
+    ignore_above: 32             # strings acima de 32 chars não são indexadas
+  - name: "local_obito"
+    type: "keyword"
