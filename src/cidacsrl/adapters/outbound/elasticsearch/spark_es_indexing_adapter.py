@@ -16,33 +16,65 @@ class SparkESIndexingAdapter(DataIndexingPort):
     def __init__(self, es_config: Dict[str, Any]):
         self.es_config = es_config
 
+    @staticmethod
+    def _build_column_property(col) -> Dict[str, Any]:
+        """Traduz uma IndexColumnConfig em uma propriedade de mapping do Elasticsearch.
+
+        Honra:
+          - index_as: 'both' (text + subcampo .keyword), 'keyword' (só keyword) ou
+            'text'/None (só text);
+          - format em campos 'date';
+          - analyzer em campos 'text';
+          - ignore_above em campos 'keyword' (e no subcampo .keyword de 'both',
+            com default 256).
+        """
+        # Campo text puro OU text a ser indexado também/como full-text.
+        if col.type == "text" and col.index_as != "keyword":
+            prop: Dict[str, Any] = {"type": "text"}
+            if col.analyzer:
+                prop["analyzer"] = col.analyzer
+            if col.index_as == "both":
+                keyword_subfield: Dict[str, Any] = {"type": "keyword"}
+                keyword_subfield["ignore_above"] = (
+                    col.ignore_above if col.ignore_above is not None else 256
+                )
+                prop["fields"] = {"keyword": keyword_subfield}
+            return prop
+
+        # Campo keyword puro (type keyword, ou text com index_as='keyword').
+        if col.type == "keyword" or (col.type == "text" and col.index_as == "keyword"):
+            prop = {"type": "keyword"}
+            if col.ignore_above is not None:
+                prop["ignore_above"] = col.ignore_above
+            return prop
+
+        # Campo date com formato opcional.
+        if col.type == "date":
+            prop = {"type": "date"}
+            if col.format:
+                prop["format"] = col.format
+            return prop
+
+        # Demais tipos escalares (integer, long, float, double, boolean, ...).
+        return {"type": col.type}
+
     def _build_es_mapping_payload(self, spec: DatasetIndexingSpecification) -> Dict[str, Any]:
-        properties = {}
-        for col in spec.index_columns:
-            if col.type == "text" and col.index_as == "both":
-                properties[col.name] = {
-                    "type": "text",
-                    "fields": {
-                        "keyword": {
-                            "type": "keyword",
-                            "ignore_above": 256
-                        }
-                    }
-                }
-            else:
-                properties[col.name] = {"type": col.type}
+        properties = {
+            col.name: self._build_column_property(col)
+            for col in spec.index_columns
+        }
+
+        index_settings: Dict[str, Any] = {
+            "number_of_shards": spec.index_config.number_of_shards,
+            "number_of_replicas": spec.index_config.number_of_replicas,
+            "refresh_interval": spec.index_config.refresh_interval,
+        }
+        if spec.index_config.analysis:
+            index_settings["analysis"] = spec.index_config.analysis
 
         return {
-            "settings": {
-                "index": {
-                    "number_of_shards": spec.index_config.number_of_shards,
-                    "number_of_replicas": spec.index_config.number_of_replicas,
-                    "refresh_interval": spec.index_config.refresh_interval
-                }
-            },
-            "mappings": {
-                "properties": properties
-            }
+            "settings": {"index": index_settings},
+            "mappings": {"properties": properties},
         }
 
     def ensure_index_with_mapping(self, spec: DatasetIndexingSpecification) -> None:
