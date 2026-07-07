@@ -126,7 +126,6 @@ class SequentialLinkageSpecification:
     target_es_partition_filter_field: Optional[str] = None
     blocking_phases: List[BlockingPhase] = field(default_factory=list)
     output_base_path: Optional[str] = None
-    final_output_filename: Optional[str] = "final_linked_pairs.parquet" 
     extra_target_fields: Optional[List[str]] = field(default_factory=list)
 
 
