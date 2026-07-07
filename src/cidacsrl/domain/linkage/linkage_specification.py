@@ -129,7 +129,7 @@ class SequentialLinkageSpecification:
     
     @property
     def linkage_project_name(self) -> str:
-        return f"linkage_{self.source_table}_{self.target_es_index}"
+        return self.workflow_name or f"linkage_{self.source_table}_{self.target_es_index}"
 
     def build_blocking_phase_context(self, phase: BlockingPhase) -> BlockingPhaseContext:
         """Constrói o contexto de execução de uma fase de blocagem.

@@ -277,6 +277,8 @@ specification:
 
 ### Arquivo de Especificação do Linkage (`spec.yaml`)
 
+> **Atenção:** `workflow_name` é usado como identificador de projeto nos caminhos de checkpoint, telemetria e dados de saída. Alterar este valor após o início de um job faz com que o pipeline não encontre o checkpoint existente e reinicie do zero.
+
 ```yaml
 # pacientes_linkage_spec.yaml
 workflow_name: "linkage_pacientes_sinasc"
