@@ -1,0 +1,32 @@
+storage:
+  source_path: "tests/data/input"
+  source_format: "parquet"
+  output_path: "tests/data/output"
+  output_format: "parquet"
+
+execution:
+  audit_log_path: "tests/data/audit_logs"
+  partitioning:
+    partition_column: "uf_acidente"
+    # filter_partitions: ["SP", "MG"]   # opcional: processa apenas estas UFs (vazio = todas, via descoberta automática)
+  # sample_fraction: 0.1                 # opcional: amostra uma fração do source (reprodutível via sample_seed)
+  # sample_seed: 42                      # semente da amostragem (default: 42)
+
+specification:
+  indexing_path: "tests/fixtures/configs/specs/obitos_example_index.yml"
+  linkage_path: "tests/fixtures/configs/specs/linkage_acidentes_obitos.yml"
+
+spark:
+  spark_configs:
+    spark.master: "local[*]"
+    spark.sql.shuffle.partitions: "2"
+    spark.ui.enabled: "false"
+    spark.jars.packages: "org.elasticsearch:elasticsearch-spark-30_2.12:9.1.8"
+    spark.port.maxRetries: "100"
+
+elasticsearch:
+  host: "elasticsearch"
+  port: 9200
+  es_connection_url: "http://elasticsearch:9200"
+  wan_only: true
+  search_strategy: "single"
