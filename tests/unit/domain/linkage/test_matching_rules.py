@@ -70,3 +70,47 @@ def test_workflow_uses_comparison_fields_as_default_target_output():
 
 	assert context.target_fields.comparison_fields == ["nome_completo"]
 	assert context.target_fields.result_fields == ["target_id", "nome_completo"]
+
+
+def test_blocking_phase_context_merges_workflow_and_phase_indexed_dataset_filter():
+	phase = BlockingPhase(
+		phase_name="exact",
+		rules=[_build_rule("nome", "nome_completo")],
+		indexed_dataset_filter=[{"column": "uf"}],
+	)
+	workflow = SequentialLinkageSpecification(
+		source_table="source_table",
+		id_source_table="source_id",
+		target_es_index="target_index",
+		id_target_table="target_id",
+		indexed_dataset_filter=[{"term": {"status": "active"}}],
+		blocking_phases=[phase],
+	)
+
+	context = workflow.build_blocking_phase_context(phase)
+
+	assert [f.to_dict() for f in context.indexed_dataset_filter] == [
+		{"term": {"status": "active"}},
+		{"column": "uf"},
+	]
+
+
+def test_blocking_phase_context_falls_back_to_workflow_filter_when_phase_has_none():
+	phase = BlockingPhase(
+		phase_name="exact",
+		rules=[_build_rule("nome", "nome_completo")],
+	)
+	workflow = SequentialLinkageSpecification(
+		source_table="source_table",
+		id_source_table="source_id",
+		target_es_index="target_index",
+		id_target_table="target_id",
+		indexed_dataset_filter=[{"term": {"status": "active"}}],
+		blocking_phases=[phase],
+	)
+
+	context = workflow.build_blocking_phase_context(phase)
+
+	assert [f.to_dict() for f in context.indexed_dataset_filter] == [
+		{"term": {"status": "active"}},
+	]

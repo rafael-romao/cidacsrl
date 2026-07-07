@@ -40,6 +40,7 @@ nav:
       - 'ADR 008 - Bootstrap sem DI': 'adr/adr-008-bootstrap-sem-container-di.md'
       - 'ADR 009 - Layout de Particionamento': 'adr/adr-009-layout-particionamento-phase-match.md'
       - 'ADR 010 - CLI Única Instalável': 'adr/adr-010-cli-unica-instalavel.md'
+      - 'ADR 011 - Restrições Fora do Score (indexed_dataset_filter)': 'adr/adr-011-indexed-dataset-filter.md'
   - 'Guias de Uso':
     - 'Limpeza de Dados': 'user-guide/cleaning.md'
     - 'Indexação no Elasticsearch': 'user-guide/elasticsearch_indexing.md'

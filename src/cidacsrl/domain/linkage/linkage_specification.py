@@ -77,7 +77,8 @@ class BlockingPhaseContext:
         strong_match_score_threshold: Score mínimo para considerar um par como match forte. Defaults to 0.9.
         rules: Regras de comparação com pesos e funções de similaridade.
         target_fields: Campos do índice ES requeridos pela fase.
-        indexed_dataset_filter: Filtros estáticos aplicados a todas as queries ES da fase.
+        indexed_dataset_filter: Filtros estáticos aplicados a todas as queries ES da fase
+            (já resolvidos: filtros do workflow + filtros da fase, combinados).
         source_output_fields: Campos da tabela fonte a incluir no output da fase.
     """
 
@@ -107,6 +108,11 @@ class SequentialLinkageSpecification:
     """
     Configuração de nível superior para um workflow de linkage sequencial,
     baseado em múltiplas fases de blocking.
+
+    Attributes:
+        indexed_dataset_filter: Filtros estáticos aplicados por padrão a todas as fases.
+            Combinado (não substituído) com o `indexed_dataset_filter` de cada
+            `BlockingPhase`, se houver — ver `build_blocking_phase_context`.
     """
     source_table: str
     id_source_table: str
@@ -139,8 +145,9 @@ class SequentialLinkageSpecification:
     def build_blocking_phase_context(self, phase: BlockingPhase) -> BlockingPhaseContext:
         """Constrói o contexto de execução de uma fase de blocagem.
 
-        Resolve filtros (da fase ou do nível global) e agrega os campos alvo
-        com o ID do índice e os campos extras da especificação.
+        Combina os filtros do nível global com os da fase (merge aditivo, não
+        substituição) e agrega os campos alvo com o ID do índice e os campos
+        extras da especificação.
 
         Args:
             phase: Configuração da fase a converter em contexto de execução.
@@ -148,7 +155,9 @@ class SequentialLinkageSpecification:
         Returns:
             BlockingPhaseContext pronto para uso pelo pipeline.
         """
-        raw_filters = phase.indexed_dataset_filter if getattr(phase, "indexed_dataset_filter", None) is not None else self.indexed_dataset_filter
+        workflow_filters = self.indexed_dataset_filter or []
+        phase_filters = getattr(phase, "indexed_dataset_filter", None) or []
+        raw_filters = workflow_filters + phase_filters
 
         parsed_filters = None
         if raw_filters:

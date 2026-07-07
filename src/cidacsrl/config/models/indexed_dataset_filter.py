@@ -1,6 +1,8 @@
 import json
 from dataclasses import dataclass
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Union
+
+_COLUMN_DICT_KEYS = {"source_column", "target_column"}
 
 
 @dataclass(frozen=True)
@@ -8,7 +10,7 @@ class IndexedDatasetFilterItem:
     """Represents one valid filter item used to build ES filter clauses."""
 
     query: Optional[List[Dict[str, Any]]] = None
-    column: Optional[str] = None
+    column: Optional[Union[str, Dict[str, str]]] = None
     term: Optional[Dict[str, Any]] = None
     range: Optional[Dict[str, Any]] = None
 
@@ -35,14 +37,40 @@ class IndexedDatasetFilterItem:
                         f"Each item in 'query' must be a dictionary. Invalid item at index {i}."
                     )
 
-        if self.column is not None and not isinstance(self.column, str):
-            raise ValueError("'column' must be a string.")
+        if self.column is not None:
+            if isinstance(self.column, dict):
+                if set(self.column) != _COLUMN_DICT_KEYS:
+                    raise ValueError(
+                        "'column' as a dict must contain exactly 'source_column' and 'target_column'."
+                    )
+                if not all(isinstance(v, str) and v for v in self.column.values()):
+                    raise ValueError(
+                        "'column.source_column' and 'column.target_column' must be non-empty strings."
+                    )
+            elif not isinstance(self.column, str):
+                raise ValueError(
+                    "'column' must be a string, or a dict with 'source_column'/'target_column'."
+                )
 
         if self.term is not None and not isinstance(self.term, dict):
             raise ValueError("'term' must be a dictionary.")
 
         if self.range is not None and not isinstance(self.range, dict):
             raise ValueError("'range' must be a dictionary.")
+
+    @property
+    def column_source_name(self) -> str:
+        """Nome da coluna na fonte para a comparação dinâmica de 'column'."""
+        if isinstance(self.column, dict):
+            return self.column["source_column"]
+        return self.column
+
+    @property
+    def column_target_name(self) -> str:
+        """Nome do campo no índice alvo para a comparação dinâmica de 'column'."""
+        if isinstance(self.column, dict):
+            return self.column["target_column"]
+        return self.column
 
     @classmethod
     def from_dict(cls, data: Dict[str, Any]) -> "IndexedDatasetFilterItem":

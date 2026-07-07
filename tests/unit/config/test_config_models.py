@@ -1,6 +1,7 @@
 import pytest
 
 from cidacsrl.config.models.execution_config import DataPartitioningConfig, ExecutionConfig
+from cidacsrl.config.models.indexed_dataset_filter import IndexedDatasetFilterItem
 from cidacsrl.config.models.storage_config import OutputStorageConfig, SourceStorageConfig
 
 pytestmark = pytest.mark.unit
@@ -94,3 +95,49 @@ class TestExecutionConfig:
     def test_sample_fraction_none_is_valid(self):
         cfg = ExecutionConfig(sample_fraction=None)
         assert cfg.sample_fraction is None
+
+
+class TestIndexedDatasetFilterItemColumn:
+    def test_column_as_string_resolves_same_name_both_sides(self):
+        item = IndexedDatasetFilterItem(column="uf")
+        assert item.column_source_name == "uf"
+        assert item.column_target_name == "uf"
+
+    def test_column_as_dict_resolves_divergent_names(self):
+        item = IndexedDatasetFilterItem(
+            column={"source_column": "uf_paciente", "target_column": "uf_nascimento"}
+        )
+        assert item.column_source_name == "uf_paciente"
+        assert item.column_target_name == "uf_nascimento"
+
+    def test_column_dict_missing_key_raises(self):
+        with pytest.raises(ValueError, match="'column' as a dict"):
+            IndexedDatasetFilterItem(column={"source_column": "uf_paciente"})
+
+    def test_column_dict_extra_key_raises(self):
+        with pytest.raises(ValueError, match="'column' as a dict"):
+            IndexedDatasetFilterItem(column={
+                "source_column": "uf_paciente",
+                "target_column": "uf_nascimento",
+                "extra": "not_allowed",
+            })
+
+    def test_column_dict_empty_value_raises(self):
+        with pytest.raises(ValueError, match="non-empty strings"):
+            IndexedDatasetFilterItem(column={"source_column": "", "target_column": "uf_nascimento"})
+
+    def test_column_dict_non_string_value_raises(self):
+        with pytest.raises(ValueError, match="non-empty strings"):
+            IndexedDatasetFilterItem(column={"source_column": "uf_paciente", "target_column": 123})
+
+    def test_column_invalid_type_raises(self):
+        with pytest.raises(ValueError, match="'column' must be a string"):
+            IndexedDatasetFilterItem(column=["uf"])
+
+    def test_from_dict_roundtrip_with_divergent_names(self):
+        item = IndexedDatasetFilterItem.from_dict({
+            "column": {"source_column": "uf_paciente", "target_column": "uf_nascimento"}
+        })
+        assert item.to_dict() == {
+            "column": {"source_column": "uf_paciente", "target_column": "uf_nascimento"}
+        }

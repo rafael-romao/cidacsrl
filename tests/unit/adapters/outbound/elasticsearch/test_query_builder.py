@@ -66,3 +66,36 @@ def test_build_query_with_single_rule():
         "size": 100
     }
     assert query == expected_query
+
+
+def test_build_query_with_column_filter_using_divergent_source_and_target_names():
+    rules = [ComparisonRule(
+        source_column="nome",
+        target_column="nome_completo",
+        similarity="exact",
+        weight=1.0,
+        query_type="term",
+        es_clause_type="must"
+    )]
+
+    filters = [
+        IndexedDatasetFilterItem(column={"source_column": "uf_paciente", "target_column": "uf_nascimento"}),
+    ]
+
+    query_builder = ElasticsearchQueryBuilder(
+        phase_rules=rules,
+        fetch_fields=["nome_completo"],
+        candidate_limit=10,
+        static_filter=filters
+    )
+
+    source_record = {
+        "nome": "João Silva",
+        "uf_paciente": "SP",
+    }
+
+    query = query_builder.build_search_body_for_record(source_record)
+
+    assert query["query"]["bool"]["filter"] == [
+        {"term": {"uf_nascimento": "SP"}}
+    ]
