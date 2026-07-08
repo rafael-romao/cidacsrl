@@ -1,4 +1,4 @@
-# ADR 006: Introdução da documentação arquitetural no repositório
+# ADR 005: Introdução da documentação arquitetural no repositório
 
 ## Status
 

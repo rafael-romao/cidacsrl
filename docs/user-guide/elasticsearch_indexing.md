@@ -110,6 +110,8 @@ keytool -list -keystore "$JAVA_HOME/lib/security/cacerts" -storepass changeit | 
 
 Se ambos confirmarem a CA como confiável, `ca_certs`/`es.net.ssl.truststore.location` só voltam a ser necessários se algum nó novo for adicionado ao cluster sem o provisionamento da CA, ou se você quiser isolar a confiança apenas para o job do `cidacsrl` em vez de todo o sistema.
 
+> **Ambiente offline/air-gapped:** a confiança no trust store do SO/JVM não pode ser provisionada em runtime — os certificados precisam viajar junto com o artefato (bind-mount no container ou embutidos na imagem). Veja [Certificados do Elasticsearch em ambiente air-gapped](./cluster_execution.md#certificados-do-elasticsearch-em-ambiente-air-gapped) no guia de execução em cluster.
+
 ---
 
 ## Arquivo de Especificação do Índice (`spec.yaml`)

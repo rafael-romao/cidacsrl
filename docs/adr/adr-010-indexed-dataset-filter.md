@@ -1,4 +1,4 @@
-# ADR 011: `indexed_dataset_filter` — restrições de candidatos fora do score
+# ADR 010: `indexed_dataset_filter` — restrições de candidatos fora do score
 
 ## Status
 
