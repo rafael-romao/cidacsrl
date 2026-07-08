@@ -19,8 +19,8 @@ RUN apt-get update && \
     apt-get install -y --no-install-recommends curl && \
     rm -rf /var/lib/apt/lists/*
 
-RUN curl -fL "https://repo1.maven.org/maven2/org/elasticsearch/elasticsearch-spark-30_2.12/9.2.8/elasticsearch-spark-30_2.12-9.2.8.jar" \
-    -o /elasticsearch-spark-30_2.12-9.2.8.jar
+RUN curl -fL "https://repo1.maven.org/maven2/org/elasticsearch/elasticsearch-spark-30_2.12/9.1.8/elasticsearch-spark-30_2.12-9.1.8.jar" \
+    -o /elasticsearch-spark-30_2.12-9.1.8.jar
 
 
 # Download do JAR do GraphFrames
@@ -30,8 +30,8 @@ RUN apt-get update && \
     apt-get install -y --no-install-recommends curl && \
     rm -rf /var/lib/apt/lists/*
 
-RUN curl -fL "https://repos.spark-packages.org/graphframes/graphframes/0.8.2-spark3.2-s_2.12/graphframes-0.8.2-spark3.2-s_2.12.jar" \
-    -o /graphframes-0.8.2.jar
+RUN curl -fL "https://repos.spark-packages.org/graphframes/graphframes/0.8.3-spark3.5-s_2.12/graphframes-0.8.3-spark3.5-s_2.12.jar" \
+    -o /graphframes-0.8.3.jar
 
 
 # Runtime Spark
@@ -57,7 +57,7 @@ USER spark
 FROM runtime-spark AS runtime-spark-graphframes
 
 USER root
-COPY --from=graphframes-jar-downloader /graphframes-0.8.2.jar /opt/spark/jars/
+COPY --from=graphframes-jar-downloader /graphframes-0.8.3.jar /opt/spark/jars/
 RUN pip install --no-cache-dir graphframes
 USER spark
 
@@ -65,7 +65,7 @@ USER spark
 FROM runtime-spark AS runtime-spark-es
 
 USER root
-COPY --from=es-jar-downloader /elasticsearch-spark-30_2.12-9.2.8.jar /opt/spark/jars/
+COPY --from=es-jar-downloader /elasticsearch-spark-30_2.12-9.1.8.jar /opt/spark/jars/
 USER spark
 
 
@@ -120,7 +120,7 @@ RUN pip install --no-cache-dir \
 
 COPY src/cidacsrl/ ./src/cidacsrl/
 COPY pyproject.toml ./
-COPY --from=es-jar-downloader /elasticsearch-spark-30_2.12-9.2.8.jar /opt/spark/jars/
+COPY --from=es-jar-downloader /elasticsearch-spark-30_2.12-9.1.8.jar /opt/spark/jars/
 
 EXPOSE 8888
 

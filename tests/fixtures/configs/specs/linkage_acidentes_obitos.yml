@@ -30,7 +30,7 @@ blocking_phases:
   - phase_name: "fase_exata"
     phase_description: "Match determinístico por nome completo e nome da mãe (must)."
     enabled: true
-    candidate_limit: 100
+    candidate_limit: 10
     strong_match_score_threshold: 0.99
     rules:
       - source_column: "nome_completo"
@@ -54,7 +54,7 @@ blocking_phases:
   - phase_name: "fase_fuzzy"
     phase_description: "Match probabilístico com Jaro-Winkler e reforço geográfico."
     enabled: true
-    candidate_limit: 100
+    candidate_limit: 25
     strong_match_score_threshold: 0.75
     # Filtro específico da fase (combinado com o do workflow via merge aditivo):
     # restringe candidatos à mesma UF por comparação dinâmica de coluna.
