@@ -42,4 +42,4 @@ class SparkDataTransformationAdapter(DataTransformationPort):
         valid_dfs = [df for df in phase_outputs if df is not None]
         if not valid_dfs:
             raise ValueError("Nenhum DataFrame válido foi fornecido para consolidação de resultados.")
-        return functools.reduce(lambda df1, df2: df1.unionAll(df2), valid_dfs)
+        return functools.reduce(lambda df1, df2: df1.unionByName(df2, allowMissingColumns=True), valid_dfs)
