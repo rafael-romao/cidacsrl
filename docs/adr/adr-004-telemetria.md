@@ -1,4 +1,4 @@
-# ADR 005: Desacoplamento de logs por Telemetria Baseada em Eventos Estruturados
+# ADR 004: Desacoplamento de logs por Telemetria Baseada em Eventos Estruturados
 
 ## Status
 

@@ -1,4 +1,4 @@
-# ADR 007: Reorganização da árvore de diretórios de feature → layer para layer → feature
+# ADR 006: Reorganização da árvore de diretórios de feature → layer para layer → feature
 
 ## Status
 
@@ -37,4 +37,4 @@ A migração foi feita incrementalmente, uma camada por vez, cada uma em seu pr�
 - `src/cidacsrl/domain/`, `src/cidacsrl/application/`, `src/cidacsrl/ports/`, `src/cidacsrl/adapters/`, `src/cidacsrl/bootstrap/`, `src/cidacsrl/config/`
 - Commits: `0c535a2`, `4386435`, `82d570e`, `6d1c238`, `d6d4e33`, `2a545bc`, `b29d0da`, `b8a3e33`
 - Relacionada: [ADR 001](adr-001-arquitetura-hexagonal.md) (a camada arquitetural que esta reorganização torna visível na árvore de diretórios)
-- Relacionada: [ADR 008](adr-008-bootstrap-sem-container-di.md) (Bootstrap como camada própria nesta árvore)
+- Relacionada: [ADR 007](adr-007-bootstrap-sem-container-di.md) (Bootstrap como camada própria nesta árvore)

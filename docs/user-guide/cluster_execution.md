@@ -65,7 +65,7 @@ spark-submit \
   linkage --env-config /caminho/no/cluster/env.yaml --spec-config /caminho/no/cluster/spec.yaml
 ```
 
-> A CLI resolve o empacotamento e a UX de invocação — não substitui o orquestrador de cluster onde o `deploy-mode`/alocação de recursos forem exigidos pela infraestrutura de destino. Veja [ADR 010](../adr/adr-010-cli-unica-instalavel.md) para o histórico dessa decisão.
+> A CLI resolve o empacotamento e a UX de invocação — não substitui o orquestrador de cluster onde o `deploy-mode`/alocação de recursos forem exigidos pela infraestrutura de destino. Veja [ADR 009](../adr/adr-009-cli-unica-instalavel.md) para o histórico dessa decisão.
 
 ---
 
@@ -99,6 +99,136 @@ Isso evita que o conector tente descobrir e se conectar diretamente aos nós int
 
 ---
 
+## Execução Offline / Air-gapped (Servidores sem internet)
+
+Em um servidor sem acesso à rede externa (nós de cálculo isolados), a configuração acima **não funciona como está**. O motivo é um só:
+
+> `spark.jars.packages` dispara resolução **Ivy contra o Maven Central em runtime**. Sem internet no nó de execução, o job falha ao tentar baixar o jar.
+
+Num ambiente air-gapped os jars precisam estar **fisicamente presentes** antes do job rodar. Há duas estratégias suportadas — todo o trabalho de download é feito **uma vez, numa máquina com internet**, e o artefato resultante é transferido para o servidor.
+
+### Estratégia A (recomendada): imagem Singularity com os jars embutidos
+
+O repositório traz um Dockerfile dedicado a esse cenário em [`deploy/hpc/Dockerfile`](https://github.com/rafael-romao/cidacsrl/blob/main/deploy/hpc/Dockerfile). Diferente do Dockerfile de laboratório (`tests/environment/Dockerfile`), ele **não resolve nada em runtime**: os jars são baixados no build e copiados para `/opt/spark/jars`, de onde o Spark os carrega automaticamente — sem `spark.jars.packages`.
+
+**Na máquina com internet — build e conversão para `.sif`:**
+
+```bash
+# 1. Build (a partir da raiz do repositório). O alvo "full" embute o jar do
+#    Elasticsearch e o do GraphFrames num único artefato que serve para
+#    linkage, indexing e deduplication.
+docker build -f deploy/hpc/Dockerfile --target full -t cidacsrl:offline .
+#    (para imagens mínimas por etapa: --target linkage ou --target deduplication)
+
+# 2. Converter Docker -> Singularity (.sif)
+singularity build cidacsrl.sif docker-daemon://cidacsrl:offline
+#    Sem acesso ao docker-daemon, exporte e converta via tar:
+#    docker save cidacsrl:offline -o cidacsrl.tar
+#    singularity build cidacsrl.sif docker-archive://cidacsrl.tar
+
+# 3. Transferir cidacsrl.sif (e os YAMLs) para o servidor (scp/rsync).
+```
+
+**No servidor — como os jars já estão em `/opt/spark/jars`, remova `spark.jars.packages` do `env.yaml`.** Nenhuma coordenada Maven precisa ser resolvida.
+
+Script Slurm de exemplo (`local[*]` em um nó com muitos cores):
+
+```bash
+#!/bin/bash
+#SBATCH --job-name=cidacsrl-linkage
+#SBATCH --nodes=1
+#SBATCH --cpus-per-task=16
+#SBATCH --mem=64G
+#SBATCH --time=04:00:00
+
+module load singularity   # ajuste conforme o módulo do seu site
+
+singularity exec \
+  --bind /scratch/dados:/data \
+  --bind "$PWD/configs":/configs \
+  cidacsrl.sif \
+  cidacsrl linkage \
+    --env-config /configs/env.yaml \
+    --spec-config /configs/spec.yaml
+```
+
+O `.sif` também serve de imagem para os executors caso você rode Spark distribuído sobre o cluster; mas, em cenários `spark.master: "local[*]"` num fat node costuma ser o caminho mais simples e não exige rede alguma além do acesso ao Elasticsearch.
+
+### Estratégia B: jars em filesystem compartilhado + `spark.jars`
+
+Se preferir usar o Spark já instalado nos nós (sem container), baixe os jars por **caminho local** e referencie-os com `spark.jars` (arquivos locais) em vez de `spark.jars.packages` (coordenada Maven).
+
+**Na máquina com internet — baixe os jars e os wheels Python:**
+
+```bash
+# Jars da JVM
+mkdir -p offline/jars
+curl -fL https://repo1.maven.org/maven2/org/elasticsearch/elasticsearch-spark-30_2.12/9.1.8/elasticsearch-spark-30_2.12-9.1.8.jar \
+     -o offline/jars/elasticsearch-spark-30_2.12-9.1.8.jar
+curl -fL https://repos.spark-packages.org/graphframes/graphframes/0.8.3-spark3.5-s_2.12/graphframes-0.8.3-spark3.5-s_2.12.jar \
+     -o offline/jars/graphframes-0.8.3-spark3.5-s_2.12.jar
+
+# Pacote cidacsrl + todas as dependências Python como wheels
+pip download . -d offline/wheels/
+
+# Copie a pasta offline/ para o storage compartilhado do servidor (ex: /shared/cidacsrl)
+```
+
+**No servidor — instale o pacote Python sem internet e aponte `spark.jars` para os arquivos locais:**
+
+```bash
+pip install --no-index --find-links /shared/cidacsrl/wheels/ cidacsrl
+```
+
+```yaml
+spark:
+  spark_configs:
+    spark.master: "local[*]"
+    # Vários jars: separados por vírgula. NÃO use spark.jars.packages aqui.
+    spark.jars: "/shared/cidacsrl/jars/elasticsearch-spark-30_2.12-9.1.8.jar"
+```
+
+> ⚠️ **Transitividade:** `spark.jars` **não resolve dependências transitivas** (só `spark.jars.packages` faz isso). O conector do Elasticsearch é um jar autocontido, então basta ele; mas, se algum jar exigir bibliotecas adicionais, você precisa baixá-las também e listá-las todas em `spark.jars`. Alternativa: pré-popular o cache Ivy (`~/.ivy2`) numa máquina com internet e copiá-lo para o `$HOME` no servidor — aí `spark.jars.packages` resolve offline a partir do cache.
+
+### Certificados do Elasticsearch em ambiente air-gapped
+
+Se o cluster ES exigir TLS com CA interna/self-signed ou mTLS, os mecanismos de certificado são os mesmos descritos em **[TLS e Certificados](./elasticsearch_indexing.md#tls-e-certificados)** (arquivos PEM para o cliente de consulta; truststore/keystore Java `.jks`/`.p12` para a escrita em massa via Spark). O que muda no air-gapped é que **nada pode ser buscado em runtime** — a CA não pode ser distribuída via `update-ca-certificates` puxando de um mirror interno no momento do job, nem o truststore pode ser montado a partir de um path que só existe na rede corporativa. Os certificados precisam **viajar junto com o artefato**. Duas formas:
+
+- **Bind-mount no Singularity (recomendado — desacopla certificado da imagem):** copie os arquivos para o HPC e monte-os no container, apontando o YAML para os caminhos internos:
+
+  ```bash
+  singularity exec \
+    --bind /scratch/dados:/data \
+    --bind "$PWD/configs":/configs \
+    --bind "$PWD/certs":/certs:ro \
+    cidacsrl.sif \
+    cidacsrl indexing --env-config /configs/env.yaml --spec-config /configs/spec.yaml
+  ```
+
+  ```yaml
+  elasticsearch:
+    es_connection_url: "https://es.interno.exemplo.com:9200"
+    verify_certs: true
+    ca_certs: "/certs/ca.pem"                                # cliente de consulta (PEM)
+    es.net.ssl.truststore.location: "/certs/truststore.jks"  # escrita em massa via Spark
+    es.net.ssl.truststore.pass: "senha-do-truststore"
+  ```
+
+- **Embutir a CA na imagem (build na máquina com internet):** importe a CA no trust store do SO e no `cacerts` da JVM dentro do `deploy/hpc/Dockerfile`, de modo que `verify_certs: true` funcione sem `ca_certs`/`truststore` no YAML. Menos flexível (recompilar a imagem a cada rotação de certificado), mas evita gerenciar arquivos soltos no servidor.
+
+No caso de `spark.master: "local[*]"` (driver e executors no mesmo processo/container), a exigência de "replicar a CA em todos os nós" descrita no guia de indexação **colapsa para um único container** — basta o certificado estar acessível ali. Isso só volta a importar se você rodar Spark realmente distribuído sobre o cluster, quando cada executor precisa enxergar o mesmo truststore.
+
+### Versões dos jars precisam bater exatamente
+
+Offline não há como "cair" para outra versão: os jars presentes precisam ser compatíveis com o Spark da imagem/instalação e com o servidor Elasticsearch. As versões canônicas do projeto são:
+
+| Componente | Versão | Compatível com |
+|---|---|---|
+| Conector Elasticsearch | `org.elasticsearch:elasticsearch-spark-30_2.12:9.1.8` | ES server 9.1.x, Spark 3.x, Scala 2.12 |
+| GraphFrames | `graphframes:graphframes:0.8.3-spark3.5-s_2.12` | Spark 3.5, Scala 2.12 |
+
+---
+
 ## Checklist antes de rodar em produção
 
 1. `spark.master` aponta para o cluster (não `local[*]`).
@@ -107,3 +237,4 @@ Isso evita que o conector tente descobrir e se conectar diretamente aos nós int
 4. Para `deduplication`, o path de checkpoint do GraphFrames está em storage compartilhado.
 5. `spark.jars.packages`/`spark.jars.repositories` corretos para a etapa (conector ES para `indexing`/`linkage`; GraphFrames para `deduplication`).
 6. Decidido se o job roda via CLI direta (`client` mode) ou via `spark-submit --deploy-mode cluster`.
+7. **Ambiente air-gapped:** jars embutidos na imagem (`/opt/spark/jars`) ou em filesystem compartilhado via `spark.jars` — **nunca** `spark.jars.packages`, que exige internet em runtime. Ver [Execução Offline / Air-gapped](#execucao-offline-air-gapped-servidores-sem-internet).

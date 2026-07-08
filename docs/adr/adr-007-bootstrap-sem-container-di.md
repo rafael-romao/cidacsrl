@@ -1,4 +1,4 @@
-# ADR 008: Bootstrap manual ("Poor Man's DI") em vez de container de injeção de dependências
+# ADR 007: Bootstrap manual ("Poor Man's DI") em vez de container de injeção de dependências
 
 ## Status
 
@@ -26,4 +26,4 @@ Quando a lógica condicional de montagem cresceu (ex.: escolher `SingleSearchExe
 
 - `src/cidacsrl/bootstrap/linkage_bootstrap.py`, `indexing_bootstrap.py`, `deduplication_bootstrap.py`
 - Commits: `1571745` (linkage_runner → bootstrapper), `085c88c` (extração de dispatches para fábricas privadas)
-- Relacionada: [ADR 001](adr-001-arquitetura-hexagonal.md) (o crescimento de ports/adapters que pressiona o wiring manual), [ADR 007](adr-007-reorganizacao-layer-feature.md) (Bootstrap como camada própria na árvore de diretórios)
+- Relacionada: [ADR 001](adr-001-arquitetura-hexagonal.md) (o crescimento de ports/adapters que pressiona o wiring manual), [ADR 006](adr-006-reorganizacao-layer-feature.md) (Bootstrap como camada própria na árvore de diretórios)
