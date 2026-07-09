@@ -1,5 +1,5 @@
 # Build do pacote Python
-FROM python:3.10-slim AS builder
+FROM python:3.12-slim AS builder
 
 WORKDIR /build
 RUN pip install --no-cache-dir build
@@ -98,7 +98,7 @@ CMD ["tail", "-f", "/dev/null"]
 
 
 # Jupyter
-FROM python:3.10-slim AS jupyter-dev
+FROM python:3.12-slim AS jupyter-dev
 
 WORKDIR /app
 
