@@ -1,7 +1,7 @@
 app_name: "CIDACS-RL Deduplicação — Acidentes × Óbitos (E2E)"
 
 storage:
-  source_path: "tests/data/output/linkage_acidentes_example_obitos_example_index/phase_match=fase_exata"
+  source_path: "tests/data/output/acidentes_obitos/phase_match=fase_exata"
   source_format: "parquet"
   output_path: "tests/output/dedup_acidentes_obitos"
   output_format: "parquet"
