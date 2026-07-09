@@ -90,7 +90,8 @@ def verify_and_validate_e2e_results(
 
     source_table = linkage_spec["source_table"]
     target_es_index = linkage_spec["target_es_index"]
-    project_output_path = base_output_path / f"linkage_{source_table}_{target_es_index}"
+    linkage_project_name = linkage_spec.get("workflow_name") or f"linkage_{source_table}_{target_es_index}"
+    project_output_path = base_output_path / linkage_project_name
 
     logger.info(f"Varrendo os resultados consolidados na árvore do projeto: {project_output_path}")
     if not project_output_path.exists():
