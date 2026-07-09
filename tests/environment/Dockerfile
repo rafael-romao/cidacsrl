@@ -35,13 +35,27 @@ RUN curl -fL "https://repos.spark-packages.org/graphframes/graphframes/0.8.3-spa
 
 
 # Runtime Spark
-FROM apache/spark:3.5.8-python3 AS runtime-spark
+FROM apache/spark:3.5.8-scala2.12-java17-ubuntu AS runtime-spark
 
 USER root
 WORKDIR /app
 
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends software-properties-common gnupg curl ca-certificates && \
+    add-apt-repository -y ppa:deadsnakes/ppa && \
+    apt-get update && \
+    apt-get install -y --no-install-recommends python3.12 python3.12-venv && \
+    curl -sS https://bootstrap.pypa.io/get-pip.py | python3.12 && \
+    ln -sf /usr/bin/python3.12 /usr/local/bin/python3 && \
+    ln -sf /usr/bin/python3.12 /usr/local/bin/python && \
+    apt-get purge -y software-properties-common gnupg && \
+    apt-get autoremove -y && \
+    rm -rf /var/lib/apt/lists/*
+
+ENV PYSPARK_PYTHON=/usr/bin/python3.12
+ENV PYSPARK_DRIVER_PYTHON=/usr/bin/python3.12
 ENV PYTHONPATH=/app:$PYTHONPATH
-ENV PATH=/opt/spark/bin:$PATH
+ENV PATH=/usr/local/bin:/opt/spark/bin:$PATH
 
 COPY --from=builder /build/spark_packages /opt/spark/pyfiles
 RUN pip install --no-cache-dir /opt/spark/pyfiles/*.whl

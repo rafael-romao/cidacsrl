@@ -17,7 +17,8 @@
 #   deduplication  -> deduplication       (jar do GraphFrames)
 #   full           -> todas as etapas num único artefato (recomendado p/ HPC)
 
-ARG SPARK_IMAGE=apache/spark:3.5.8-python3
+
+ARG SPARK_IMAGE=apache/spark:3.5.8-scala2.12-java17-ubuntu
 ARG ES_CONNECTOR_VERSION=9.1.8
 ARG GRAPHFRAMES_VERSION=0.8.3-spark3.5-s_2.12
 
@@ -51,6 +52,23 @@ FROM ${SPARK_IMAGE} AS runtime
 USER root
 WORKDIR /app
 
+# Instala Python 3.12 (deadsnakes) — precisa de internet, só nesta etapa de
+# build. O artefato final (.sif) não depende mais de rede.
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends software-properties-common gnupg curl ca-certificates && \
+    add-apt-repository -y ppa:deadsnakes/ppa && \
+    apt-get update && \
+    apt-get install -y --no-install-recommends python3.12 python3.12-venv && \
+    curl -sS https://bootstrap.pypa.io/get-pip.py | python3.12 && \
+    ln -sf /usr/bin/python3.12 /usr/local/bin/python3 && \
+    ln -sf /usr/bin/python3.12 /usr/local/bin/python && \
+    apt-get purge -y software-properties-common gnupg && \
+    apt-get autoremove -y && \
+    rm -rf /var/lib/apt/lists/*
+
+ENV PYSPARK_PYTHON=/usr/bin/python3.12
+ENV PYSPARK_DRIVER_PYTHON=/usr/bin/python3.12
+ENV PATH=/usr/local/bin:$PATH
 ENV PYTHONUNBUFFERED=1
 # pyspark usa o Spark embutido em SPARK_HOME; qualquer jar em /opt/spark/jars
 # é adicionado ao classpath automaticamente, sem spark.jars.packages.
